@@ -1,0 +1,11 @@
+*.swp
+*~
+.DS_Store
+.git
+.gitignore
+README.md
+
+{{ if not (lookPath "fish") }}
+.config/fish
+.config/fish/**
+{{ end }}
