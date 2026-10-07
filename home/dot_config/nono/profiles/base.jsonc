@@ -25,6 +25,7 @@
       "vscode_macos"
     ]
   },
+  "allow_launch_services": false,
   "workdir": {
     "access": "read"
   },
@@ -77,7 +78,9 @@
       "VISUAL",
       "MANPATH",
       "XDG_CONFIG_HOME",
+      "XDG_CONFIG_DIRS",
       "XDG_DATA_HOME",
+      "XDG_DATA_DIRS",
       "XDG_STATE_HOME",
       "XDG_CACHE_HOME",
       "ENABLE_*",
@@ -85,7 +88,12 @@
       "GH_*",
       "GO*",
       "CGO*"
-    ]
+    ],
+    // GO* also matches Google credentials; deny takes precedence over allow.
+    "deny_vars": [
+      "GOOGLE_*"
+    ],
+    "case_insensitive_vars": true
   },
   "network": {
     "block": false,
