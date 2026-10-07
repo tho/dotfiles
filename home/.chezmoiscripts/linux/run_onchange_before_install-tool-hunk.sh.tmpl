@@ -1,0 +1,12 @@
+{{ if eq .osid "linux-debian" "linux-ubuntu" -}}
+#!/bin/bash
+
+set -eufo pipefail
+
+if ! command -v hunk >/dev/null; then
+    installer="$(mktemp)"
+    trap 'rm -f -- "$installer"' EXIT
+    curl -fsSL https://hunk.dev/install.sh -o "$installer"
+    HUNK_INSTALL_DIR="$HOME/.local/bin" sh "$installer" --no-modify-path
+fi
+{{ end -}}
