@@ -1,0 +1,12 @@
+{{ if eq .osid "linux-debian" "linux-ubuntu" -}}
+#!/bin/bash
+
+set -eufo pipefail
+
+if ! command -v nono >/dev/null; then
+    installer="$(mktemp)"
+    trap 'rm -f -- "$installer"' EXIT
+    curl -fsSL https://nono.sh/install.sh -o "$installer"
+    NONO_INSTALL_DIR="$HOME/.local/bin" sh "$installer"
+fi
+{{ end -}}

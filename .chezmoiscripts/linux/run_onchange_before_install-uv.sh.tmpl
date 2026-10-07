@@ -3,7 +3,6 @@
 
 set -eufo pipefail
 
-# Unlike an external file, a before script makes uv available before modifiers.
 if ! command -v uv >/dev/null; then
     installer="$(mktemp)"
     trap 'rm -f -- "$installer"' EXIT

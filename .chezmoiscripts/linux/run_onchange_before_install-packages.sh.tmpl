@@ -4,8 +4,12 @@
      "ca-certificates"
      "curl"
      "fd-find"
+     "gh"
      "jq"
-     "ripgrep" -}}
+     "ripgrep"
+     "shellcheck"
+     "tree"
+     "vim" -}}
 
 {{ $sudo := "sudo " -}}
 {{ if eq .chezmoi.username "root" -}}
