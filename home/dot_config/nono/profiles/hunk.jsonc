@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "name": "hunk",
+    "description": "Optional hunk integration"
+  },
+  "filesystem": {
+    "read": [
+      "$HOME/.hunk"
+    ]
+  },
+  "network": {
+    "open_port": [
+      47657
+    ]
+  }
+}

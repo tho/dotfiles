@@ -1,7 +1,9 @@
 {
   "extends": [
     "nolabs-ai/pi",
-    "base"
+    "base",
+    "hunk",
+    "lm-studio"
   ],
   "meta": {
     "name": "pi-ro",

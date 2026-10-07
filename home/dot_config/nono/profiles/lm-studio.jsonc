@@ -1,0 +1,11 @@
+{
+  "meta": {
+    "name": "lm-studio",
+    "description": "Optional LM Studio local API access"
+  },
+  "network": {
+    "open_port": [
+      1234
+    ]
+  }
+}

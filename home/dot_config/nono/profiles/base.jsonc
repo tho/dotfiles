@@ -18,7 +18,11 @@
     "exclude": [
       "nix_runtime",
       "node_runtime",
-      "rust_runtime"
+      "rust_runtime",
+      "user_caches_linux",
+      "user_caches_macos",
+      "vscode_linux",
+      "vscode_macos"
     ]
   },
   "workdir": {
@@ -26,8 +30,7 @@
   },
   "filesystem": {
     "read": [
-      "$XDG_CONFIG_HOME/gh",
-      "$HOME/.hunk"
+      "$XDG_CONFIG_HOME/gh"
     ],
     "read_file": [
       {
@@ -77,22 +80,17 @@
       "XDG_DATA_HOME",
       "XDG_STATE_HOME",
       "XDG_CACHE_HOME",
-      // Linux gh authentication uses GH_TOKEN / GH_ENTERPRISE_TOKEN.
-      // Do not expose the session D-Bus/keyring to the agent.
-      "GH_*",
-      "GOPRIVATE",
+      "ENABLE_*",
       "DISABLE_*",
-      "ENABLE_*"
+      "GH_*",
+      "GO*",
+      "CGO*"
     ]
   },
   "network": {
     "block": false,
     "allow_domain": [
       "api.github.com"
-    ],
-    "open_port": [
-      1234, // LM Studio
-      47657 // hunk
     ]
   }
 }

@@ -15,7 +15,8 @@
     "allow": [
       "$XDG_CONFIG_HOME/swival",
       "$XDG_DATA_HOME/swival",
-      "$NONO_CONFIG/profile-drafts"
+      "$NONO_CONFIG/profile-drafts",
+      "$XDG_CACHE_HOME/uv"
     ],
     "read": [
       "$NONO_PACKAGES",
