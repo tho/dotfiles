@@ -1,0 +1,5 @@
+[".vim/pack/tpope/start/vim-sensible"]
+    type = "archive"
+    url = "https://github.com/tpope/vim-sensible/archive/refs/tags/v2.0.tar.gz"
+    stripComponents = 1
+    checksum.sha256 = "1cfb72afe7c291f4b44e1b703cc52b0ac62a6a5aa82238fc3599f360505730f2"
