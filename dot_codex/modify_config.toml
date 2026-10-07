@@ -1,0 +1,32 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["tomlkit>=0.13,<1"]
+# ///
+
+import sys
+
+import tomlkit
+
+config = tomlkit.parse(sys.stdin.read())
+
+settings = {
+    "analytics": {"enabled": False},
+    "feedback": {"enabled": False},
+    "otel": {
+        "exporter": "none",
+        "log_agent_responses": False,
+        "log_guardian_assessments": False,
+        "log_user_prompt": False,
+        "metrics_exporter": "none",
+        "trace_exporter": "none",
+    },
+}
+
+for section, values in settings.items():
+    if section not in config:
+        config[section] = tomlkit.table()
+    for key, value in values.items():
+        config[section][key] = value
+
+sys.stdout.write(tomlkit.dumps(config))
