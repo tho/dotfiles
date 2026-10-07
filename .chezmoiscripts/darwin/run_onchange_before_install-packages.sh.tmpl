@@ -3,7 +3,9 @@
 set -eufo pipefail
 
 {{ $brews := list
+     "fd"
      "jq"
+     "ripgrep"
      "uv" -}}
 
 brew bundle --file=/dev/stdin <<EOF

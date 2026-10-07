@@ -3,7 +3,9 @@
 {{ $packages := list
      "ca-certificates"
      "curl"
-     "jq" -}}
+     "fd-find"
+     "jq"
+     "ripgrep" -}}
 
 {{ $sudo := "sudo " -}}
 {{ if eq .chezmoi.username "root" -}}

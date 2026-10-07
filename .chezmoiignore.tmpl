@@ -4,6 +4,7 @@
 .git
 .gitignore
 README.md
+AGENTS.md
 
 {{ if ne .chezmoi.os "darwin" }}
 .chezmoiscripts/darwin/**
@@ -11,6 +12,10 @@ README.md
 
 {{ if ne .chezmoi.os "linux" }}
 .chezmoiscripts/linux/**
+{{ end }}
+
+{{ if not (eq .osid "linux-debian" "linux-ubuntu") }}
+.local/bin/fd
 {{ end }}
 
 {{ if and (not (lookPath "claude")) (not (stat (joinPath .chezmoi.homeDir ".claude/settings.json"))) }}
