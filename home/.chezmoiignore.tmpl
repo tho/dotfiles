@@ -14,6 +14,11 @@
 .local/bin/fd
 {{ end }}
 
+{{ if not (lookPath "fish") }}
+.config/fish
+.config/fish/**
+{{ end }}
+
 {{ if and (not (lookPath "claude")) (not (stat (joinPath .chezmoi.homeDir ".claude/settings.json"))) }}
 .claude
 .claude/**
@@ -22,11 +27,6 @@
 {{ if and (not (lookPath "codex")) (not (stat (joinPath .chezmoi.homeDir ".codex/config.toml"))) }}
 .codex
 .codex/**
-{{ end }}
-
-{{ if not (lookPath "fish") }}
-.config/fish
-.config/fish/**
 {{ end }}
 
 {{ if and (not (lookPath "pi")) (not (stat (joinPath .chezmoi.homeDir ".pi/agent/settings.json"))) }}
