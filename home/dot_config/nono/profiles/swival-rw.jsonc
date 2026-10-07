@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "swival-ro"
+  ],
+  "meta": {
+    "name": "swival-rw",
+    "description": "Swival coding agent profile (rw)"
+  },
+  "workdir": {
+    "access": "readwrite"
+  }
+}

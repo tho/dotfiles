@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "claude-ro"
+  ],
+  "meta": {
+    "name": "claude-rw",
+    "description": "Claude Code coding agent profile (rw)"
+  },
+  "workdir": {
+    "access": "readwrite"
+  }
+}

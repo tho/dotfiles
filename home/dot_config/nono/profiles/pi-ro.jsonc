@@ -1,0 +1,24 @@
+{
+  "extends": [
+    "nolabs-ai/pi",
+    "base"
+  ],
+  "meta": {
+    "name": "pi-ro",
+    "description": "Pi coding agent profile (ro)"
+  },
+  "workdir": {
+    "access": "read"
+  },
+  "network": {
+    "allow_domain": [
+      "api.business.githubcopilot.com",
+      "api.github.com"
+    ]
+  },
+  "environment": {
+    "allow_vars": [
+      "PI_*"
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "name": "base",
+    "description": "Base profile"
+  },
+  "groups": {
+    "include": [
+      "go_runtime",
+      {
+        "name": "go_runtime_linux",
+        "when": "linux"
+      },
+      {
+        "name": "go_runtime_macos",
+        "when": "macos"
+      }
+    ],
+    "exclude": [
+      "nix_runtime",
+      "node_runtime",
+      "rust_runtime"
+    ]
+  },
+  "workdir": {
+    "access": "read"
+  },
+  "filesystem": {
+    "read": [
+      "$XDG_CONFIG_HOME/gh",
+      "$HOME/.hunk"
+    ],
+    "read_file": [
+      {
+        "path": "$HOME/Library/Keychains/login.keychain-db",
+        "when": "macos"
+      }
+    ],
+    "deny": [
+      "/sbin",
+      "/usr/sbin",
+      { "path": "/Applications", "when": "macos" },
+      { "path": "/cores", "when": "macos" },
+      { "path": "/Volumes", "when": "macos" }
+    ],
+    "bypass_protection": [
+      {
+        "path": "$HOME/Library/Keychains/login.keychain-db",
+        "when": "macos"
+      }
+    ],
+    "suppress_save_prompt": [
+      "~/.bash_history"
+    ]
+  },
+  "environment": {
+    "allow_vars": [
+      "USER",
+      "PATH",
+      "HOME",
+      "TMPDIR",
+      "LANG",
+      "LC_CTYPE",
+      "TERM",
+      "EDITOR",
+      "VISUAL",
+      "MANPATH",
+      "XDG_CONFIG_HOME",
+      "XDG_DATA_HOME",
+      "XDG_STATE_HOME",
+      "XDG_CACHE_HOME",
+      // Linux gh authentication uses GH_TOKEN / GH_ENTERPRISE_TOKEN.
+      // Do not expose the session D-Bus/keyring to the agent.
+      "GH_*",
+      "GOPRIVATE",
+      "DISABLE_*",
+      "ENABLE_*"
+    ]
+  },
+  "network": {
+    "block": false,
+    "allow_domain": [
+      "api.github.com"
+    ],
+    "open_port": [
+      1234, // LM Studio
+      47657 // hunk
+    ]
+  }
+}

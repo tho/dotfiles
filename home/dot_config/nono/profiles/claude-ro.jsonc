@@ -1,0 +1,43 @@
+{
+  "extends": [
+    "nolabs-ai/claude",
+    "base"
+  ],
+  "meta": {
+    "name": "claude-ro",
+    "description": "Claude Code coding agent profile (ro)"
+  },
+  "workdir": {
+    "access": "read"
+  },
+  "security": {
+    // Uncomment only when using VS Code + Claude Code integration.
+    // Claude signal-probes (kill -0) the out-of-sandbox extension to read
+    // the IDE lock; scoped modes block it.
+    // Cost: can signal/kill the user's other processes, but not read their data.
+    // "signal_mode": "allow_all"
+  },
+  "environment": {
+    "allow_vars": [
+      // Claude Code accepts more environment variables w/o consistent prefix.
+      // Enable as needed.
+      "ANTHROPIC_*",
+      "CLAUDE_*",
+      "MCP_*"
+    ]
+  },
+  "network": {
+    "allow_domain": [
+      // https://code.claude.com/docs/en/network-config
+      "api.anthropic.com",
+      "claude.ai",
+      "platform.claude.com",
+      "mcp-proxy.anthropic.com"
+    ],
+    "open_port": [
+      // Uncomment only when using VS Code + Claude Code integration on macOS.
+      // Linux requires explicit ports; 0 does not enable dynamic ports there.
+      // 0 // localhost:* outbound — IDE WebSocket on dynamic CLAUDE_CODE_SSE_PORT
+    ]
+  }
+}

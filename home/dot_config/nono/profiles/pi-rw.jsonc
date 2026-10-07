@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "pi-ro"
+  ],
+  "meta": {
+    "name": "pi-rw",
+    "description": "Pi coding agent profile (rw)"
+  },
+  "workdir": {
+    "access": "readwrite"
+  }
+}

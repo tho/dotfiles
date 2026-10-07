@@ -1,0 +1,25 @@
+{
+  "extends": [
+    "jedisct1/swival",
+    "base"
+  ],
+  "meta": {
+    "name": "swival-ro",
+    "description": "Swival coding agent profile (ro)"
+  },
+  "filesystem": {
+    // Add portable paths; inherited hardcoded grants remain until the pack fixes them.
+    "allow": [
+      "$XDG_CONFIG_HOME/swival",
+      "$XDG_DATA_HOME/swival",
+      "$NONO_CONFIG/profile-drafts"
+    ],
+    "read": [
+      "$NONO_PACKAGES",
+      "$NONO_CONFIG/profiles"
+    ]
+  },
+  "workdir": {
+    "access": "read"
+  }
+}
