@@ -1,3 +1,11 @@
+[aliases]
+claude = "env HERDR_AGENT=claude nono run -s -p claude-rw --allow-cwd -- claude --permission-mode=auto"
+claudero = "env HERDR_AGENT=claude nono run -s -p claude-ro --allow-cwd -- claude --permission-mode=auto"
+pi = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi"
+pins = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi --no-session"
+piro = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi"
+pirons = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi --no-session"
+
 [env]
 DISABLE_TELEMETRY = 1
 EDITOR = "vim"

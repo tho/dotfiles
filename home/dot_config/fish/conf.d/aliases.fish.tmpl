@@ -1,0 +1,3 @@
+{{ range $name, $command := .aliases -}}
+alias {{ $name }} {{ $command | quote }}
+{{ end -}}

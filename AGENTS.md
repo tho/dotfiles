@@ -1,3 +1,7 @@
+# Shell compatibility
+
+- Shell-specific changes should work in bash, fish, and zsh.
+
 # Adding software
 
 - Support both Ubuntu/Debian and macOS unless explicitly told otherwise.
