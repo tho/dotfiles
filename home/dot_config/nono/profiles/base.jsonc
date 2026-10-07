@@ -38,9 +38,18 @@
     "deny": [
       "/sbin",
       "/usr/sbin",
-      { "path": "/Applications", "when": "macos" },
-      { "path": "/cores", "when": "macos" },
-      { "path": "/Volumes", "when": "macos" }
+      {
+        "path": "/Applications",
+        "when": "macos"
+      },
+      {
+        "path": "/cores",
+        "when": "macos"
+      },
+      {
+        "path": "/Volumes",
+        "when": "macos"
+      }
     ],
     "bypass_protection": [
       {

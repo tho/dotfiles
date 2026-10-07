@@ -10,15 +10,15 @@
   "workdir": {
     "access": "read"
   },
+  "environment": {
+    "allow_vars": [
+      "PI_*"
+    ]
+  },
   "network": {
     "allow_domain": [
       "api.business.githubcopilot.com",
       "api.github.com"
-    ]
-  },
-  "environment": {
-    "allow_vars": [
-      "PI_*"
     ]
   }
 }

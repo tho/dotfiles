@@ -7,6 +7,9 @@
     "name": "swival-ro",
     "description": "Swival coding agent profile (ro)"
   },
+  "workdir": {
+    "access": "read"
+  },
   "filesystem": {
     // Add portable paths; inherited hardcoded grants remain until the pack fixes them.
     "allow": [
@@ -18,8 +21,5 @@
       "$NONO_PACKAGES",
       "$NONO_CONFIG/profiles"
     ]
-  },
-  "workdir": {
-    "access": "read"
   }
 }
