@@ -1,0 +1,47 @@
+{
+  "extends": [
+    "default",
+    "base"
+  ],
+  "meta": {
+    "name": "codex-ro",
+    "description": "Codex coding agent profile (ro)"
+  },
+  "groups": {
+    "include": [
+      "git_config",
+      "unlink_protection"
+    ]
+  },
+  "filesystem": {
+    // Codex keeps configuration, authentication, and session state here.
+    // For a custom CODEX_HOME, grant that directory explicitly at launch.
+    "allow": [
+      "$HOME/.codex"
+    ],
+    "read": [
+      "$HOME/.agents/skills"
+    ]
+  },
+  "workdir": {
+    "access": "read"
+  },
+  "environment": {
+    "allow_vars": [
+      "CODEX_*",
+      "OPENAI_*"
+    ]
+  },
+  "network": {
+    "allow_domain": [
+      "api.openai.com",
+      "auth.openai.com",
+      "chatgpt.com"
+    ]
+  },
+  "open_urls": {
+    "allow_origins": [
+      "https://auth.openai.com"
+    ]
+  }
+}

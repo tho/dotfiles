@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "codex-ro"
+  ],
+  "meta": {
+    "name": "codex-rw",
+    "description": "Codex coding agent profile (rw)"
+  },
+  "workdir": {
+    "access": "readwrite"
+  }
+}
