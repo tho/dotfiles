@@ -3,7 +3,8 @@
     "nolabs-ai/pi",
     "base",
     "hunk",
-    "lm-studio"
+    "lm-studio",
+    "providers"
   ],
   "meta": {
     "name": "pi-ro",
@@ -15,12 +16,6 @@
   "environment": {
     "allow_vars": [
       "PI_*"
-    ]
-  },
-  "network": {
-    "allow_domain": [
-      "api.business.githubcopilot.com",
-      "api.github.com"
     ]
   }
 }

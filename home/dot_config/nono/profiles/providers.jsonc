@@ -1,0 +1,23 @@
+{
+  "meta": {
+    "name": "providers",
+    "description": "GitHub Copilot, OpenAI, and Anthropic access for multi-provider agents"
+  },
+  "network": {
+    "allow_domain": [
+      // Anthropic
+      "api.anthropic.com",
+      "platform.claude.com",
+      // Copilot
+      "api.github.com",
+      "api.githubcopilot.com",
+      "api.individual.githubcopilot.com",
+      "api.business.githubcopilot.com",
+      "api.enterprise.githubcopilot.com",
+      // OpenAI
+      "api.openai.com",
+      "auth.openai.com",
+      "chatgpt.com"
+    ]
+  }
+}

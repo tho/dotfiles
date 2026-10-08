@@ -1,7 +1,9 @@
 {
   "extends": [
     "jedisct1/swival",
-    "base"
+    "base",
+    "lm-studio",
+    "providers"
   ],
   "meta": {
     "name": "swival-ro",
