@@ -10,6 +10,7 @@ pirons = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi --no-session
 
 [env]
 DISABLE_TELEMETRY = 1
+DO_NOT_TRACK = 1
 EDITOR = "vim"
 PI_OFFLINE = 1
 PI_SKIP_VERSION_CHECK = 1
