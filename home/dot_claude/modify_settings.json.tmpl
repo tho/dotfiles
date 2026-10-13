@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+jq -s '
+{{ template "claude-settings.jq" . }}
+'

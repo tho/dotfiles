@@ -6,8 +6,14 @@
 {{-   $osID = printf "%s-%s" .chezmoi.os .chezmoi.osRelease.id -}}
 {{- end -}}
 
+{{- $sbx := false -}}{{/* true inside a Docker sbx sandbox */}}
+{{- if stat "/etc/sandbox-persistent.sh" -}}
+{{-   $sbx = true -}}
+{{- end -}}
+
 [data]
     osid = {{ $osID | quote }}
+    sbx = {{ $sbx }}
     name = {{ $name | quote }}
     email = {{ $email | quote }}
 

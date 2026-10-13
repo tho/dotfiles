@@ -1,0 +1,43 @@
+{{ if .sbx -}}
+#!/usr/bin/env bash
+
+# sbx ignores user-level ~/.claude, so merge Claude settings into the workspace project settings.
+set -euo pipefail
+
+command -v claude >/dev/null || exit 0
+
+readonly dir={{ env "CHEZMOI_SANDBOX_PROJECT_DIR" | default .chezmoi.commandDir | replace "'" "'\\''" | printf "'%s'" }}
+if [[ ! -d "$dir" ]]; then
+  printf 'Sandbox project directory does not exist: %s\n' "$dir" >&2
+  exit 1
+fi
+
+project_dir=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
+if [[ "$project_dir" == "$HOME" ]]; then
+  printf 'Skipping Claude project settings; run chezmoi from the sandbox workspace\n' >&2
+  exit 0
+fi
+
+settings_file="$project_dir/.claude/settings.local.json"
+if [[ -L "$settings_file" ]]; then
+  printf 'Refusing to replace symlink: %s\n' "$settings_file" >&2
+  exit 1
+fi
+
+mkdir -p -- "$project_dir/.claude"
+settings_tmp=$(mktemp "$project_dir/.claude/.settings.local.json.XXXXXX")
+trap 'rm -f -- "$settings_tmp"' EXIT
+
+src=/dev/null
+if [[ -f "$settings_file" ]]; then
+  src=$settings_file
+  chmod --reference="$settings_file" "$settings_tmp"
+fi
+jq -s '
+{{ template "claude-settings.jq" . }}
+' "$src" >"$settings_tmp"
+
+if ! cmp -s "$settings_tmp" "$settings_file"; then
+  mv -f -- "$settings_tmp" "$settings_file"
+fi
+{{ end -}}
