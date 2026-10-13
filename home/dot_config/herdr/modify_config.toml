@@ -1,0 +1,18 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["tomlkit>=0.13,<1"]
+# ///
+
+import sys
+
+import tomlkit
+
+config = tomlkit.parse(sys.stdin.read())
+
+if "update" not in config:
+    config["update"] = tomlkit.table()
+config["update"]["version_check"] = False
+config["update"]["manifest_check"] = False
+
+sys.stdout.write(tomlkit.dumps(config))
