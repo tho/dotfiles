@@ -29,4 +29,11 @@ for section, values in settings.items():
     for key, value in values.items():
         config[section][key] = value
 
+# Profiles can override analytics; OpenTelemetry and feedback are global settings.
+for profile in config.get("profiles", {}).values():
+    if "analytics" not in profile:
+        profile["analytics"] = tomlkit.table()
+    for key, value in settings["analytics"].items():
+        profile["analytics"][key] = value
+
 sys.stdout.write(tomlkit.dumps(config))

@@ -9,9 +9,14 @@ piro = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi"
 pirons = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi --no-session"
 
 [env]
+ASTRO_TELEMETRY_DISABLED = 1
+CLAUDE_CODE_ENABLE_TELEMETRY = 0
+DISABLE_ERROR_REPORTING = 1
 DISABLE_TELEMETRY = 1
 DO_NOT_TRACK = 1
 EDITOR = "vim"
+ENABLE_BETA_TRACING_DETAILED = 0
+GH_TELEMETRY = "false"
 HOMEBREW_NO_ANALYTICS = 1
 PI_OFFLINE = 1
 PI_SKIP_VERSION_CHECK = 1

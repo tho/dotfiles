@@ -19,3 +19,6 @@
 
 [scriptEnv]
     PATH = {{ printf "%s/.local/bin:/opt/homebrew/bin:/usr/local/bin:%s" .chezmoi.homeDir (env "PATH") | quote }}
+{{- range $key, $value := (include ".chezmoidata.toml" | fromToml).env }}
+    {{ $key }} = {{ $value | toString | quote }}
+{{- end }}

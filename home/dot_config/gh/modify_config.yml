@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+chezmoi execute-template --with-stdin '{{ .chezmoi.stdin | fromYaml | default dict | setValueAtPath "telemetry" "disabled" | toYaml }}'
