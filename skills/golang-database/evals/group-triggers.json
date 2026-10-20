@@ -1,0 +1,238 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-documentation",
+    "golang-performance-engineering",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Unrun group evaluation specification. Load all listed converted skill descriptions together; exclude legacy skills. Missing required selections are misses; selections outside allowed are false matches. triggers.json is a separate isolated single-skill specification, not group results.",
+  "queries": [
+    {
+      "id": "db00",
+      "query": "Write a Go database/sql repository query that scans nullable profile fields and distinguishes a missing user.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "db01",
+      "query": "Review our sqlx IN query expansion and empty ID list handling.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "db02",
+      "query": "Fix a Go QueryContext loop that leaks rows on Scan errors.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "db03",
+      "query": "Implement atomic inventory reservation with Go and PostgreSQL transactions.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "db04",
+      "query": "Explain native pgx transaction cleanup when the request context is canceled.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "db05",
+      "query": "Our Go SQL pool has rising WaitCount. Check connection ownership and sizing.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "db06",
+      "query": "Add bounded pgx batch inserts with explicit partial-failure semantics.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "db07",
+      "query": "Review a Go helper returning live sql.Rows after deferring cancellation of its query context.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-correctness",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "db08",
+      "query": "Check whether our Go MySQL transaction isolation prevents lost updates.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "db09",
+      "query": "Debug a Go repository that uses db.ExecContext inside a transaction with MaxOpenConns set to one.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "near00",
+      "query": "Audit a Go HTTP endpoint for SQL injection through a user-controlled ORDER BY column.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "near01",
+      "query": "Design Go worker-pool cancellation and channel ownership.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "near02",
+      "query": "Explain context.WithoutCancel and request-scoped values in our Go service architecture.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "near03",
+      "query": "Write PostgreSQL migration SQL for a new invoicing schema.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "near04",
+      "query": "Write Go integration tests for a repository using testcontainers; focus on test isolation.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "near05",
+      "query": "Write godoc for our exported Go database repository interface.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "near06",
+      "query": "Choose clearer Go names for our database repository methods.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "near07",
+      "query": "Fix a typed-nil error returned by a Go cache interface.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "near08",
+      "query": "Compare Go benchmarks and CPU profiles for JSON serialization.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "near09",
+      "query": "Configure GitHub Actions to run govulncheck.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "mixed01",
+      "query": "Implement a Go PostgreSQL transfer transaction and audit HTTP authorization and SQL injection risks.",
+      "required": [
+        "golang-database",
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-security"
+      ]
+    },
+    {
+      "id": "mixed02",
+      "query": "Write real PostgreSQL integration tests proving our Go transaction rolls back both writes and releases its connection after cancellation.",
+      "required": [
+        "golang-testing",
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-database",
+        "golang-concurrency"
+      ]
+    }
+  ]
+}

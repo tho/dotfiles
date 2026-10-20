@@ -1,0 +1,273 @@
+{
+  "skill_name": "golang-conventions",
+  "evals": [
+    {
+      "id": 1,
+      "name": "api-names",
+      "source": "golang-naming: constructors, options, errors",
+      "prompt": "Review these proposed names in package dbpool, which exposes Pool as its only constructible type: NewPool, PoolOption, WithTimeout, PoolStatus, MAX_RETRIES, ErrClosed, PoolError. Recommend names at call sites and say which changes would need a migration if already exported.",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Recommends dbpool.New and dbpool.Option, avoiding package/type stutter."
+        },
+        {
+          "id": "1.2",
+          "text": "Uses MixedCaps for MAX_RETRIES and retains meaningful WithTimeout and ErrClosed conventions."
+        },
+        {
+          "id": "1.3",
+          "text": "Recognizes that exported renames can break callers and require migration rather than treating them as automatically safe."
+        },
+        {
+          "id": "1.4",
+          "text": "Recommends dbpool.Status instead of PoolStatus and gives a nonstuttering Error-suffixed name for PoolError."
+        },
+        {
+          "id": "1.5",
+          "text": "Identifies concrete exported renames needing migration and a compatible transition such as deprecated wrappers or aliases, not only a generic breaking-change warning."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "boolean-policy",
+      "source": "golang-naming: predicates; approved corrections",
+      "prompt": "Our Go repository uses ready bool, Ready() bool, and error text \"invalid URL\". A reviewer says all three violate Go and demands isReady, IsReady and \"invalid url\". Resolve the review and explain whether these changes are required.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Accepts ready and Ready under the existing repository convention rather than enforcing mandatory prefixes."
+        },
+        {
+          "id": "2.2",
+          "text": "Accepts URL casing in ordinary error prose rather than declaring fully lowercase acronyms mandatory."
+        },
+        {
+          "id": "2.3",
+          "text": "Distinguishes optional style policy from language or correctness requirements."
+        },
+        {
+          "id": "2.4",
+          "text": "Explains that renaming exported Ready can break callers or interface satisfaction."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "short-circuit",
+      "source": "golang-code-style: complex conditions",
+      "prompt": "Review for readability and show a safe simplification if useful: if user != nil && (user.IsAdmin || expensivePermissionCheck(user)) { allow() }. A teammate wants isAdmin := user.IsAdmin and hasPermission := expensivePermissionCheck(user) computed above the if. The permission check increments an audit counter.",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "Rejects dereferencing user before its nil guard."
+        },
+        {
+          "id": "3.2",
+          "text": "Preserves skipping the permission check for nil users and admins, including its audit side effect."
+        },
+        {
+          "id": "3.3",
+          "text": "Does not impose condition extraction merely to meet an operand-count threshold."
+        },
+        {
+          "id": "3.4",
+          "text": "Any proposed rewrite evaluates permission exactly once only for non-nil non-admins, and preserves allow outcomes for both true and false permission results."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "collections",
+      "source": "golang-code-style: initialization; approved corrections",
+      "prompt": "A Go style patch replaces var users []User with users := []User{} everywhere and var cache map[string]User with cache := map[string]User{} everywhere. One endpoint promises JSON null for absent users; another promises []; cache is read before optional initialization and assignment. Review the policy.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Preserves JSON null for the absent-users contract and requires an empty nonnil slice where [] is promised."
+        },
+        {
+          "id": "4.2",
+          "text": "Explains that nil slices support append and need not universally be initialized."
+        },
+        {
+          "id": "4.3",
+          "text": "Distinguishes safe nil-map reads from assignments that require initialization."
+        },
+        {
+          "id": "4.4",
+          "text": "Explains that eager map allocation removes cache == nil state and may bypass optional or lazy initialization."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "imports-and-tests",
+      "source": "golang-naming: aliases, files, tests",
+      "prompt": "Review Go names: user_handler_linux_test.go, package http_test, TestParse_InvalidURL, subtest \"invalid URL\", import apiv1 \"example.com/api/v1\" and apiv2 \"example.com/api/v2\" (both declare package api), and f \"fmt\". Which should change and why?",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Accepts file/test suffixes, external test package underscore and test subcase underscore."
+        },
+        {
+          "id": "5.2",
+          "text": "Judges apiv1/apiv2 by the declared package api collision, not by import path suffixes."
+        },
+        {
+          "id": "5.3",
+          "text": "Removes gratuitous f alias and does not mandate lowercasing URL in the subtest."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "enum-and-options",
+      "source": "golang-naming: enums and options; approved corrections",
+      "prompt": "Package retry uses type Mode int with ModeAutomatic at zero intentionally meaning the default behavior, ModeDisabled at one, and Option func(*Client) with WithBackoff. It already has Retry and RetryContext. A reviewer requires ModeUnknown at zero, ClientOption and RetryWithContext. Review those requirements.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Preserves the intentionally useful zero value rather than inserting an obligatory unknown sentinel."
+        },
+        {
+          "id": "6.2",
+          "text": "Accepts retry.Option and WithBackoff without adding redundant Client qualification."
+        },
+        {
+          "id": "6.3",
+          "text": "Accepts the established Context suffix rather than requiring WithContext or renaming an existing API."
+        },
+        {
+          "id": "6.4",
+          "text": "Preserves ModeDisabled at one and explains the behavioral or compatibility consequence of shifting existing enum values."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "pointer-and-layout",
+      "source": "golang-code-style: values, signatures; approved corrections",
+      "prompt": "Review the claim: every struct over 128 bytes must be passed by pointer for speed, even read-only ones, and every four-argument Go call must wrap. Our published function signature has five parameters; callers rely on it. Recommend a style policy.",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Treats 128 bytes as a heuristic and calls for measurement before performance claims."
+        },
+        {
+          "id": "7.2",
+          "text": "Treats call wrapping as readability judgment instead of an unconditional argument-count rule."
+        },
+        {
+          "id": "7.3",
+          "text": "Acknowledges public signature compatibility before proposing parameter grouping."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "returns-and-priority",
+      "source": "golang-code-style: control flow and named returns",
+      "prompt": "Review a proposed Go cleanup: a function with named err and defer func(){ err = errors.Join(err, closeFile()) }() should lose its named return; and switch {case debug: level=Debug; case verbose: level=Warn} should become two independent ifs in that order. Both debug and verbose can be true. Explain any behavior risk and suggest a safe form.",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "Preserves the deferred modification of the returned error rather than blindly removing its named result."
+        },
+        {
+          "id": "8.2",
+          "text": "Preserves debug precedence when debug and verbose are both true."
+        },
+        {
+          "id": "8.3",
+          "text": "Provides or describes a safe switch or mutually exclusive branching alternative."
+        },
+        {
+          "id": "8.4",
+          "text": "Retains deferred cleanup or, if suggesting normal-return cleanup instead, explains the lost panic-unwinding cleanup and provides a way to preserve it."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "explicit-style-request",
+      "source": "golang-code-style: prior override traps",
+      "prompt": "For a teaching slide, show one Go call send(ctx, userID, message, priority) on a single line. Then explain the usual readability convention in one sentence. Do not redesign send.",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Honors the explicit single-line request rather than enforcing one argument per line."
+        },
+        {
+          "id": "9.2",
+          "text": "Does not change send signature or introduce an options struct."
+        },
+        {
+          "id": "9.3",
+          "text": "Gives the requested one-sentence explanation about call layout or line wrapping and readability, rather than only argument naming/order."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "variant-names",
+      "source": "golang-naming: variants; approved corrections",
+      "prompt": "Our Go slice package already uses SortInPlace and ReverseInPlace for mutation and ParseConfig for an error-returning parser. A proposal would rename the first two to SortIn and ReverseIn because Go requires In, and add a panic-on-error parser and format-string error wrapper. Review and name the new variants.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Rejects In as a universal requirement and preserves the established InPlace convention."
+        },
+        {
+          "id": "10.2",
+          "text": "Uses MustParseConfig or equivalent Must-prefixed panic variant."
+        },
+        {
+          "id": "10.3",
+          "text": "Uses an f-suffixed formatting wrapper such as Wrapf distinct from plain-message functions."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "lazy-map-style",
+      "source": "evaluation coverage gap",
+      "prompt": "Review this Go style cleanup. Existing code: var limits map[string]int; if limits == nil { limits = loadDefaults() }; limits[\"max\"] = 5. loadDefaults returns a nonnil map containing other required keys. The patch only changes the declaration to limits := map[string]int{}. Is that a harmless clarity improvement? Explain a safe choice.",
+      "assertions": [
+        {
+          "id": "11.1",
+          "text": "Rejects the patch because it prevents loadDefaults from running and loses its other required keys."
+        },
+        {
+          "id": "11.2",
+          "text": "Preserves the lazy initialization or calls loadDefaults explicitly before assignment rather than replacing it with an empty map."
+        },
+        {
+          "id": "11.3",
+          "text": "Distinguishes an empty nonnil map from nil without claiming that nil map reads panic."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "cleanup-style",
+      "source": "evaluation coverage gap",
+      "prompt": "A Go style review wants to shorten this function by removing defer and calling release() just before return, because doTask() has only one explicit return path: func run() (err error) { acquire(); defer release(); return doTask() }. doTask may panic and a caller recovers. Review the change and suggest the smallest safe cleanup; release must run exactly once after acquire succeeds.",
+      "assertions": [
+        {
+          "id": "12.1",
+          "text": "Rejects moving release only onto the normal-return path because it would be skipped during panic unwinding."
+        },
+        {
+          "id": "12.2",
+          "text": "Preserves exactly-once deferred release after successful acquire, including on panic, without swallowing the panic."
+        },
+        {
+          "id": "12.3",
+          "text": "Recognizes the named err is unnecessary here because the defer does not modify it, so an unnamed error result is a safe optional simplification."
+        }
+      ]
+    }
+  ]
+}

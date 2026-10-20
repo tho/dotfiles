@@ -1,0 +1,195 @@
+{
+  "skill_name": "golang-database",
+  "evals": [
+    {
+      "id": 1,
+      "name": "stream-context",
+      "prompt": "Review a Go helper that derives a 100 ms context, defers cancel, calls QueryContext and returns *sql.Rows to its caller.",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Identifies premature stream cancellation."
+        },
+        {
+          "id": "1.2",
+          "text": "Makes caller own context and rows or consumes rows before returning."
+        },
+        {
+          "id": "1.3",
+          "text": "Checks Scan, rows.Err and closure on early exit."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pgx-cleanup",
+      "prompt": "A pgx v5 handler begins a transaction, then the request is canceled. It assumes cancellation rolls back as with database/sql. Review.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Distinguishes native pgx from database/sql transaction lifetime."
+        },
+        {
+          "id": "2.2",
+          "text": "Requires explicit rollback with a usable bounded cleanup context when needed."
+        },
+        {
+          "id": "2.3",
+          "text": "Keeps cleanup owned and does not continue business writes after cancellation."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "commit-unknown",
+      "prompt": "A Go PostgreSQL transaction sends COMMIT then loses the connection before receiving its result. Can we retry the transfer automatically?",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "Recognizes uncertain commit outcome."
+        },
+        {
+          "id": "3.2",
+          "text": "Does not equate rollback attempt with proof of no persistence."
+        },
+        {
+          "id": "3.3",
+          "text": "Requires reconciliation or durable idempotency before replay."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "pool-self-deadlock",
+      "prompt": "A Go service sets MaxOpenConns(1), begins a transaction, then calls db.ExecContext for its second write. Fix the design.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Uses the transaction handle for all atomic work."
+        },
+        {
+          "id": "4.2",
+          "text": "Explains out-of-transaction pool acquisition waits for its own held connection."
+        },
+        {
+          "id": "4.3",
+          "text": "Checks commit result and arranges rollback."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "dialect-isolation",
+      "prompt": "Our Go transaction helper assumes nil options always mean READ COMMITTED and adds SELECT FOR UPDATE for PostgreSQL, MySQL and SQLite. Review.",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Rejects universal isolation default."
+        },
+        {
+          "id": "5.2",
+          "text": "Notes SQLite lacks SELECT FOR UPDATE."
+        },
+        {
+          "id": "5.3",
+          "text": "Chooses engine-specific protection for the actual invariant rather than universal serializable."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "null-empty",
+      "prompt": "Specify a sqlx GetContext/SelectContext repository contract preserving NULL bio versus empty bio and distinguishing missing users from empty lists.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Preserves NULL with compatible nullable representation."
+        },
+        {
+          "id": "6.2",
+          "text": "Distinguishes single-row no-rows from empty multi-row results."
+        },
+        {
+          "id": "6.3",
+          "text": "Does not claim sql.NullString encodes automatically as a JSON scalar."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "retry-effects",
+      "prompt": "A Go serializable transaction sends an email then gets PostgreSQL 40001. Design retry behavior.",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Retries whole transaction including reads with bounded attempts and caller budget."
+        },
+        {
+          "id": "7.2",
+          "text": "Prevents duplicated email through durable handoff or justified idempotency."
+        },
+        {
+          "id": "7.3",
+          "text": "Does not retry arbitrary commit/connection failures."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "pagination",
+      "prompt": "A Go event reader pages PostgreSQL with WHERE created_at > $1 ORDER BY created_at LIMIT 100. Many events share timestamps. Review.",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "Uses unique tie-breaker consistently in predicate and order."
+        },
+        {
+          "id": "8.2",
+          "text": "Explains omitted events at page boundaries."
+        },
+        {
+          "id": "8.3",
+          "text": "Avoids unconditional O(limit) guarantees."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "pool-budget",
+      "prompt": "Ten Go replicas each use MaxOpenConns 25; the database limit is 150 and WaitCount rises. Should each replica increase to 50?",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Accounts for aggregate pool demand and reserved connections."
+        },
+        {
+          "id": "9.2",
+          "text": "Investigates leaks, long transactions, query/lock delays and server load."
+        },
+        {
+          "id": "9.3",
+          "text": "Does not blindly increase capacity."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "batch-contract",
+      "prompt": "Design bounded pgx batches for importing 100000 rows where the import must be atomic.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Uses a transaction or equivalent justified atomic boundary."
+        },
+        {
+          "id": "10.2",
+          "text": "Closes and checks batch results before connection reuse."
+        },
+        {
+          "id": "10.3",
+          "text": "Chooses batch sizes from limits and workload without claiming a universal optimum."
+        }
+      ]
+    }
+  ]
+}

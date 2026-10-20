@@ -1,0 +1,106 @@
+[
+  {
+    "query": "Our Go server panics only on requests without an optional header. Find the cause.",
+    "should_trigger": true
+  },
+  {
+    "query": "My Go parser returns a truncated ID for large numbers. Diagnose why.",
+    "should_trigger": true
+  },
+  {
+    "query": "This Go test fails one run in twenty on CI, and we do not know why. Investigate.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go worker hangs during shutdown. Find which goroutine prevents completion.",
+    "should_trigger": true
+  },
+  {
+    "query": "A race report points to two Go handler stacks. Trace the conflicting accesses and explain the root cause.",
+    "should_trigger": true
+  },
+  {
+    "query": "The Go build fails with undefined symbols in CI but succeeds locally. Find the build-context difference.",
+    "should_trigger": true
+  },
+  {
+    "query": "A Go feature worked last week and now returns duplicate records. Help isolate the breaking change and cause.",
+    "should_trigger": true
+  },
+  {
+    "query": "For the incident report, investigate why our Go service returns 500 for one input. We have logs but no local reproduction.",
+    "should_trigger": true
+  },
+  {
+    "query": "These Go goroutine dumps show a stuck request. Determine whether this is a deadlock.",
+    "should_trigger": true
+  },
+  {
+    "query": "After each canceled Go request its worker goroutine stays blocked on send. Explain and fix the lifetime bug.",
+    "should_trigger": true
+  },
+  {
+    "query": "Help me debug this: my Go CLI crashes with a nil pointer dereference stack trace when the config file is empty.",
+    "should_trigger": true
+  },
+  {
+    "query": "Error rates on our Go API spiked right after this morning's deploy. Figure out what broke.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write table-driven Go tests for this specified parser contract; the implementation is already understood.",
+    "should_trigger": false
+  },
+  {
+    "query": "We already fixed and explained the Go bug. Add a regression test for the documented bad input.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use testify mocks to test this Go service interface.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write Go benchmarks and compare allocations for these two parsers.",
+    "should_trigger": false
+  },
+  {
+    "query": "Interpret this Go CPU pprof and recommend a measured optimization.",
+    "should_trigger": false
+  },
+  {
+    "query": "Investigate growing retained heap in our Go service using before and after heap profiles.",
+    "should_trigger": false
+  },
+  {
+    "query": "Analyze Go p99 latency and lock contention under load.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design cancellation and channel ownership for a new Go worker pool.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add structured logs and tracing to our Go HTTP service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Debug this Python exception.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix the YAML of our failing GitHub Actions release workflow for this Go project.",
+    "should_trigger": false
+  },
+  {
+    "query": "golangci-lint reports errcheck findings in our Go repo; configure suppressions for the generated code.",
+    "should_trigger": false
+  },
+  {
+    "query": "go get reports a version conflict between two Go modules; pick a compatible upgrade.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review this Go package for typed-nil error returns and slice aliasing before we merge.",
+    "should_trigger": false
+  }
+]

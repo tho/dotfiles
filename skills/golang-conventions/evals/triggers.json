@@ -1,0 +1,126 @@
+[
+  {
+    "query": "Choose idiomatic Go names for a client constructor and its options.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review Go identifiers: userId, MAX_RETRIES and GetName.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you simplify these nested Go conditionals without changing their behavior?",
+    "should_trigger": true
+  },
+  {
+    "query": "Establish Go naming and code clarity conventions for this repository.",
+    "should_trigger": true
+  },
+  {
+    "query": "We are preparing a Go release; review exported names for package stutter and compatibility.",
+    "should_trigger": true
+  },
+  {
+    "query": "Should this Go boolean field be ready or isReady?",
+    "should_trigger": true
+  },
+  {
+    "query": "Review Go import aliases and test function names.",
+    "should_trigger": true
+  },
+  {
+    "query": "Make this Go function signature and long call easier to read.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the names ErrMissing and MissingError in a Go API.",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose Go names for a panic-on-error parser and a printf-style logger.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write Go integration tests for an HTTP handler using testify.",
+    "should_trigger": false
+  },
+  {
+    "query": "Implement Go error wrapping that preserves errors.Is.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review a Go worker pool for cancellation and channel ownership.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare Go pprof CPU profiles and optimize the measured hot path.",
+    "should_trigger": false
+  },
+  {
+    "query": "Audit a Go outbound HTTP client for SSRF.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure golangci-lint naming checks in GitHub Actions.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write godoc prose for this existing Go API without renaming it.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose a PostgreSQL transaction isolation level for this Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain Java identifier naming conventions.",
+    "should_trigger": false
+  },
+  {
+    "query": "Draft release notes summarizing already supplied Go benchmark results.",
+    "should_trigger": false
+  },
+  {
+    "query": "Export this Go field as customerUrl or customerURL?",
+    "should_trigger": true
+  },
+  {
+    "query": "Go style question: is an else useful after a branch that returns?",
+    "should_trigger": true
+  },
+  {
+    "query": "Which name reads better for a Go constructor when a package contains one primary type?",
+    "should_trigger": true
+  },
+  {
+    "query": "Tiny Go review: the receiver switches between svc and s across methods. Is that worth changing?",
+    "should_trigger": true
+  },
+  {
+    "query": "Configure revive to reject inconsistent Go receiver names in CI.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write table-driven Go tests that check all branches of the parser.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go request deadlines do not cancel child goroutines. Fix context propagation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Measure whether strings.Builder reduces allocations in our Go encoder.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename UserId to UserID across every caller in our Go module and keep the build green.",
+    "should_trigger": false
+  },
+  {
+    "query": "Extract the validation block from this long Go handler into its own function without changing behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Decide whether our Go storage package should expose an interface or a concrete type, and what its constructor should accept.",
+    "should_trigger": false
+  }
+]

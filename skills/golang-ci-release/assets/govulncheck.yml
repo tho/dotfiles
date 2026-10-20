@@ -1,0 +1,36 @@
+# Install as .github/workflows/govulncheck.yml for the release templates.
+name: Go vulnerability check
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # Match the binary release compiler, including its toolchain directive.
+          go-version-file: go.mod
+          cache: false
+      - name: Scan the committed dependency graph
+        uses: geomys/sandboxed-step@a6bfc174e532cea4f378e3427bcde8b714c2e810 # v1.2.2
+        with:
+          env: |
+            GOTOOLCHAIN=local
+          run: |
+            go version
+            go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...

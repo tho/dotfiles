@@ -1,0 +1,30 @@
+# Illustrative thresholds, not production defaults. Scope selectors to the target
+# service and calibrate against its normal load and SLOs before enabling.
+# These rules require the named Go/process collector metrics to exist.
+groups:
+  - name: go-performance-examples
+    rules:
+      - alert: GoAverageGCPauseHigh
+        expr: |
+          (
+            rate(go_gc_duration_seconds_sum[5m])
+            / rate(go_gc_duration_seconds_count[5m]) > 0.01
+          )
+          and (rate(go_gc_duration_seconds_count[5m]) > 0)
+        for: 10m
+        annotations:
+          summary: "Average reported GC pause exceeds 10ms"
+          description: "Compare with workload and latency evidence before tuning GC."
+      - alert: GoGoroutineCountHigh
+        expr: go_goroutines > 10000
+        for: 5m
+        annotations:
+          summary: "Goroutine count exceeds the example threshold"
+          description: "Inspect load and goroutine lifecycles; count alone does not prove a leak."
+      - alert: GoProcessRSSHigh
+        # 900 MiB is an example absolute budget, not a detected container limit.
+        expr: process_resident_memory_bytes > 943718400
+        for: 15m
+        annotations:
+          summary: "Process RSS exceeds the example memory budget"
+          description: "Set a workload-specific budget with container and non-Go memory headroom."

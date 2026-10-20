@@ -1,0 +1,94 @@
+[
+  {
+    "query": "Add Go unit tests for this parser, including boundary inputs and wrapped errors.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review these testify assertions and mock expectations in our Go service tests.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add HTTP handler tests to the Go endpoint we just shipped, including malformed requests.",
+    "should_trigger": true
+  },
+  {
+    "query": "While finishing this Go feature, add isolated PostgreSQL integration tests that run in our existing tagged lane.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a regression test for this understood Go bug: the parser accepted a negative limit before the fix.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit our Go test coverage for meaningful missing assertions and isolation problems.",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose between assert and require for a Go test that decodes a response and checks nested fields.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create a testify suite for these Go integration tests with fresh mocks per test.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add fuzz properties and executable examples for this Go encoding API.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go test fixture shares mutable data across cases. Review its isolation and cleanup design.",
+    "should_trigger": true
+  },
+  {
+    "query": "Convert the hand-rolled cases in this Go _test.go file into a table-driven test with named subtests.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add golden-file tests for our Go report renderer's output.",
+    "should_trigger": true
+  },
+  {
+    "query": "Why does this Go test hang intermittently in CI? Find the unknown cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Debug this Go nil-pointer panic reported by a failing unit test.",
+    "should_trigger": false
+  },
+  {
+    "query": "Diagnose this Go race-detector report and find which production access is wrong.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write Go benchmarks comparing these two encoders, reporting allocations.",
+    "should_trigger": false
+  },
+  {
+    "query": "Interpret this benchstat output from Go benchmarks and assess the performance regression.",
+    "should_trigger": false
+  },
+  {
+    "query": "Profile the slow Go test process to find CPU and allocation hotspots.",
+    "should_trigger": false
+  },
+  {
+    "query": "Optimize the Go service using this pprof capture; the tests already pass.",
+    "should_trigger": false
+  },
+  {
+    "query": "This Go package imports testify. Rename a production function without changing behavior or tests.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure a GitHub Actions workflow to run the existing Go tests and upload coverage artifacts.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write Python pytest tests and mocks for this handler.",
+    "should_trigger": false
+  },
+  {
+    "query": "This Go _test.go file times out only on CI. Find out why.",
+    "should_trigger": false
+  }
+]

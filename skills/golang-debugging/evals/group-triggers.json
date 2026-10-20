@@ -1,0 +1,290 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not results. Stage every converted skill together and exclude legacy candidates. Count missed required loads and loads outside allowed separately. Refresh candidate list when the group changes.",
+  "queries": [
+    {
+      "id": "panic",
+      "query": "Our Go server panics only on requests without an optional header. Find the cause.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "wrong-result",
+      "query": "My Go parser returns a truncated ID for large numbers. Diagnose why.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "flake",
+      "query": "This Go test fails one run in twenty on CI, and we do not know why. Investigate.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "hang",
+      "query": "Our Go worker hangs during shutdown. Find which goroutine prevents completion.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "race",
+      "query": "A race report points to two Go handler stacks. Trace the conflicting accesses and explain the root cause.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "build",
+      "query": "The Go build fails with undefined symbols in CI but succeeds locally. Find the build-context difference.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "regression",
+      "query": "A Go feature worked last week and now returns duplicate records. Help isolate the breaking change and cause.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "unknown",
+      "query": "For the incident report, investigate why our Go service returns 500 for one input. We have logs but no local reproduction.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "deadlock",
+      "query": "These Go goroutine dumps show a stuck request. Determine whether this is a deadlock.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "lifetime",
+      "query": "After each canceled Go request its worker goroutine stays blocked on send. Explain and fix the lifetime bug.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "tests",
+      "query": "Write table-driven Go tests for this specified parser contract; the implementation is already understood.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "regression-test",
+      "query": "We already fixed and explained the Go bug. Add a regression test for the documented bad input.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "mocks",
+      "query": "Use testify mocks to test this Go service interface.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "bench",
+      "query": "Write Go benchmarks and compare allocations for these two parsers.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "cpu",
+      "query": "Interpret this Go CPU pprof and recommend a measured optimization.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "memory",
+      "query": "Investigate growing retained heap in our Go service using before and after heap profiles.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "latency",
+      "query": "Analyze Go p99 latency and lock contention under load.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "design",
+      "query": "Design cancellation and channel ownership for a new Go worker pool.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "observability",
+      "query": "Add structured logs and tracing to our Go HTTP service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "crash",
+      "query": "Help me debug this: my Go CLI crashes with a nil pointer dereference stack trace when the config file is empty.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-cli",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "deploy-spike",
+      "query": "Error rates on our Go API spiked right after this morning's deploy. Figure out what broke.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "ci-release-near-miss",
+      "query": "Fix the YAML of our failing GitHub Actions release workflow for this Go project.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "lint-near-miss",
+      "query": "golangci-lint reports errcheck findings in our Go repo; configure suppressions for the generated code.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "dependencies-near-miss",
+      "query": "go get reports a version conflict between two Go modules; pick a compatible upgrade.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "correctness-near-miss",
+      "query": "Review this Go package for typed-nil error returns and slice aliasing before we merge.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "outside",
+      "query": "Debug this Python exception.",
+      "required": [],
+      "allowed": []
+    }
+  ]
+}

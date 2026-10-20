@@ -1,0 +1,73 @@
+[
+  {
+    "id": "v2-config",
+    "input": "Create a golangci-lint v2 config with exactly govet, staticcheck, errcheck and nolintlint. Add gofumpt with extra rules, a 5 minute timeout, and errcheck type assertion checks.",
+    "rubric": [
+      "Uses version \"2\", linters.default none, and exactly the requested linters under linters.enable.",
+      "Places gofumpt and extra-rules under formatters, timeout under run, and errcheck options under linters.settings.",
+      "Enables nolintlint require-specific and require-explanation explicitly and proposes verification with the installed binary."
+    ]
+  },
+  {
+    "id": "migration",
+    "input": "Our v1 .golangci.yml fails after moving to v2. It has linters-settings and gofumpt in linters.enable. We need to preserve the existing checks. What should change?",
+    "rubric": [
+      "Checks versions and migration help, preserves original config, and uses migrate with review of the diff.",
+      "Explains v2 settings placement and formatter separation without silently dropping incompatible checks.",
+      "Requires config verification and an actual analysis run; does not equate schema validity with a clean repository."
+    ]
+  },
+  {
+    "id": "findings",
+    "input": "Interpret these findings: handler.go:42 unchecked DB.Close error (errcheck); handler.go:55 response body must be closed (bodyclose); auth.go:12 validateToken unused (unused); auth.go:30 complexity 17 > 13 (gocyclo). No code context is available.",
+    "rubric": [
+      "Explains each analyzer and seeks code context rather than declaring all findings false positives or blindly suppressing.",
+      "Does not delete validateToken without considering missing authentication wiring.",
+      "Treats complexity as a policy signal and ownership/error paths as code-dependent correctness questions."
+    ]
+  },
+  {
+    "id": "nolint-audit",
+    "input": "We have bare //nolint directives and some with explanations that just say legacy code. Configure automatic checks and tell us which exceptions are justified.",
+    "rubric": [
+      "Shows linters.settings.nolintlint with require-specific true, require-explanation true, and detection of unused directives.",
+      "Distinguishes checking explanation presence from verifying its truth; legacy status is not proof of safety.",
+      "Requires code evidence for correctness/security exceptions and prefers narrow scope."
+    ]
+  },
+  {
+    "id": "standalone",
+    "input": "Standalone staticcheck still reports SA1019 even though I added //nolint:staticcheck. We cannot migrate this API until an upstream dependency releases its replacement. How do I handle this?",
+    "rubric": [
+      "Identifies the runner mismatch and uses Staticcheck lint:ignore SA1019 with an actual reason rather than claiming nolint works.",
+      "Records the compatibility blocker and removal condition and verifies the relevant diagnostic."
+    ]
+  },
+  {
+    "id": "adoption",
+    "input": "Our branch has six commits and 2000 old lint findings. Can we set new-from-rev HEAD~1 and call it clean? We also want quick autofixes.",
+    "rubric": [
+      "Explains that HEAD~1 misses earlier branch changes and selects a deliberate available base or merge base.",
+      "Distinguishes filtered reporting from full cleanliness and preserves backlog visibility.",
+      "Uses scoped autofix with diff review and reruns rather than concurrent writers or blanket suppressions."
+    ]
+  },
+  {
+    "id": "analysis-failure",
+    "input": "golangci-lint outputs no issues but exits nonzero with context deadline exceeded. Should we exclude half the directories to make it pass?",
+    "rubric": [
+      "Does not call the repository clean; records failed analysis and examines configured timeout/version and verbose diagnostics.",
+      "Does not claim report exclusions reliably skip analysis or solve performance.",
+      "Distinguishes memory pressure concurrency tuning from a generic speedup."
+    ]
+  },
+  {
+    "id": "package-scope",
+    "input": "A Go repo has two modules in a go.work. I changed one file in each. Can I run golangci-lint on just those two filenames and use --fix in a background agent while editing them?",
+    "rubric": [
+      "Uses the intended module/package scope and build context rather than isolated filenames.",
+      "Avoids simultaneous writers to the same files and reviews autofix changes.",
+      "Reports analyzed scope rather than claiming all workspace packages are covered."
+    ]
+  }
+]

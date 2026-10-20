@@ -1,0 +1,90 @@
+[
+  {
+    "query": "Start a tiny Go command-line tool at example.com/tools/count. It has one binary and no external dependencies. Choose a minimal layout.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up a Go logging library other teams can import. Should its package live at the root or under pkg?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go server and worker deploy together. Organize their executable entry points and shared code in one repository.",
+    "should_trigger": true
+  },
+  {
+    "query": "I have ten packages in one Go module. Would go.work improve the organization?",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up local development for two independently released Go modules using a workspace.",
+    "should_trigger": true
+  },
+  {
+    "query": "We need to reorganize our Go repository into modules because the SDK now releases independently from the server. Choose the layout.",
+    "should_trigger": true
+  },
+  {
+    "query": "We are onboarding a second service. First choose whether our Go monorepo needs one module or a workspace, then describe the directory tree.",
+    "should_trigger": true
+  },
+  {
+    "query": "Initialize a Go module under our existing vanity import domain without changing its spelling.",
+    "should_trigger": true
+  },
+  {
+    "query": "Run go mod init for a new service repo. Where should main.go and the HTTP handlers go?",
+    "should_trigger": true
+  },
+  {
+    "query": "Where should testdata fixtures and shared test helpers live in the new Go module?",
+    "should_trigger": true
+  },
+  {
+    "query": "Move oldpkg to newpkg exactly as the approved plan specifies and update callers. Do not revisit the layout.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose functional options or a config struct for this Go constructor.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a verbose flag and exit codes to my existing Go CLI.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename the exported Go function across its callers without changing behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add table-driven unit tests for this Go parser.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure GitHub Actions to run Go tests.",
+    "should_trigger": false
+  },
+  {
+    "query": "Upgrade our Go module dependency on golang.org/x/text.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a Python workspace with uv.",
+    "should_trigger": false
+  },
+  {
+    "query": "Should our existing Go service use hexagonal or clean architecture for its packages?",
+    "should_trigger": false
+  },
+  {
+    "query": "go mod tidy fails on a missing require in one of our go.work member modules.",
+    "should_trigger": false
+  },
+  {
+    "query": "Bump the go directive in go.mod to 1.24 and adopt the new idioms.",
+    "should_trigger": false
+  },
+  {
+    "query": "go build fails with an import cycle after my last commit.",
+    "should_trigger": false
+  }
+]

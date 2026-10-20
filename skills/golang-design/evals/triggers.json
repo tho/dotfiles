@@ -1,0 +1,162 @@
+[
+  {
+    "query": "Design the package boundaries for a Go order service with HTTP and queue entry points.",
+    "should_trigger": true
+  },
+  {
+    "query": "Help choose flat, clean or hexagonal architecture for this Go app.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review our Go domain model and aggregate boundaries before implementation.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a Go constructor with optional timeouts and cross-field validation.",
+    "should_trigger": true
+  },
+  {
+    "query": "Should this Go library expose an interface or a concrete struct?",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose pointer or value receivers and embedding for this Go API.",
+    "should_trigger": true
+  },
+  {
+    "query": "Wire the dependencies in this Go service using constructors.",
+    "should_trigger": true
+  },
+  {
+    "query": "Compare manual DI, Wire, Fx and samber/do for a Go application.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a generic Go priority queue API with clear ownership.",
+    "should_trigger": true
+  },
+  {
+    "query": "For the next release, redesign our Go config types to preserve absent versus explicit-zero JSON fields.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix a typed-nil error bug in this Go constructor.",
+    "should_trigger": false
+  },
+  {
+    "query": "Diagnose a Go goroutine leak during graceful shutdown.",
+    "should_trigger": false
+  },
+  {
+    "query": "Benchmark the map versus slice implementations and analyze pprof.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename this Go interface and its parameters for clarity.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write godoc for our existing Go constructors without changing their API.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write tests for UserService using a fake store injected through its existing constructor.",
+    "should_trigger": false
+  },
+  {
+    "query": "Implement this PostgreSQL transaction using pgx in Go.",
+    "should_trigger": false
+  },
+  {
+    "query": "Audit a Go HTTP client for attacker-controlled SSRF.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure GoReleaser to publish our Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose a Kubernetes deployment architecture for our Go services.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go exporter buffers spans. Configure its flush deadline and sampling policy.",
+    "should_trigger": false
+  },
+  {
+    "query": "Reduce the number of Prometheus time series produced by our Go route instrumentation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Prevent clients from exhausting our Go service by supplying unlimited telemetry label values. Audit the denial-of-service risk.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go logs contain bearer tokens. Remove the credential leak.",
+    "should_trigger": false
+  },
+  {
+    "query": "Stop Go worker goroutines after their caller cancels, and wait for every worker to exit.",
+    "should_trigger": false
+  },
+  {
+    "query": "Propagate request deadlines through Go application calls without leaking cancellation resources.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose constructor and interface contracts for a reusable Go background-job library.",
+    "should_trigger": true
+  },
+  {
+    "query": "Wire a Go telemetry provider through constructors so packages do not depend on global state.",
+    "should_trigger": true
+  },
+  {
+    "query": "The Go package layout has been approved: relocate Receipt to billing and keep the old import working. Implement that move.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose whether our Go billing and shipping packages should share an interface or a concrete value type.",
+    "should_trigger": true
+  },
+  {
+    "query": "We already agreed to split the Go package. Sequence its file moves and compatibility shims without revisiting boundaries.",
+    "should_trigger": false
+  },
+  {
+    "query": "Reconsider the public constructor contract of our Go cache library, including zero-value and ownership choices.",
+    "should_trigger": true
+  },
+  {
+    "query": "Evaluate two package layouts for this Go library, choose one, then migrate callers without breaking source compatibility.",
+    "should_trigger": true
+  },
+  {
+    "query": "Implement a Go health endpoint returning the fixed text ok; preserve the existing layout and APIs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Adopt supported standard library idioms in a Go 1.24 module without changing its API design.",
+    "should_trigger": false
+  },
+  {
+    "query": "Wire our Go application dependencies through constructors; decide ownership and cleanup responsibilities.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a Go 1.23 iterator API over paginated results that callers can stop early.",
+    "should_trigger": true
+  },
+  {
+    "query": "Should our Go service move from dig to Fx or back to plain constructors?",
+    "should_trigger": true
+  },
+  {
+    "query": "Lay out cmd/ and internal/ for a new Go module with two binaries.",
+    "should_trigger": false
+  },
+  {
+    "query": "Check the license and transitive dependencies before adding go.uber.org/fx to go.mod.",
+    "should_trigger": false
+  }
+]

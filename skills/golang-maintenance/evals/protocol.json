@@ -1,0 +1,9 @@
+{
+  "behavior_cases": "cases.json contains 11 synthetic advisory cases, one read-only scan with real files (10), and three edit-execution fixtures (13-15). evals.json mirrors prompts, assertions and files.",
+  "group_triggers": "group-triggers.json supplies required/allowed labels with all current skills-v2 candidates. Stage descriptions together and count missing required loads separately from selections outside allowed. Repeat each query at least three times for a measured result; refresh the candidate inventory when conversions are added.",
+  "isolated_triggers": "triggers.json contains 10 positive and 10 negative queries for an isolated single-skill check. It is not a group evaluation.",
+  "scope": "Only the converted collection is eligible for candidate selection or optional skill deference. Empty allowed lists intentionally permit no skill.",
+  "measurement": "Expected labels are test specifications. Static review is not empirical trigger accuracy, quality grading, or a baseline comparison.",
+  "execution": "Run cases 10,13,14,15 three times against skill and bare model in isolated workspace-write harnesses. Disable dependency/toolchain downloads, use writable isolated Go caches, preserve originals and apply independent contract checks to copies of resulting workspaces. Grade actual tool results, not promised commands. Compare scan files byte-for-byte. Preserve the original rename tests except the authorized Go field spelling; preserve other existing tests exactly.",
+  "version_limit": "Fixtures declare Go 1.21 or Go 1.24. A newer installed toolchain is not evidence of executing with the minimum version; record actual versions and missing coverage."
+}

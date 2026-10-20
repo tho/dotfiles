@@ -1,0 +1,362 @@
+[
+  {
+    "id": 1,
+    "name": "benchmark-validity",
+    "description": "Adapted and corrected from source cases benchmark:1,2,21,63,66.",
+    "prompt": "Our Go 1.24 parsing benchmark reports 0.3 ns/op. It uses a b.N loop, ignores the result, and reuses a reader across iterations. How should we establish a valid baseline?",
+    "assertions": [
+      {
+        "id": "1.1",
+        "text": "Investigates elimination and consumed input without claiming timing alone proves a cause."
+      },
+      {
+        "id": "1.2",
+        "text": "Recommends valid b.Loop usage or a justified b.N benchmark with observable work and excluded setup."
+      },
+      {
+        "id": "1.3",
+        "text": "Keeps fixture and benchmark definitions identical across comparisons and reports allocations."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "inconclusive-comparison",
+    "description": "Adapted and corrected from source cases benchmark:4,5,12.",
+    "prompt": "benchstat shows Parse at 4.592 us/op versus 4.481 us/op, ~ (p=0.089 n=10), with wide intervals. Can we claim a 2.4% improvement and omit the ~ row?",
+    "assertions": [
+      {
+        "id": "2.1",
+        "text": "Calls the timing comparison inconclusive and retains the row."
+      },
+      {
+        "id": "2.2",
+        "text": "Does not claim equivalence or rerun until significant."
+      },
+      {
+        "id": "2.3",
+        "text": "Proposes noise control and a predeclared follow-up if the practical decision warrants it."
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "serial-candidates",
+    "description": "Adapted and corrected from source cases benchmark:50,81.",
+    "prompt": "Three agents implemented competing optimizations in worktrees on the same VM. Can they each run benchmarks concurrently against their own fresh baseline?",
+    "assertions": [
+      {
+        "id": "3.1",
+        "text": "Requires serial measurement on shared hardware."
+      },
+      {
+        "id": "3.2",
+        "text": "Compares candidates against the same baseline and controlled environment."
+      },
+      {
+        "id": "3.3",
+        "text": "Distinguishes independent implementation from measurement and addresses winner selection bias."
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "name": "toolchain-confound",
+    "description": "Adapted and corrected from source cases benchmark:1; performance:3.",
+    "prompt": "Baseline was Go 1.24 on a laptop, candidate Go 1.26 on CI. Candidate is 12% faster. Write the conclusion for our code optimization.",
+    "assertions": [
+      {
+        "id": "4.1",
+        "text": "Declines to attribute the difference to the code."
+      },
+      {
+        "id": "4.2",
+        "text": "Requires rebuilding baseline and candidate on the same toolchain and hardware with matched flags and workload."
+      },
+      {
+        "id": "4.3",
+        "text": "Labels current evidence unverified or incomparable."
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "external-wait",
+    "description": "Adapted and corrected from source cases benchmark:11,31; performance:2.",
+    "prompt": "Our Go API p99 is 800ms with low CPU. Most distributed trace time is a database request, and many goroutines are waiting on database/sql. Should we first pool handler buffers?",
+    "assertions": [
+      {
+        "id": "5.1",
+        "text": "Investigates external latency, connection waits and query behavior before allocation tuning."
+      },
+      {
+        "id": "5.2",
+        "text": "Uses waiting or trace evidence rather than treating a CPU profile as the full latency budget."
+      },
+      {
+        "id": "5.3",
+        "text": "Does not assert goroutine stacks alone prove the database server is the cause."
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "allocation-versus-retention",
+    "description": "Adapted and corrected from source cases benchmark:7,22; performance:9,59.",
+    "prompt": "CPU is dominated by mallocgc and GC. alloc_space climbs steadily but inuse_space after comparable GCs stays flat. Is this a memory leak? What should we optimize?",
+    "assertions": [
+      {
+        "id": "6.1",
+        "text": "Separates cumulative allocation churn from retained heap growth."
+      },
+      {
+        "id": "6.2",
+        "text": "Follows allocation sites to application callers."
+      },
+      {
+        "id": "6.3",
+        "text": "Proposes measured allocation reduction and verifies CPU, allocation and correctness effects without asserting a leak."
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "pool-ownership",
+    "description": "Adapted and corrected from source cases performance:12.",
+    "prompt": "A faster handler returns buf.Bytes() and defers pool.Put(buf). Tests sometimes see responses change after return. It saves two allocations. Accept it?",
+    "assertions": [
+      {
+        "id": "7.1",
+        "text": "Rejects the candidate due to ownership or aliasing failure despite allocation gains."
+      },
+      {
+        "id": "7.2",
+        "text": "Keeps storage owned until the consumer finishes or copies before returning it to the pool."
+      },
+      {
+        "id": "7.3",
+        "text": "Rechecks correctness and remeasures the safe candidate without promising durable pool entries or a universal size cutoff."
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "correctness-regression",
+    "description": "Adapted and corrected from source cases performance:25,63.",
+    "prompt": "Replacing reflect.DeepEqual with slices.Equal gives a significant 20% speedup, but one test now equates nil and empty slices where the old API distinguished them. Approve the performance change?",
+    "assertions": [
+      {
+        "id": "8.1",
+        "text": "Rejects acceptance while the behavior regression violates the API contract."
+      },
+      {
+        "id": "8.2",
+        "text": "Explains the semantic mismatch and proposes preserving required behavior."
+      },
+      {
+        "id": "8.3",
+        "text": "Requires correctness checks and a new performance comparison for the corrected version."
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "name": "http-pool-semantics",
+    "description": "Adapted and corrected from source cases performance:27,28,44.",
+    "prompt": "Our default HTTP client has MaxIdleConnsPerHost=2. Does that mean only two requests can run? Should we disable keep-alive and drain every response even if unlimited?",
+    "assertions": [
+      {
+        "id": "9.1",
+        "text": "Distinguishes idle connection limits from active limits and HTTP/2 requests."
+      },
+      {
+        "id": "9.2",
+        "text": "Investigates reuse and dialing, reuses clients/transports and preserves useful defaults."
+      },
+      {
+        "id": "9.3",
+        "text": "Bounds draining by deadlines and payload policy and closes bodies."
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "name": "runtime-budget",
+    "description": "Adapted and corrected from source cases performance:32,34,53.",
+    "prompt": "Our container has a 512MiB limit and calls a C image library. Will GOMEMLIMIT=460MiB guarantee no OOM? Should we lower GOGC for p99?",
+    "assertions": [
+      {
+        "id": "10.1",
+        "text": "Explains the soft Go-managed memory limit and memory outside its accounting."
+      },
+      {
+        "id": "10.2",
+        "text": "Measures headroom and GC CPU/memory/latency tradeoffs instead of promising no OOM or lower p99."
+      },
+      {
+        "id": "10.3",
+        "text": "Checks actual runtime/container settings rather than blindly copying a percentage."
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "name": "compiler-and-simd",
+    "description": "Adapted and corrected from source cases benchmark:43; performance:17,65.",
+    "prompt": "An optimization proposal replaces all pointer receivers with values to force inlining, then uses bounds-check elimination logs as proof of SIMD. Is that evidence sufficient?",
+    "assertions": [
+      {
+        "id": "11.1",
+        "text": "Rejects receiver-type guarantees and inspects actual escape/inlining decisions."
+      },
+      {
+        "id": "11.2",
+        "text": "Separates bounds-check elimination from SIMD and inspects generated instructions."
+      },
+      {
+        "id": "11.3",
+        "text": "Requires a measured relevant hotspot, portable feature support and benchmark verification."
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "name": "complexity-and-cache",
+    "description": "Adapted and corrected from source cases performance:38,39.",
+    "prompt": "A reviewer says ordinary repeated append is O(n^2), and suggests an unbounded cache plus singleflight as a general replacement. Assess the proposal.",
+    "assertions": [
+      {
+        "id": "12.1",
+        "text": "States amortized linear total growth cost for ordinary append."
+      },
+      {
+        "id": "12.2",
+        "text": "Explains singleflight suppresses concurrent duplicate work but is not a cache."
+      },
+      {
+        "id": "12.3",
+        "text": "Requires workload evidence, cache bounds, invalidation, key isolation and measured tradeoffs."
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "name": "production-metrics",
+    "description": "Adapted and corrected from source cases benchmark:44,80; performance:61,67.",
+    "prompt": "RSS rises but Go heap is stable. Can RSS minus go_memstats_sys_bytes prove a C leak? Our new build also has lower aggregate p99 during a quieter traffic window.",
+    "assertions": [
+      {
+        "id": "13.1",
+        "text": "Rejects subtracting different memory accounting quantities as proof of C allocations."
+      },
+      {
+        "id": "13.2",
+        "text": "Correlates cgo/mmap and OS memory evidence with the symptom."
+      },
+      {
+        "id": "13.3",
+        "text": "Requires matched load/cohorts before attributing p99 change to the deployment."
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "name": "gctrace-phases",
+    "description": "Adapted and corrected from source cases benchmark:28; performance:54.",
+    "prompt": "Interpret this gctrace fragment: 0.015+89+1.2 ms clock, 180->340->200 MB. Was there an 89ms stop-the-world pause?",
+    "assertions": [
+      {
+        "id": "14.1",
+        "text": "Identifies the middle duration as concurrent mark/scan rather than a stop-the-world pause."
+      },
+      {
+        "id": "14.2",
+        "text": "Identifies first and last wall-clock phases as stop-the-world phases."
+      },
+      {
+        "id": "14.3",
+        "text": "Describes heap at GC start, at GC end, and live heap without calling the middle heap value a measured peak."
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "name": "ci-gate",
+    "description": "Adapted and corrected from source cases benchmark:16,17,18,69.",
+    "prompt": "Design a regression gate on shared CI. We could run cob in my dirty checkout, compare against last week on another runner, and retry failures until green.",
+    "assertions": [
+      {
+        "id": "15.1",
+        "text": "Uses a disposable clean checkout for tools that reset revisions."
+      },
+      {
+        "id": "15.2",
+        "text": "Measures base and candidate serially under matched conditions with repeated samples."
+      },
+      {
+        "id": "15.3",
+        "text": "Defines practical thresholds and invalid/inconclusive outcomes; does not retry until pass or treat benchstat exit success as a gate."
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "name": "pgo-comparison",
+    "description": "Adapted and corrected from source cases performance:35.",
+    "prompt": "We added default.pgo and a buffer reuse change together and saw 8% lower CPU. How do we decide what helped?",
+    "assertions": [
+      {
+        "id": "16.1",
+        "text": "Separates the hypotheses and records profile identity and build flags."
+      },
+      {
+        "id": "16.2",
+        "text": "Explicitly compares PGO disabled versus the chosen profile under representative workload."
+      },
+      {
+        "id": "16.3",
+        "text": "Requires correctness and comparable measurements before assigning gains."
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "name": "parallel-latency",
+    "description": "Adapted and corrected from source cases benchmark:58,67.",
+    "prompt": "RunParallel reports 20 ns/op at GOMAXPROCS=16. Can I report that every request has p99 latency under 20ns, including goroutines that finish after the benchmark?",
+    "assertions": [
+      {
+        "id": "17.1",
+        "text": "Distinguishes aggregate throughput from request latency percentiles."
+      },
+      {
+        "id": "17.2",
+        "text": "Ensures asynchronous work completes within the measured operation."
+      },
+      {
+        "id": "17.3",
+        "text": "Requires separate representative latency measurement and documents concurrency."
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "name": "complete-evidence-handoff",
+    "description": "Adapted and corrected from source cases performance:1,3,63; benchmark:4.",
+    "prompt": "We have matching Go version and hardware, ten baseline/candidate samples, Parse time -15% p=0.001, B/op +40%, all relevant correctness checks passing. Target was less than 10% extra allocation for lower latency. Write the review conclusion.",
+    "assertions": [
+      {
+        "id": "18.1",
+        "text": "Reports both timing gain and allocation regression."
+      },
+      {
+        "id": "18.2",
+        "text": "Does not accept the candidate as satisfying the stated target."
+      },
+      {
+        "id": "18.3",
+        "text": "Includes or requests reproducibility artifacts and distinguishes benchmark results from production latency evidence."
+      }
+    ]
+  }
+]

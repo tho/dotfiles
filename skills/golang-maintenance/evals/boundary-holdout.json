@@ -1,0 +1,103 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Predeclared new boundary cases, not used to tune the first description revision. Evaluate all converted skills together; original group labels remain fixed.",
+  "queries": [
+    {
+      "id": "heldout01",
+      "query": "The Go package layout has been approved: relocate Receipt to billing and keep the old import working. Implement that move.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "heldout02",
+      "query": "Choose whether our Go billing and shipping packages should share an interface or a concrete value type.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "heldout03",
+      "query": "We already agreed to split the Go package. Sequence its file moves and compatibility shims without revisiting boundaries.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "heldout04",
+      "query": "Reconsider the public constructor contract of our Go cache library, including zero-value and ownership choices.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "heldout05",
+      "query": "Evaluate two package layouts for this Go library, choose one, then migrate callers without breaking source compatibility.",
+      "required": [
+        "golang-design",
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-design",
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "heldout06",
+      "query": "Implement a Go health endpoint returning the fixed text ok; preserve the existing layout and APIs.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "heldout07",
+      "query": "Adopt supported standard library idioms in a Go 1.24 module without changing its API design.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "heldout08",
+      "query": "Wire our Go application dependencies through constructors; decide ownership and cleanup responsibilities.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    }
+  ]
+}

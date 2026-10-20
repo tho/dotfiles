@@ -1,0 +1,341 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-design",
+    "golang-documentation",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels only, not measured results. Evaluate all converted descriptions together, excluding legacy skills/. Required selections detect misses; selections outside allowed detect false matches. Refresh candidates when the converted group changes. triggers.json is an isolated single-skill fixture, not a group evaluation.",
+  "queries": [
+    {
+      "query": "Add structured JSON logging to our Go service with log/slog.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q000"
+    },
+    {
+      "query": "Instrument our Go HTTP handlers with Prometheus request counts and latency histograms.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q001"
+    },
+    {
+      "query": "Wire OpenTelemetry tracing across our Go API and downstream HTTP client.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q002"
+    },
+    {
+      "query": "Correlate slog logs with the active trace in our Go worker.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q003"
+    },
+    {
+      "query": "Create routine availability burn-rate alerts for our Go service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q004"
+    },
+    {
+      "query": "Audit the logging, metrics and tracing coverage of this Go service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q005"
+    },
+    {
+      "query": "As part of launching our Go checkout service, add a Grafana dashboard and actionable SLO alerts.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q006"
+    },
+    {
+      "query": "Migrate this Go service from logrus to slog while preserving our log fields.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q007"
+    },
+    {
+      "query": "Review our Go instrumentation for duplicate spans and unbounded metric labels.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q008"
+    },
+    {
+      "query": "Configure parent-based tracing sampling and bounded exporter shutdown in Go.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q009"
+    },
+    {
+      "query": "Our Go API p99 doubled after deployment. Collect profiles to identify the bottleneck.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q010"
+    },
+    {
+      "query": "Compare the Go parser benchmarks with benchstat and decide whether the optimization works.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q011"
+    },
+    {
+      "query": "Interpret this Go CPU profile and identify the hotspot.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q012"
+    },
+    {
+      "query": "Investigate growing heap retention in this Go process using pprof evidence.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q013"
+    },
+    {
+      "query": "Use production metrics to validate whether this Go GC tuning improved latency.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q014"
+    },
+    {
+      "query": "Inspect this Go execution trace for scheduler delays.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q015"
+    },
+    {
+      "query": "Emit signup and checkout events from our Go service to Segment for the growth team.",
+      "required": [],
+      "allowed": [],
+      "id": "q016"
+    },
+    {
+      "query": "Add OpenTelemetry to our Python service.",
+      "required": [],
+      "allowed": [],
+      "id": "q017"
+    },
+    {
+      "query": "Configure GoReleaser to publish binaries.",
+      "required": [],
+      "allowed": [],
+      "id": "q018"
+    },
+    {
+      "query": "Fix a typed-nil error return in this Go package.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ],
+      "id": "q019"
+    },
+    {
+      "query": "Design cancellation and shutdown for a Go worker pool.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ],
+      "id": "q020"
+    },
+    {
+      "query": "Improve Go package and exported type names.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ],
+      "id": "q021"
+    },
+    {
+      "query": "Design a small Go interface for storage dependency injection.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ],
+      "id": "q022"
+    },
+    {
+      "query": "Write godoc comments for this Go API.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q023"
+    },
+    {
+      "query": "Implement transactional account transfers using database/sql.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ],
+      "id": "q024"
+    },
+    {
+      "query": "Audit this Go HTTP client for SSRF.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ],
+      "id": "q025"
+    },
+    {
+      "query": "Write table-driven unit tests for our Go parser.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ],
+      "id": "q026"
+    },
+    {
+      "query": "Add routine Prometheus instrumentation to our Go API, then separately benchmark and profile a proposed parser optimization.",
+      "required": [
+        "golang-observability",
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-observability",
+        "golang-performance-engineering"
+      ],
+      "id": "q027"
+    },
+    {
+      "query": "Add an alert for error-rate spikes on our Go API and route it to the on-call team.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ],
+      "id": "q028"
+    },
+    {
+      "query": "Our burn-rate alert fired overnight; find why the Go API started returning 500s.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-observability"
+      ],
+      "id": "q029"
+    },
+    {
+      "query": "Use our existing traces to find which downstream call causes the timeouts in our Go service.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-observability",
+        "golang-performance-engineering"
+      ],
+      "id": "q030"
+    },
+    {
+      "query": "Our Go service logs the same error at every layer; clean that up.",
+      "required": [],
+      "allowed": [
+        "golang-observability",
+        "golang-correctness"
+      ],
+      "id": "q031"
+    },
+    {
+      "query": "Wrap these Go errors with %w so callers can use errors.Is.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ],
+      "id": "q032"
+    }
+  ]
+}

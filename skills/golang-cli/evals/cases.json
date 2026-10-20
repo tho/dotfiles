@@ -1,0 +1,240 @@
+[
+  {
+    "id": "stdlib-small",
+    "input": "Create a small Go CLI with -count and -verbose, one positional input, help, and injectable output. No framework is selected.",
+    "rubric": [
+      "Uses stdlib flag without adding third-party CLI dependencies.",
+      "Uses a fresh FlagSet with ContinueOnError, treats ErrHelp as success, and validates positional arguments.",
+      "Returns execution errors/status to a process boundary and avoids duplicate diagnostics."
+    ]
+  },
+  {
+    "id": "library-choice",
+    "input": "Choose a parser for three Go tools: a tiny single command, a typed nested command model, and a flags-first tool needing env and file config. No parser is selected. Explain the simplest suitable choices.",
+    "rubric": [
+      "Starts with stdlib for the simple tool.",
+      "Distinguishes Kong struct modeling from ff flags-first configuration without ranking one universally above the other.",
+      "Does not mandate Cobra for subcommands or couple Cobra and Viper."
+    ]
+  },
+  {
+    "id": "preserve-stack",
+    "input": "Implement --dry-run for the existing files rm TARGET command in fixtures/cobra/cli.go. Keep Cobra and the public NewCommand signature. Dry-run prints \"would remove TARGET\" followed by newline and never invokes remove. Normal and explicit --dry-run=false invoke remove once and propagate its error. Help and invalid args must not invoke remove. Do not change tests or dependency versions. Run go test ./... in fixtures/cobra.",
+    "rubric": [
+      "go test -run TestDryRun ./... passes against the frozen tests; dry-run produces the plan without mutation.",
+      "go test -run TestExistingBehavior ./... passes against the frozen tests; normal syntax and callback error identity survive.",
+      "go test -run TestHelpAndArgs ./... passes against the frozen tests; help and malformed args never call remove."
+    ],
+    "files": [
+      "fixtures/cobra/cli.go",
+      "fixtures/cobra/cli_test.go",
+      "fixtures/cobra/go.mod",
+      "fixtures/cobra/go.sum"
+    ],
+    "fixture": "cobra",
+    "checks": [
+      {
+        "expectation": 0,
+        "test": "TestDryRun"
+      },
+      {
+        "expectation": 1,
+        "test": "TestExistingBehavior"
+      },
+      {
+        "expectation": 2,
+        "test": "TestHelpAndArgs"
+      }
+    ]
+  },
+  {
+    "id": "stdlib-precedence",
+    "input": "Fix fixtures/stdlib/cli.go without changing the tests or public Run signature. This stdlib CLI must use explicit flags over env over defaults, including explicit zero and false. COUNT defaults to 0 and must resolve to 0..10; present-empty or malformed COUNT and malformed VERBOSE are usage errors. Help succeeds, one positional input is required, diagnostics appear once on stderr, and output write errors return status 1. Complete the implementation and run go test ./... inside fixtures/stdlib.",
+    "rubric": [
+      "go test -run TestPrecedence ./... passes against the frozen tests; explicit zero/false and env fallback both work regardless of implementation strategy.",
+      "go test -run TestHelpAndValidation ./... passes against the frozen tests; help is success and concrete invalid resolved values fail.",
+      "go test -run TestOutputAndIsolation ./... passes against the frozen tests; streams, write failures, diagnostic ownership and repeatability satisfy the contract."
+    ],
+    "files": [
+      "fixtures/stdlib/cli.go",
+      "fixtures/stdlib/cli_test.go",
+      "fixtures/stdlib/go.mod"
+    ],
+    "fixture": "stdlib",
+    "checks": [
+      {
+        "expectation": 0,
+        "test": "TestPrecedence"
+      },
+      {
+        "expectation": 1,
+        "test": "TestHelpAndValidation"
+      },
+      {
+        "expectation": 2,
+        "test": "TestOutputAndIsolation"
+      }
+    ]
+  },
+  {
+    "id": "stdlib-positionals",
+    "input": "My stdlib flag CLI receives file.txt -verbose, -verbose false file.txt, and -- -file.txt. Explain parsing and how to keep its contract clear.",
+    "rubric": [
+      "Explains parsing stops at the first positional argument and at --.",
+      "Uses -verbose=false for explicit false rather than treating the following token as a boolean value.",
+      "Does not claim stdlib implements GNU interspersed flags or short-flag bundles by default."
+    ]
+  },
+  {
+    "id": "kong-boundary",
+    "input": "Fix fixtures/kong/cli.go while keeping Kong v1.12.1 and Run(args, out, diagnostics, execute). Help must return nil to its caller with captured help and without exiting the process or invoking execute. Normal calls use the supplied args with fresh state and return the callback error; invalid flags must not invoke it. Do not edit tests or dependency versions. Implement the fix and run go test ./... in fixtures/kong.",
+    "rubric": [
+      "go test -run TestHelpProcess ./... passes against the frozen tests; help returns to the caller, produces capturable text and does not execute.",
+      "go test -run TestArgumentsAndErrors ./... passes against the frozen tests; explicit argument slices, repeated calls and callback errors work.",
+      "The implementation uses the pinned Kong parser and injected writers, with no replacement parser, os.Args substitution, or unconditional execution after help."
+    ],
+    "files": [
+      "fixtures/kong/cli.go",
+      "fixtures/kong/cli_test.go",
+      "fixtures/kong/go.mod",
+      "fixtures/kong/go.sum"
+    ],
+    "fixture": "kong",
+    "checks": [
+      {
+        "expectation": 0,
+        "test": "TestHelpProcess"
+      },
+      {
+        "expectation": 1,
+        "test": "TestArgumentsAndErrors"
+      }
+    ]
+  },
+  {
+    "id": "ff-version",
+    "input": "Implement environment and JSON configuration for the existing app show command in fixtures/ff/cli.go using the pinned ff/v3 and ffcli APIs. Sources are flags > APP_NAME > JSON file > default world. The -config flag names an explicit file; missing/malformed files fail. show accepts no positional arguments. Main-branch examples use ff.NewFlagSet and ff.Command; keep this project on v3. Do not edit tests or dependency versions. Run go test ./... in fixtures/ff.",
+    "rubric": [
+      "go test -run TestSources ./... passes against the frozen tests; default, JSON, env and explicit flag precedence work.",
+      "go test -run TestMissingFileAndArguments ./... passes against the frozen tests; missing/malformed explicit files and stray args are rejected.",
+      "Retains stdlib FlagSet and ff/v3/ffcli.Command with a JSON parser, without a v4 upgrade or Viper dependency."
+    ],
+    "files": [
+      "fixtures/ff/cli.go",
+      "fixtures/ff/cli_test.go",
+      "fixtures/ff/go.mod",
+      "fixtures/ff/go.sum"
+    ],
+    "fixture": "ff",
+    "checks": [
+      {
+        "expectation": 0,
+        "test": "TestSources"
+      },
+      {
+        "expectation": 1,
+        "test": "TestMissingFileAndArguments"
+      }
+    ]
+  },
+  {
+    "id": "cobra-hooks",
+    "input": "Review a Cobra CLI where root PersistentPreRunE loads auth, a child defines its own PersistentPreRunE, and PersistentPostRunE closes the connection after a failing RunE. Also assess whether help needs credentials and propose observable tests for hook invocation and cleanup on failure.",
+    "rubric": [
+      "Identifies default child hook suppression and checks traversal settings before chaining.",
+      "Explains post-run hooks do not guarantee cleanup after errors.",
+      "Places cleanup with resource ownership and avoids requiring auth for unrelated help."
+    ]
+  },
+  {
+    "id": "cobra-completion",
+    "input": "A Cobra flag has RegisterFlagCompletionFunc suggesting dev/prod. The handler accepts any string. The code calls ShellCompDirectiveFilterFileExt(\"yaml\") for another flag. Review it. The completion callback writes progress to stdout and calls the normal deploy handler to discover names. Cover validation, directives, protocol output, side effects, and tests.",
+    "rubric": [
+      "Explains suggestions do not validate runtime values.",
+      "Identifies the file extension directive as a bitmask constant with extensions supplied as results.",
+      "Keeps completion output protocol clean and avoids unrelated execution."
+    ]
+  },
+  {
+    "id": "cobra-required-env",
+    "input": "A Cobra --token flag is marked required but Viper can supply APP_TOKEN. Env-only execution fails. Fix the validation policy so any configured source can satisfy it.",
+    "rubric": [
+      "Distinguishes Cobra flag presence requirements from resolved configuration validation.",
+      "Validates the resolved value after binding/resolution.",
+      "Preserves explicit flags precedence and does not print the secret."
+    ]
+  },
+  {
+    "id": "viper-env-decode",
+    "input": "Fix fixtures/viper/config.go using pinned Viper v1.20.1. AutomaticEnv currently sees APP_ENABLED and APP_PORT through getters but decoding misses them. Load must decode both values, require port 1..65535, reject missing/empty/malformed ports and malformed booleans, and isolate repeated calls. Do not change tests or dependency versions. Implement the fix and run go test ./... in fixtures/viper.",
+    "rubric": [
+      "go test -run TestEnvironmentDecode ./... passes against the frozen tests; registered env keys decode and calls remain isolated.",
+      "go test -run TestInvalidConfiguration ./... passes against the frozen tests; actual port constraints and malformed values are rejected.",
+      "Corrects key discovery using Viper APIs and does not misdiagnose weak typing as disabled by default or add a CLI framework."
+    ],
+    "files": [
+      "fixtures/viper/config.go",
+      "fixtures/viper/config_test.go",
+      "fixtures/viper/go.mod",
+      "fixtures/viper/go.sum"
+    ],
+    "fixture": "viper",
+    "checks": [
+      {
+        "expectation": 0,
+        "test": "TestEnvironmentDecode"
+      },
+      {
+        "expectation": 1,
+        "test": "TestInvalidConfiguration"
+      }
+    ]
+  },
+  {
+    "id": "viper-files",
+    "input": "Our service pins Viper v1.20.1. It searches an optional default file, but a config-path option names a mandatory user-selected file. It embeds base YAML and then loads an override. Explain missing-file handling with a concrete errors.As target, merge versus replacement, and whether ReadConfig populates the SetDefault layer.",
+    "rubric": [
+      "Distinguishes optional missing discovery, explicit missing selection, and malformed or unreadable files.",
+      "Distinguishes the config layer from SetDefault and uses intentional merging rather than replacement for base plus override.",
+      "Uses the correct errors.As target for the pinned version."
+    ]
+  },
+  {
+    "id": "viper-reload",
+    "input": "Review our Viper reload design: WatchConfig runs while HTTP handlers call GetString directly. A mutex protects a separate decoded struct. Tests drop the Viper pointer to stop its watcher. Deployments update config by atomic rename and by switching a symlink. Explain ownership and propose bounded tests for valid/invalid updates through both mechanisms.",
+    "rubric": [
+      "Explains the snapshot mutex does not protect concurrent access to the Viper instance.",
+      "Describes validating a candidate before publishing an immutable snapshot and retaining the last good configuration on failure.",
+      "Rejects garbage collection as watcher shutdown and proposes bounded tests for both atomic replacement and symlink updates."
+    ]
+  },
+  {
+    "id": "io-lifecycle",
+    "input": "My Go CLI prints progress and JSON to stdout, ignores a failed writer, calls os.Exit from a handler, and passes a canceled context to graceful shutdown. Review the observable failures. Propose observable subprocess checks for both ordinary exits and signal-triggered shutdown.",
+    "rubric": [
+      "Separates diagnostics from machine output and propagates write failures.",
+      "Keeps process exit after cleanup and uses a live bounded context for shutdown.",
+      "Proposes process-boundary verification for exit/signal behavior without claiming all programs use identical exit codes."
+    ]
+  },
+  {
+    "id": "heldout-stdlib-boolean",
+    "split": "heldout",
+    "input": "A standard-library Go CLI accepts -enabled=false and -retries=0. Env supplies true and 4. Can I first resolve env defaults and then parse CLI flags, or must I use FlagSet.Visit? Resolved retries must be 0..5. Give behavior-based checks, including present-empty env and values equal to defaults.",
+    "rubric": [
+      "Accepts both presence tracking and a correctly ordered defaults-then-flags strategy without requiring Visit by itself.",
+      "Preserves explicit false/zero/default-equal overrides and distinguishes absent from present-empty env.",
+      "Validates the resolved retry range after layering and gives concrete boundary checks for 0, 5 and out-of-range values."
+    ]
+  },
+  {
+    "id": "heldout-completion-readonly",
+    "split": "heldout",
+    "input": "Our Cobra CLI completes production resource IDs. The callback logs its query to stdout, starts a deploy command to warm the cache, and the root auth hook requires interactive login. We need offline shell completion and help to remain usable without credentials. What should change, and how would you verify the command handler cannot execute?",
+    "rubric": [
+      "Keeps completion protocol output separate from diagnostics and removes deploy or other mutation from discovery.",
+      "Separates help/completion from unrelated interactive authentication while defining bounded or cached/offline discovery behavior.",
+      "Proposes invoking the completion/help paths with a handler or mutation spy to prove no execution, rather than testing suggestions alone."
+    ]
+  }
+]

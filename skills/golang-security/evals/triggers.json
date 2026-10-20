@@ -1,0 +1,138 @@
+[
+  {
+    "query": "Audit this Go API for exploitable vulnerabilities and authorization bypass.",
+    "should_trigger": true
+  },
+  {
+    "query": "While adding a Go URL preview feature, prevent SSRF through DNS rebinding and redirects.",
+    "should_trigger": true
+  },
+  {
+    "query": "Secure cookie-authenticated Go POST handlers against CSRF.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the Go archive uploader for path traversal and decompression bombs.",
+    "should_trigger": true
+  },
+  {
+    "query": "We deploy many Go replicas with one encryption key. Check GCM nonce safety and key rotation.",
+    "should_trigger": true
+  },
+  {
+    "query": "Prevent SQL injection in this Go search endpoint with dynamic sort columns.",
+    "should_trigger": true
+  },
+  {
+    "query": "Threat model the trust boundaries in our Go payment webhook service.",
+    "should_trigger": true
+  },
+  {
+    "query": "Stop our Go telemetry from leaking credentials and personal data.",
+    "should_trigger": true
+  },
+  {
+    "query": "Harden Go session cookies and verify JWT issuer, audience, expiry and signing algorithm.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can hostile dimensions overflow this Go upload allocation and crash the server? Audit the denial-of-service risk.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix a typed-nil error return in this Go library.",
+    "should_trigger": false
+  },
+  {
+    "query": "Preserve errors.Is and errors.As when adding context to Go errors.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go snapshot aliases a map of slices; make the ownership contract correct.",
+    "should_trigger": false
+  },
+  {
+    "query": "Check int64-to-int32 narrowing overflow in a Go binary encoder.",
+    "should_trigger": false
+  },
+  {
+    "query": "Ensure each Go batch file closes per iteration and preserves cleanup errors.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design Go worker-pool cancellation, goroutine ownership and channel shutdown.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add testify assertions and unit tests to this Go parser.",
+    "should_trigger": false
+  },
+  {
+    "query": "Benchmark Go slice copying and analyze the allocation profile.",
+    "should_trigger": false
+  },
+  {
+    "query": "Run a dependency-only govulncheck scan for the Go module.",
+    "should_trigger": false
+  },
+  {
+    "query": "Wire gosec and govulncheck into GitHub Actions for a Go repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go exporter buffers spans. Configure its flush deadline and sampling policy.",
+    "should_trigger": false
+  },
+  {
+    "query": "Reduce the number of Prometheus time series produced by our Go route instrumentation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Prevent clients from exhausting our Go service by supplying unlimited telemetry label values. Audit the denial-of-service risk.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go logs contain bearer tokens. Remove the credential leak.",
+    "should_trigger": true
+  },
+  {
+    "query": "Stop Go worker goroutines after their caller cancels, and wait for every worker to exit.",
+    "should_trigger": false
+  },
+  {
+    "query": "Propagate request deadlines through Go application calls without leaking cancellation resources.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose constructor and interface contracts for a reusable Go background-job library.",
+    "should_trigger": false
+  },
+  {
+    "query": "Wire a Go telemetry provider through constructors so packages do not depend on global state.",
+    "should_trigger": false
+  },
+  {
+    "query": "Can a user read another tenant's invoice by changing the ID in the URL of this Go handler?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go service unzips customer-uploaded bundles into a shared directory. Is that safe?",
+    "should_trigger": true
+  },
+  {
+    "query": "This Go endpoint fetches whatever image URL the user pastes. What could go wrong?",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a pgx query with placeholders to filter Go orders by status and date range.",
+    "should_trigger": false
+  },
+  {
+    "query": "Enable gosec in our .golangci.yml and tune its excludes.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a database index and paginate this Go repository query with sqlc.",
+    "should_trigger": false
+  }
+]

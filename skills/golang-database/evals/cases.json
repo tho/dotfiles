@@ -1,0 +1,112 @@
+[
+  {
+    "id": "1",
+    "input": "Review a Go helper that derives a 100 ms context, defers cancel, calls QueryContext and returns *sql.Rows to its caller.",
+    "rubric": [
+      "Identifies premature stream cancellation.",
+      "Makes caller own context and rows or consumes rows before returning.",
+      "Checks Scan, rows.Err and closure on early exit."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "2",
+    "input": "A pgx v5 handler begins a transaction, then the request is canceled. It assumes cancellation rolls back as with database/sql. Review.",
+    "rubric": [
+      "Distinguishes native pgx from database/sql transaction lifetime.",
+      "Requires explicit rollback with a usable bounded cleanup context when needed.",
+      "Keeps cleanup owned and does not continue business writes after cancellation."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "3",
+    "input": "A Go PostgreSQL transaction sends COMMIT then loses the connection before receiving its result. Can we retry the transfer automatically?",
+    "rubric": [
+      "Recognizes uncertain commit outcome.",
+      "Does not equate rollback attempt with proof of no persistence.",
+      "Requires reconciliation or durable idempotency before replay."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "4",
+    "input": "A Go service sets MaxOpenConns(1), begins a transaction, then calls db.ExecContext for its second write. Fix the design.",
+    "rubric": [
+      "Uses the transaction handle for all atomic work.",
+      "Explains out-of-transaction pool acquisition waits for its own held connection.",
+      "Checks commit result and arranges rollback."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "5",
+    "input": "Our Go transaction helper assumes nil options always mean READ COMMITTED and adds SELECT FOR UPDATE for PostgreSQL, MySQL and SQLite. Review.",
+    "rubric": [
+      "Rejects universal isolation default.",
+      "Notes SQLite lacks SELECT FOR UPDATE.",
+      "Chooses engine-specific protection for the actual invariant rather than universal serializable."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "6",
+    "input": "Specify a sqlx GetContext/SelectContext repository contract preserving NULL bio versus empty bio and distinguishing missing users from empty lists.",
+    "rubric": [
+      "Preserves NULL with compatible nullable representation.",
+      "Distinguishes single-row no-rows from empty multi-row results.",
+      "Does not claim sql.NullString encodes automatically as a JSON scalar."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "7",
+    "input": "A Go serializable transaction sends an email then gets PostgreSQL 40001. Design retry behavior.",
+    "rubric": [
+      "Retries whole transaction including reads with bounded attempts and caller budget.",
+      "Prevents duplicated email through durable handoff or justified idempotency.",
+      "Does not retry arbitrary commit/connection failures."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "8",
+    "input": "A Go event reader pages PostgreSQL with WHERE created_at > $1 ORDER BY created_at LIMIT 100. Many events share timestamps. Review.",
+    "rubric": [
+      "Uses unique tie-breaker consistently in predicate and order.",
+      "Explains omitted events at page boundaries.",
+      "Avoids unconditional O(limit) guarantees."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "9",
+    "input": "Ten Go replicas each use MaxOpenConns 25; the database limit is 150 and WaitCount rises. Should each replica increase to 50?",
+    "rubric": [
+      "Accounts for aggregate pool demand and reserved connections.",
+      "Investigates leaks, long transactions, query/lock delays and server load.",
+      "Does not blindly increase capacity."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "10",
+    "input": "Design bounded pgx batches for importing 100000 rows where the import must be atomic.",
+    "rubric": [
+      "Uses a transaction or equivalent justified atomic boundary.",
+      "Closes and checks batch results before connection reuse.",
+      "Chooses batch sizes from limits and workload without claiming a universal optimum."
+    ],
+    "state_prefix": null,
+    "files": []
+  }
+]

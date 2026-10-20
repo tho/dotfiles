@@ -1,0 +1,10 @@
+{
+  "status": "prepared, not executed",
+  "behavioral_cases": 9,
+  "trigger_cases": 20,
+  "group_candidate_count": 15,
+  "grading": "Freeze rubrics before runs; grade each criterion 0 absent/incorrect, 1 partial, 2 complete with evidence. Report per-case results and failures, not only totals.",
+  "comparison": "Run bare model and full skill on identical fixtures and prompts; repeat at least three times. No scores inferred from author review or a single trial.",
+  "checks": "Use actionlint in a staged repository, tool configuration checks and disposable builds. Exercise failing command propagation, semantic tag rejection, fork permissions and release needs conditions. Static checks do not prove hosted enforcement.",
+  "export": "Any external evaluation must disclose and obtain applicable authorization for the exact candidate payload. Do not export repository secrets or unrelated files."
+}

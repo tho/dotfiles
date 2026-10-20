@@ -1,0 +1,86 @@
+[
+  {
+    "id": "full-pipeline",
+    "input": "Create PR checks for a single-module Go command supporting Go 1.26 and current stable. Existing golangci-lint v2 config must be preserved. Provide workflows and validation evidence.",
+    "rubric": [
+      "Tests and builds cover the declared floor without automatic toolchain switching masking incompatibility.",
+      "Lint preserves the existing policy and uses compatible pinned tools; test and scanner failures block checks.",
+      "Token defaults are read-only, checkout does not persist credentials, and hosted execution is not claimed from static validation."
+    ]
+  },
+  {
+    "id": "dependency-policy",
+    "input": "Design scheduled Go dependency health checks. We dislike routine update PRs but need vulnerability and compatibility signals.",
+    "rubric": [
+      "Scheduled govulncheck scans committed dependencies before any upgrade.",
+      "A separate disposable lane compares committed and newer dependencies with the same toolchain and fresh tests; no release artifacts or shared trusted caches.",
+      "No unsolicited Dependabot, Renovate, version-bump PRs or auto-merge; actionable vulnerabilities get timely assessment."
+    ]
+  },
+  {
+    "id": "repair-trust",
+    "input": "Repair fixtures/unsafe-workflow.yml for public fork PRs. Tests and vulnerability scans must block release. Preserve the intended test and release capabilities.",
+    "rubric": [
+      "Untrusted PR code never runs with write permissions, secrets or pull_request_target authority.",
+      "Removes swallowed test failures and unconditional publication.",
+      "Publication runs only on trusted tags after checks for that exact commit succeed; no untrusted artifacts become release inputs."
+    ],
+    "files": [
+      "fixtures/unsafe-workflow.yml"
+    ]
+  },
+  {
+    "id": "tag-gate",
+    "input": "Our default branch was green yesterday. Release v1.2.3 points to a different commit today. Design the binary release gate.",
+    "rubric": [
+      "Requires fresh tag-commit checks or verified successful checks for that exact SHA.",
+      "Failed, skipped or canceled checks cannot publish; publishing permissions are job-scoped.",
+      "Checks semantic tag validity, compiler-aligned vulnerability scanning, real artifact paths and local snapshot validation without publishing."
+    ]
+  },
+  {
+    "id": "library",
+    "input": "Automate releases for a root Go library and a v2 module under sub/. Neither contains package main.",
+    "rubric": [
+      "Uses library and module-path release semantics instead of inventing binaries.",
+      "Validates each independently released module without workspace replacements masking consumer failures.",
+      "Uses correct subdirectory/major-version tags and validates the actual tagged source."
+    ]
+  },
+  {
+    "id": "containers",
+    "input": "Build a Go container on fork PRs and publish linux/amd64 and linux/arm64 images on trusted tags. Make image scanning a blocking requirement.",
+    "rubric": [
+      "PR builds have no login or push authority; tag publication follows exact-source gates.",
+      "Scans each actual candidate platform and connects scanned digest to publication rather than rebuilding unverified content.",
+      "Aligns the Go scan with the Dockerfile compiler and scans OS packages; distinguishes BuildKit provenance from GitHub attestations and avoids unrelated token permissions."
+    ]
+  },
+  {
+    "id": "metadata",
+    "input": "A new go.sum is created by go mod tidy but our git diff --exit-code gate passes. Fix this check and explain its scope.",
+    "rubric": [
+      "Catches untracked go.sum as well as tracked metadata changes.",
+      "Uses the project canonical toolchain in a disposable checkout.",
+      "Does not describe go mod verify or tidy as vulnerability analysis."
+    ]
+  },
+  {
+    "id": "multi-module",
+    "input": "Wire tests for a workspace containing api/ and worker/ modules, integration build tags and CGO on a supported Linux runner.",
+    "rubric": [
+      "Enumerates both module roots; root ./... is not claimed to cover them.",
+      "Preserves tag/service setup, bounded health checks, deadlines and uncached integration execution.",
+      "Handles race/CGO support deliberately and uses GOWORK=off for independently released module validation."
+    ]
+  },
+  {
+    "id": "explicit-bot",
+    "input": "Our team explicitly wants Renovate for Go modules. Configure reviewed grouped upgrade PRs with no auto-merge while retaining security signals.",
+    "rubric": [
+      "Honors the explicit bot request rather than treating the default preference as a prohibition.",
+      "Keeps permissions constrained and auto-merge disabled.",
+      "Retains scheduled committed-graph vulnerability checks and does not equate an upgrade PR with remediation."
+    ]
+  }
+]

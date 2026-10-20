@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Write doc comments for every exported function in our Go retry package based on what the code actually does.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a doc.go package comment to internal/cache and a Deprecated notice on the old Get function pointing to Lookup.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go library's README quick start no longer compiles against v2; fix it and make sure the snippet runs.",
+    "should_trigger": true
+  },
+  {
+    "query": "Draft release notes for v1.4.0 of our Go SDK from the commits since the last tag.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add testable Example functions for the Client type so they show up on pkg.go.dev.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check that CONTRIBUTING.md still matches our Makefile targets and the Go version in go.mod.",
+    "should_trigger": true
+  },
+  {
+    "query": "Document the environment variables and config file keys our Go service reads, with defaults.",
+    "should_trigger": true
+  },
+  {
+    "query": "The OpenAPI docs for our Go HTTP API drifted from the handlers; update the documentation to match.",
+    "should_trigger": true
+  },
+  {
+    "query": "Generate an llms.txt that points agents at the right docs for this Go module.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the godoc on our Go connection pool type and tell me which concurrency claims the code doesn't support.",
+    "should_trigger": true
+  },
+  {
+    "query": "Implement the --help and usage text for the new export subcommand in our Go CLI.",
+    "should_trigger": false
+  },
+  {
+    "query": "golangci-lint reports missing comments on exported identifiers; tune the revive rules in .golangci.yml.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure GoReleaser's changelog groups and the GitHub release workflow for our Go binaries.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename the exported UserUser type in our Go package to remove the stutter and update all callers.",
+    "should_trigger": false
+  },
+  {
+    "query": "Decide whether our Go SDK should expose a Client interface or a concrete struct in its public API.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a new Go module with cmd/ and internal/ layout for a service and a shared library.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write table-driven unit tests for the Go parser's error paths.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go service's example endpoint returns 500 in production; find the root cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a README for this Rust crate.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add OpenTelemetry tracing spans to our Go HTTP handlers.",
+    "should_trigger": false
+  }
+]

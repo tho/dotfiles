@@ -1,0 +1,78 @@
+[
+  {
+    "id": "minimal-tool",
+    "rubric": [
+      "Allows a root main package with one go.mod.",
+      "Does not mandate architecture or DI questions, cmd, internal, pkg, Makefile, or a linter.",
+      "Distinguishes proposed checks from executed checks."
+    ],
+    "input": "Start a tiny Go command-line tool at example.com/tools/count. It has one binary and no external dependencies. Choose a minimal layout."
+  },
+  {
+    "id": "public-library",
+    "rubric": [
+      "Allows root public API and optional cohesive subpackages.",
+      "Explains pkg is optional and internal has an enforced import restriction."
+    ],
+    "input": "Set up a Go logging library other teams can import. Should its package live at the root or under pkg?"
+  },
+  {
+    "id": "shared-release",
+    "rubric": [
+      "Uses distinct main packages for server and worker in one module.",
+      "Creates shared packages only for actual shared responsibilities."
+    ],
+    "input": "Our Go server and worker deploy together. Organize their executable entry points and shared code in one repository."
+  },
+  {
+    "id": "single-module",
+    "rubric": [
+      "Explains packages are not modules.",
+      "Keeps one module without adding go.work solely for organization."
+    ],
+    "input": "I have ten packages in one Go module. Would go.work improve the organization?"
+  },
+  {
+    "id": "workspace-release",
+    "rubric": [
+      "Checks each module with GOWORK=off.",
+      "Inspects local replace directives and missing or unpublished requirements.",
+      "Reports the unresolved release dependency rather than claiming workspace success proves readiness."
+    ],
+    "input": "The service requires example.com/lib v0.0.0, which is unpublished. go.work uses local ../lib and tests pass. Is it ready to release?"
+  },
+  {
+    "id": "workspace-removal",
+    "rubric": [
+      "Uses go work edit -dropuse=./lib, not go work use -rm.",
+      "Preserves remaining entries."
+    ],
+    "input": "Remove ./lib from our existing Go workspace while preserving its other entries. What command should I use?"
+  },
+  {
+    "id": "public-reorganization",
+    "rubric": [
+      "Maps old imports and external consumers before moving files.",
+      "Preserves the public path or supplies an appropriate compatibility bridge.",
+      "Checks tests, fixtures, embed paths, generators, and build commands affected by moves."
+    ],
+    "input": "Reorganize our Go SDK into a new layout. Customers import example.com/sdk/codec; keep that API working."
+  },
+  {
+    "id": "import-identity",
+    "rubric": [
+      "Preserves the vanity identity and case instead of forcing a GitHub URL or lowercase.",
+      "Uses the documented support floor rather than automatically choosing the installed Go version."
+    ],
+    "input": "Set up the module for our existing vanity identity go.example.com/Team/SDK/v2, with a supported Go floor already recorded in CI."
+  },
+  {
+    "id": "test-layout",
+    "rubric": [
+      "Co-locates _test.go files with packages.",
+      "Uses ordinary Go files for importable cross-package helpers.",
+      "Allows Go source as fixture data in testdata."
+    ],
+    "input": "Where should tests, shared Go test helpers and parser fixtures containing .go files live in the new module?"
+  }
+]

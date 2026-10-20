@@ -1,0 +1,103 @@
+{
+  "skill_name": "golang-debugging",
+  "evals": [
+    {
+      "id": 1,
+      "name": "flaky-test",
+      "prompt": "One Go test fails about 1 in 20 CI runs. It writes and reads a temp file. Locally it passes. What should we investigate?",
+      "expected_output": "Proposes an evidence-driven reproduction including suite versus isolation and environment differences. Tests a specific shared-state or timing hypothesis with a predicted observation. Records shuffle seed if using shuffle; does not hide the failure with sleeps, skips, retries, or claim a confirmed cause.",
+      "expectations": [
+        "Proposes an evidence-driven reproduction including suite versus isolation and environment differences.",
+        "Tests a specific shared-state or timing hypothesis with a predicted observation.",
+        "Records shuffle seed if using shuffle; does not hide the failure with sleeps, skips, retries, or claim a confirmed cause."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "clean-race",
+      "prompt": "Our Go shutdown test hangs, but go test -race passes. Does that rule out a concurrency bug?",
+      "expected_output": "Distinguishes data races from deadlocks and logical races. Explains executed-path limits of race detection. Proposes bounded stack capture and traces missing completion or wait dependencies.",
+      "expectations": [
+        "Distinguishes data races from deadlocks and logical races.",
+        "Explains executed-path limits of race detection.",
+        "Proposes bounded stack capture and traces missing completion or wait dependencies."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "independent-fields",
+      "prompt": "Two goroutines each own a distinct int64 field in a Go struct. No other reads or writes occur and main joins before reading. Is sharing a struct itself a data race?",
+      "expected_output": "Does not claim distinct fields race merely by sharing a struct. Checks actual access ownership and the join synchronization instead of prescribing unnecessary locks.",
+      "expectations": [
+        "Does not claim distinct fields race merely by sharing a struct.",
+        "Checks actual access ownership and the join synchronization instead of prescribing unnecessary locks."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "no-repro",
+      "prompt": "Our Go service returned 500 once. We have only timestamp, revision, and an error message. Tell us the root cause.",
+      "expected_output": "Labels root cause unconfirmed. Connects available evidence to a falsifiable hypothesis and next check. Does not invent reproduction or completed verification.",
+      "expectations": [
+        "Labels root cause unconfirmed.",
+        "Connects available evidence to a falsifiable hypothesis and next check.",
+        "Does not invent reproduction or completed verification."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "bisect",
+      "prompt": "Find which of 50 commits broke this Go behavior. Several intermediate commits do not build for unrelated reasons.",
+      "expected_output": "Uses a reliable reproduction oracle and isolates checkout changes. Treats unrelated unbuildable revisions as skipped rather than automatically bad. Distinguishes first bad commit from a causal explanation.",
+      "expectations": [
+        "Uses a reliable reproduction oracle and isolates checkout changes.",
+        "Treats unrelated unbuildable revisions as skipped rather than automatically bad.",
+        "Distinguishes first bad commit from a causal explanation."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "urgent-recovery",
+      "prompt": "Our Go production service is down. The incident commander requires restart now, and diagnostic capture is unavailable. Must we wait for profiles?",
+      "expected_output": "Allows immediate necessary mitigation. States restart success is not root-cause confirmation. Records remaining uncertainty and later evidence or reproduction needed.",
+      "expectations": [
+        "Allows immediate necessary mitigation.",
+        "States restart success is not root-cause confirmation.",
+        "Records remaining uncertainty and later evidence or reproduction needed."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "build-context",
+      "prompt": "Go CI reports undefined: platformOpen, but local builds succeed. Should I run go clean -modcache and lower the go directive?",
+      "expected_output": "Checks target, build tags, selected files and toolchain against the exact error. Does not clear cache or lower Go version without causal evidence. Verifies any repair using the original failing build context.",
+      "expectations": [
+        "Checks target, build tags, selected files and toolchain against the exact error.",
+        "Does not clear cache or lower Go version without causal evidence.",
+        "Verifies any repair using the original failing build context."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "failed-fixes",
+      "prompt": "Four attempted Go bug fixes each reveal another failure. Should I rewrite the architecture?",
+      "expected_output": "Revisits assumptions and causal model. Does not infer architecture is broken from the number of attempts. Proposes one discriminating experiment before another speculative repair.",
+      "expectations": [
+        "Revisits assumptions and causal model.",
+        "Does not infer architecture is broken from the number of attempts.",
+        "Proposes one discriminating experiment before another speculative repair."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "slice-repro",
+      "prompt": "Explain why this Go program prints [1 2 99]: a := []int{1,2,3}; b := a[:2]; b = append(b,99); fmt.Println(a). We want independent slices.",
+      "expected_output": "Explains shared backing array and append within capacity. Proposes a copy or capacity-limited append with precise aliasing limits. Treats supplied reproduction as evidence rather than demanding unnecessary investigation.",
+      "expectations": [
+        "Explains shared backing array and append within capacity.",
+        "Proposes a copy or capacity-limited append with precise aliasing limits.",
+        "Treats supplied reproduction as evidence rather than demanding unnecessary investigation."
+      ]
+    }
+  ]
+}

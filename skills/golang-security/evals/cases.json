@@ -1,0 +1,277 @@
+[
+  {
+    "id": "1",
+    "input": "Review for SQL injection: a Go handler calls strconv.Atoi on a path parameter, returns on error, then formats the int using fmt.Sprintf(\"SELECT * FROM users WHERE id = %d\", id). Is this exploitable as SQL injection?",
+    "rubric": [
+      "Explains that successful integer parsing plus %d prevents SQL syntax injection on this path.",
+      "Separates parameterization as hardening from a demonstrated vulnerability.",
+      "Does not invent a bypass or require an inline suppression comment."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "2",
+    "input": "Design a Go PostgreSQL query builder for HTTP-supplied user IDs and sort column. Include an empty ID list policy.",
+    "rubric": [
+      "Binds each value separately or uses supported array parameters.",
+      "Maps sort identifiers to fixed allowed SQL fragments rather than binding them as values.",
+      "Defines empty-list behavior without invalid SQL or silently broadening the query."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "3",
+    "input": "Review a Go service that invokes an external image tool with exec.CommandContext using an uploaded filename as a separate argument. Does this make every filename safe?",
+    "rubric": [
+      "Distinguishes shell injection from tool option or operand interpretation.",
+      "Considers confinement, executable selection, tool-supported --, and resource bounds as appropriate.",
+      "Does not claim separate arguments or a timeout sandbox arbitrary code."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "4",
+    "input": "Audit a Go handler executing a trusted html/template with a user-supplied display name, and a second handler parsing the supplied name as template source. Explain the difference.",
+    "rubric": [
+      "Recognizes normal untrusted values passed to Execute are contextually escaped.",
+      "Identifies untrusted template source and trusted-type casts as distinct risks.",
+      "Does not flag the first path as template injection solely because its data is untrusted."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "5",
+    "input": "Audit a Go API using encoding/xml.NewDecoder on a bounded request body with default settings, no custom Entity map, and no external fetch code. Does a DOCTYPE declaration cause network-based XXE?",
+    "rubric": [
+      "Does not claim the standard decoder fetches external entities by default.",
+      "Separates actual parser capabilities from general XML risks.",
+      "Can discuss residual parsing or resource limits without inventing external fetching."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "6",
+    "input": "Design a Go URL preview fetcher for arbitrary public HTTPS URLs. Attackers control DNS and redirects. The service can reach an internal network.",
+    "rubric": [
+      "Validates actual resolved IPs and binds validation to dialing to avoid DNS rebinding.",
+      "Revalidates every redirect or disables redirects.",
+      "Addresses IPv6, metadata/link-local destinations, proxy bypasses, and timeout/response-size bounds."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "7",
+    "input": "For Go 1.24, design a file-download handler rooted at an uploads directory whose child paths can be changed concurrently by an untrusted uploader. Compare os.Root with Clean+HasPrefix and lexical IsLocal checks.",
+    "rubric": [
+      "Uses os.Root or another justified traversal-resistant facility.",
+      "Explains why lexical checks do not prevent symlink races.",
+      "Does not describe os.Root as a complete sandbox against mounts or special files."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "8",
+    "input": "Design secure Go ZIP extraction with a 10 MiB total expanded-byte budget. Exactly 10 MiB is allowed, 10 MiB plus one byte is rejected. Archives can lie about size and contain symlinks and duplicate paths.",
+    "rubric": [
+      "Counts actual expanded bytes and distinguishes exact-limit success from overflow.",
+      "Confines extraction and defines special-file, symlink, duplicate and overwrite policies.",
+      "Bounds file count and resources and handles incomplete output on failure."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "9",
+    "input": "Audit os.WriteFile(path, pemKey, 0600) in Go. The target can already exist with mode 0644 or be a symlink. The key must remain private.",
+    "rubric": [
+      "Explains creation mode does not tighten existing permissions.",
+      "Addresses existing targets and symlink behavior explicitly.",
+      "Does not claim 0600 alone proves secure storage."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "10",
+    "input": "Secure a Go POST /transfer handler authenticated by session cookie. The browser UI sends JSON. A sibling subdomain may be hostile. Explain CSRF defenses and cookie settings.",
+    "rubric": [
+      "Uses session-bound token protection or strict origin validation with an explicit missing-proof policy.",
+      "Does not rely on SameSite or CORS alone, and distinguishes same-site from same-origin.",
+      "Keeps safe methods free of state changes and requires resource-specific authorization."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "11",
+    "input": "A Go browser app reads a separate CSRF token cookie in JavaScript and sends it in a request header. The authentication cookie remains HttpOnly. Review this design and recommend host-only cookie settings.",
+    "rubric": [
+      "Does not force HttpOnly onto the deliberately script-readable CSRF cookie.",
+      "Requires server-side token validation and an appropriate session-bound or signed double-submit design.",
+      "Explains __Host- requires Secure, Path /, and no Domain without claiming port-level origin isolation."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "12",
+    "input": "Review JWT validation for an RS256-only Go API. It accepts any *jwt.SigningMethodRSA and trusts the header kid as a local key path. What needs correction?",
+    "rubric": [
+      "Pins the exact allowed algorithm, not merely the RSA family.",
+      "Restricts key selection to a trusted mapping rather than arbitrary header-selected paths.",
+      "Checks trusted issuer, audience, signature, expiration and relevant time claims."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "13",
+    "input": "A Go API verifies a valid session, then loads /tenants/{tenant}/invoices/{id} by invoice ID alone. Audit cross-tenant access.",
+    "rubric": [
+      "Requires authorization for the requested tenant and object, not authentication alone.",
+      "Explains a reachable cross-tenant request and impact subject to actual data access.",
+      "Suggests abuse cases plus legitimate same-tenant behavior."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "14",
+    "input": "Design AES-GCM encryption in Go 1.24 for many replicas sharing a key. Each replica can restart and handles 10000 messages per second. Explain nonce management and key rotation.",
+    "rubric": [
+      "Uses a supported safe nonce construction, such as NewGCMWithRandomNonce, with compatible encoding.",
+      "Avoids independent resettable counters unless uniqueness across instances and restarts is established.",
+      "Accounts for the random-nonce per-key message budget across all replicas and rotates before exhaustion."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "15",
+    "input": "Design Go password hashing and verification supporting 1000-character passwords. A teammate suggests bcrypt directly.",
+    "rubric": [
+      "Explains Go bcrypt rejects inputs over 72 bytes rather than silently truncating.",
+      "Chooses a deliberate long-password scheme or policy and does not silently alter passwords.",
+      "Stores salt and cost parameters, bounds verification work, and compares correctly."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "16",
+    "input": "Review a Go webhook verifier streaming a size-limited body into HMAC-SHA256, decoding a hex signature, and comparing with hmac.Equal. Does security require buffering the full body?",
+    "rubric": [
+      "Accepts streaming all authenticated bytes without requiring full buffering.",
+      "Handles malformed signatures and authentication failure without unsafe side effects.",
+      "Considers protocol freshness/replay requirements separately from MAC validity."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "17",
+    "input": "A Go service wraps pgx errors with %w internally. Its HTTP handler returns a fixed 500 body. A reviewer says remote clients can use errors.As to extract the database schema. Assess that claim and the logging policy.",
+    "rubric": [
+      "Rejects the claim that remote HTTP clients can unwrap internal Go errors without an exposure path.",
+      "Preserves useful internal error contracts while keeping public responses safe.",
+      "Checks internal logs for credentials and does not require logging raw database errors."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "18",
+    "input": "Audit Go telemetry that deletes Authorization from a top-level header map but includes nested errors, breadcrumbs and request URLs. It hashes emails with unsalted SHA-256 and calls them anonymous.",
+    "rubric": [
+      "Traces sensitive data through nested payloads, errors, URLs and case-varying headers.",
+      "Explains unsalted email hashes and user IDs can remain linkable personal data.",
+      "Verifies emitted payloads and does not claim legal compliance from hashing alone."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "19",
+    "input": "Review a Go sanitizer for a line-based SIEM: it removes control characters except newline and tab, then writes username using log.Printf. Attackers supply username.",
+    "rubric": [
+      "Identifies newline-based record forgery.",
+      "Uses suitable escaping or encoding for the actual downstream parser.",
+      "Does not claim all structured handlers automatically prevent every injection path."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "20",
+    "input": "Design Go per-client rate limiting for a public API. Clients can generate unlimited unique identifiers and spoof X-Forwarded-For unless they pass through the trusted proxy.",
+    "rubric": [
+      "Establishes trusted client identity rather than trusting arbitrary forwarded headers.",
+      "Bounds and expires per-client limiter state.",
+      "Considers aggregate capacity and avoids unbounded allocations under identity churn."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "21",
+    "input": "Threat model a Go webhook service that validates payment-provider signatures, stores events in PostgreSQL and queues work in NATS. Retries are common.",
+    "rubric": [
+      "Names assets, trust boundaries and relevant STRIDE threats.",
+      "Distinguishes signatures, replay/freshness, and processing idempotency.",
+      "Prioritizes with evidence and assumptions rather than assigning fixed severity to patterns."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "22",
+    "input": "A Go review flags RS256 signatures for RSA encryption padding-oracle attacks and an MD5 non-security cache key as password hashing. Evaluate these two claims without assuming extra uses.",
+    "rubric": [
+      "Distinguishes RSA signature verification from PKCS#1 v1.5 decryption padding oracles.",
+      "Distinguishes a non-security checksum from password storage while acknowledging relevant collision consequences if applicable.",
+      "Does not invent security uses or attack paths absent from the input."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "23",
+    "input": "A Go 1.24 service encrypts with AES-GCM random 96-bit nonces. One key has already encrypted 1,000,000,000 messages. Eighteen replicas now each encrypt 12,000 messages per second. Using the standard-library random-nonce message cap, calculate the remaining time budget in seconds and hours, and propose how to enforce rotation under autoscaling and restarts.",
+    "rubric": [
+      "Uses the remaining per-key budget 2^32 minus 1,000,000,000 and aggregate rate 18 times 12,000 messages per second.",
+      "Derives approximately 15,254.48 seconds or 4.23736 hours; calculations are mutually consistent and units are explicit.",
+      "Treats that interval as a ceiling requiring earlier coordinated rotation, accounting for changing replica counts and persisted consumption."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "24",
+    "input": "Review a Go payment webhook design. It streams the body into HMAC-SHA256, compares with hmac.Equal, then credits the account. A retry repeats the same valid signed body. X-Sent-At is outside the MAC and the handler trusts it to reject messages older than five minutes. Explain whether valid signatures are sufficient and what needs to change without breaking legitimate delivery retries.",
+    "rubric": [
+      "Recognizes that a valid MAC does not distinguish a first delivery from a repeated valid delivery.",
+      "Rejects relying on the unauthenticated timestamp for freshness and binds required freshness metadata into the authenticated representation.",
+      "Recommends atomic duplicate detection or durable idempotent effects bound to authenticated event identity, preserving legitimate retry behavior."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "25",
+    "input": "Review Go verification of immutable backup files kept for ten years. Each file has HMAC-SHA256 over its complete bytes using a trusted key; verification uses hmac.Equal. The contract is integrity and provenance only. Old authentic files must remain readable and repeated verification is expected. Does this need timestamps or replay rejection?",
+    "rubric": [
+      "Keeps valid old backups readable and does not require timestamps, expiry, or replay rejection for the stated integrity-only contract.",
+      "Distinguishes integrity/authenticity from recency without claiming HMAC establishes creation time.",
+      "Preserves complete-message authentication and safe rejection of tampered content."
+    ],
+    "state_prefix": null,
+    "files": []
+  }
+]

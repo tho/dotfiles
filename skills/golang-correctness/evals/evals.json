@@ -1,0 +1,289 @@
+{
+  "skill_name": "golang-correctness",
+  "evals": [
+    {
+      "id": 1,
+      "name": "typed-nil-success",
+      "source": "golang-safety:1,13",
+      "prompt": "Review this Go function. ValidationError implements error via a pointer receiver: func Validate(s string) error { var e *ValidationError; if s == \"\" { e = &ValidationError{} }; return e }",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Identifies a non-nil error interface on the valid-input path."
+        },
+        {
+          "id": "1.2",
+          "text": "Returns explicit nil on success and a validation error on failure."
+        },
+        {
+          "id": "1.3",
+          "text": "Does not claim errors.Is(err, nil) fixes a typed nil."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "wrapped-error-contract",
+      "source": "golang-error-handling:4",
+      "prompt": "Implement a Go 1.20 wrapper around func() error that adds operation context. Callers must still recognize fs.ErrNotExist and extract *fs.PathError. Show caller checks.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Preserves the cause using %w or an equivalent Unwrap contract."
+        },
+        {
+          "id": "2.2",
+          "text": "Uses errors.Is and errors.As for wrapped causes."
+        },
+        {
+          "id": "2.3",
+          "text": "Does not introduce a third-party dependency or APIs newer than Go 1.20."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "boundary-exposure",
+      "source": "golang-error-handling:12",
+      "prompt": "Review an HTTP handler that sends fmt.Sprintf(\"request failed: %v\", err) to clients. err includes an internal database connection string. A teammate says %v makes it safe because clients cannot unwrap it.",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "Explains that %v still exposes the underlying text."
+        },
+        {
+          "id": "3.2",
+          "text": "Proposes a public response separate from internal diagnostics."
+        },
+        {
+          "id": "3.3",
+          "text": "Avoids logging secrets verbatim."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "logging-ownership",
+      "source": "golang-error-handling:1,7",
+      "prompt": "A Go repository logs every failed read and returns the error. Its service logs and wraps the same error. Its HTTP handler logs it and returns a generic 500. Review this design and show the intended ownership.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Identifies duplicate terminal-failure logging across layers."
+        },
+        {
+          "id": "4.2",
+          "text": "Keeps useful context through propagation and one responsible logging boundary."
+        },
+        {
+          "id": "4.3",
+          "text": "Keeps the public response free of internal details."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "validation-all-fields",
+      "source": "golang-error-handling:6",
+      "prompt": "Write Validate(host string, port int, tls bool, cert, key string) error for Go 1.20. Host is required; port must be 1..65535; cert and key are required when tls is true. Return every validation problem.",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Validates every field without early return after the first problem."
+        },
+        {
+          "id": "5.2",
+          "text": "Combines independent failures and returns nil when valid."
+        },
+        {
+          "id": "5.3",
+          "text": "Applies certificate and key requirements only when TLS is enabled."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "slice-capacity-is-not-copy",
+      "source": "golang-safety:2,24",
+      "prompt": "Review func Snapshot(s []int) []int { return s[:len(s):len(s)] }. Its contract promises callers can mutate the result without affecting s. Fix it, including empty and nil inputs.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Explains that a capacity limit does not isolate existing elements."
+        },
+        {
+          "id": "6.2",
+          "text": "Copies elements to meet the mutation contract."
+        },
+        {
+          "id": "6.3",
+          "text": "Does not claim append of zero elements forces allocation."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "nested-ownership",
+      "source": "golang-safety:26,28,34",
+      "prompt": "Design a Go 1.21 Store accepting map[string][]string and returning snapshots of it. Callers may mutate both original input and returned snapshots without affecting the store. The zero value must support Add(key, value string).",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Copies the map and mutable slice values on ingress and egress."
+        },
+        {
+          "id": "7.2",
+          "text": "Initializes map storage before zero-value Add writes."
+        },
+        {
+          "id": "7.3",
+          "text": "Handles nil input and missing keys without panic."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "checked-narrowing",
+      "source": "golang-safety:30",
+      "prompt": "Write EncodePort(port int) ([]byte, error), encoding port as two big-endian bytes. Valid values are 0 through 65535.",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "Rejects negative and over-limit values before conversion."
+        },
+        {
+          "id": "8.2",
+          "text": "Encodes valid boundary values correctly."
+        },
+        {
+          "id": "8.3",
+          "text": "Does not perform a lossy conversion before validating."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "float-contract",
+      "source": "golang-safety:10,17; revised explicit numeric contract",
+      "prompt": "In Go, write a float comparison helper for approximate sensor readings using caller-supplied nonnegative absolute and relative tolerances. Non-finite readings must be rejected, including identical infinities.",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Explicitly rejects NaN and infinities."
+        },
+        {
+          "id": "9.2",
+          "text": "Uses both requested tolerances with magnitude-aware comparison."
+        },
+        {
+          "id": "9.3",
+          "text": "Does not substitute an unexplained universal epsilon."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "write-and-close-batch",
+      "source": "golang-error-handling:8; golang-safety:27",
+      "prompt": "In Go 1.20 implement WriteAll(paths []string, data []byte) error. Create, write, and close each path before processing the next; attempt every path despite earlier failures. Preserve meaningful create, write, and close errors.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Closes each successfully opened file per iteration on write success and failure."
+        },
+        {
+          "id": "10.2",
+          "text": "Preserves both write and close failures when both occur."
+        },
+        {
+          "id": "10.3",
+          "text": "Attempts all paths and identifies failed operations and paths."
+        },
+        {
+          "id": "10.4",
+          "text": "Does not use a loop-level defer that retains every file until WriteAll returns."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "loop-value-versus-element",
+      "source": "golang-safety reference: slice-map-safety",
+      "prompt": "Review Go 1.22 code: for _, item := range items { ptrs = append(ptrs, &item) }. Callers mutate through ptrs expecting items to change. Also explain a variant with item declared outside and assigned with =.",
+      "assertions": [
+        {
+          "id": "11.1",
+          "text": "Distinguishes per-iteration value copies from original slice elements."
+        },
+        {
+          "id": "11.2",
+          "text": "Uses element addresses when mutations should update items."
+        },
+        {
+          "id": "11.3",
+          "text": "Explains that assignment to a predeclared loop variable still reuses it."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "zero-divisor-policy",
+      "source": "golang-safety:36; revised explicit invalid-input contract",
+      "prompt": "Implement PercentChange(before, after int) (float64, error). Reject before == 0 and preserve fractional precision. Inputs may span the int range.",
+      "assertions": [
+        {
+          "id": "12.1",
+          "text": "Returns an error for zero denominator rather than inventing zero."
+        },
+        {
+          "id": "12.2",
+          "text": "Avoids integer division truncation."
+        },
+        {
+          "id": "12.3",
+          "text": "Avoids overflowing integer subtraction or multiplication before conversion."
+        },
+        {
+          "id": "12.4",
+          "text": "Acknowledges float approximation if exact full-range results cannot be represented."
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "optional-callbacks",
+      "source": "golang-safety:8,22,32",
+      "prompt": "In Go, implement a Server with optional OnStart and OnStop callbacks. The zero value must permit Start and Stop without panic.",
+      "assertions": [
+        {
+          "id": "13.1",
+          "text": "Guards both optional callback calls or otherwise ensures they are safe for the zero value."
+        },
+        {
+          "id": "13.2",
+          "text": "Does not rely solely on a constructor to initialize exported struct callbacks."
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "cleanup-error-chain",
+      "source": "combined errors and safety regression",
+      "prompt": "Review a helper that returns a typed *OpError variable as error on success, defers Close across a batch loop, and discards Close errors. Propose corrections that preserve errors.Is for both operation and cleanup failures.",
+      "assertions": [
+        {
+          "id": "14.1",
+          "text": "Addresses the typed-nil success return."
+        },
+        {
+          "id": "14.2",
+          "text": "Bounds each resource lifetime to its iteration."
+        },
+        {
+          "id": "14.3",
+          "text": "Preserves inspectable primary and cleanup errors with contextual labels."
+        }
+      ]
+    }
+  ]
+}

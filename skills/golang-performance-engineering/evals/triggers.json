@@ -1,0 +1,134 @@
+[
+  {
+    "query": "Our Go parser got slower after a refactor. Help me build a reliable before/after benchmark and decide whether to keep the change.",
+    "should_trigger": true
+  },
+  {
+    "query": "We have ten Go benchmark samples for each version. Explain the benchstat output, including the rows marked ~.",
+    "should_trigger": true
+  },
+  {
+    "query": "Go pprof shows runtime.mallocgc and GC dominating CPU. Find a measured optimization path and verify the result.",
+    "should_trigger": true
+  },
+  {
+    "query": "I am preparing a release of our Go service. Review this proposed sync.Pool optimization for performance and tell me what evidence would justify it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go API has high p99 latency and low CPU. Help investigate the time spent waiting before we tune allocations.",
+    "should_trigger": true
+  },
+  {
+    "query": "Help set up a CI check that compares Go benchmark regressions against the PR base without trusting noisy single runs.",
+    "should_trigger": true
+  },
+  {
+    "query": "We suspect lock contention in our Go worker service. Interpret the mutex profile and execution trace and propose how to validate a fix.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can we reduce Go heap usage? I have before and after inuse_space profiles under the same load and want to distinguish retention from churn.",
+    "should_trigger": true
+  },
+  {
+    "query": "The deployment checklist is nearly done. One remaining item: compare Go builds with and without PGO using our representative CPU profile.",
+    "should_trigger": true
+  },
+  {
+    "query": "For this Go hot path, compare cache reuse and preallocation candidates using repeatable measurements, correctness checks, and an honest performance conclusion.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain what a Go slice is and how len differs from cap. I do not need performance tuning.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go program panics on a nil pointer during startup. Help identify the bug from this stack trace.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add OpenTelemetry trace propagation to this Go HTTP handler. This is routine instrumentation setup, not a latency investigation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a basic Prometheus metrics endpoint in a new Go service and show request and error counters.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write unit tests for this Go parser covering malformed JSON and missing required fields. Keep its implementation unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain the syntax of Go channels and select for a beginner; use a tiny runnable example.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go service cannot connect to Postgres because the password is wrong. Explain how to fix the connection configuration.",
+    "should_trigger": false
+  },
+  {
+    "query": "Update the Go module path after we renamed the repository. No runtime behavior or optimization changes are needed.",
+    "should_trigger": false
+  },
+  {
+    "query": "Help me write release notes for this Go library. Mention the already verified performance improvement of 15% exactly as supplied; no new analysis.",
+    "should_trigger": false
+  },
+  {
+    "query": "I have a slow Python loop and want to benchmark and optimize it. This repository contains no Go code.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write the performance review conclusion for our Go encoder PR. Benchmarks improved by 8%, allocations stayed flat, tests pass, and no production load test exists yet.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go parsing change is faster but uses more memory. Help me decide whether the evidence justifies approval and write the reviewer handoff.",
+    "should_trigger": true
+  },
+  {
+    "query": "Copy this already-approved Go benchmark result verbatim into the release notes: Parse is 15% faster. Do not assess or reinterpret it.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a code review conclusion for a Go documentation-only PR that fixes a broken benchmark tutorial link. There are no code or performance changes.",
+    "should_trigger": false
+  },
+  {
+    "query": "this go function is kinda slow, can you make it faster?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go service runs in a 2 GiB container. Should we set GOMEMLIMIT, and to what?",
+    "should_trigger": true
+  },
+  {
+    "query": "go build -gcflags=-m says this struct escapes to the heap in my hot loop. Is that why allocs/op went up?",
+    "should_trigger": true
+  },
+  {
+    "query": "We keep a single http.Client but see lots of new TLS handshakes under load in Go. Should we tune the transport's connection pool?",
+    "should_trigger": true
+  },
+  {
+    "query": "A Go unit test started failing after last week's commits. Help me find which commit broke it.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go worker hangs forever after a deploy and goroutine dumps show it blocked on a channel. What is wrong?",
+    "should_trigger": false
+  },
+  {
+    "query": "Should I protect this shared Go counter with a mutex or use a channel?",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure pgx pool settings so our Go service stops returning connection errors when the database restarts.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add Prometheus alerts for p99 latency SLO breaches to our Go service's dashboards.",
+    "should_trigger": false
+  }
+]

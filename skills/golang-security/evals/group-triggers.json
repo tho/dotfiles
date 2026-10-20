@@ -1,0 +1,327 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-concurrency",
+    "golang-correctness",
+    "golang-database",
+    "golang-dependencies",
+    "golang-lint",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Candidates are the skills-v2 siblings that share security vocabulary. Legacy skills are excluded. This is an unrun group evaluation specification; triggers.json supplies isolated binary expectations only. Required skills must be selected; any selection outside allowed is a false match. Ambiguous combined requests permit multiple skills.",
+  "queries": [
+    {
+      "id": "q000",
+      "query": "Audit this Go API for exploitable vulnerabilities and authorization bypass.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q001",
+      "query": "While adding a Go URL preview feature, prevent SSRF through DNS rebinding and redirects.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q002",
+      "query": "Secure cookie-authenticated Go POST handlers against CSRF.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q003",
+      "query": "Review the Go archive uploader for path traversal and decompression bombs.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q004",
+      "query": "We deploy many Go replicas with one encryption key. Check GCM nonce safety and key rotation.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q005",
+      "query": "Prevent SQL injection in this Go search endpoint with dynamic sort columns.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q006",
+      "query": "Threat model the trust boundaries in our Go payment webhook service.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q007",
+      "query": "Stop our Go telemetry from leaking credentials and personal data.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q008",
+      "query": "Harden Go session cookies and verify JWT issuer, audience, expiry and signing algorithm.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q009",
+      "query": "Can hostile dimensions overflow this Go upload allocation and crash the server? Audit the denial-of-service risk.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q010",
+      "query": "Fix a typed-nil error return in this Go library.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q011",
+      "query": "Preserve errors.Is and errors.As when adding context to Go errors.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q012",
+      "query": "Our Go snapshot aliases a map of slices; make the ownership contract correct.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q013",
+      "query": "Check int64-to-int32 narrowing overflow in a Go binary encoder.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q014",
+      "query": "Ensure each Go batch file closes per iteration and preserves cleanup errors.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q015",
+      "query": "Design Go worker-pool cancellation, goroutine ownership and channel shutdown.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "q016",
+      "query": "Add testify assertions and unit tests to this Go parser.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "q017",
+      "query": "Benchmark Go slice copying and analyze the allocation profile.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "q018",
+      "query": "Run a dependency-only govulncheck scan for the Go module.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "q019",
+      "query": "Wire gosec and govulncheck into GitHub Actions for a Go repository.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release",
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "q020",
+      "query": "Review Go error wrapping and prevent raw credentials appearing in HTTP failure responses.",
+      "required": [
+        "golang-security",
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q021",
+      "query": "Add regression tests for the CSRF fix in this Go handler, including valid requests.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q022",
+      "query": "Review synchronized session revocation in Go for an authorization bypass under concurrent requests.",
+      "required": [
+        "golang-security",
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-concurrency",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q023",
+      "query": "Review a Go function that reads a fixed local configuration file; focus on propagation of read and close errors.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q024",
+      "query": "Add request latency histograms and trace spans to this Go HTTP service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "q025",
+      "query": "Structured slog logging for our Go API is too noisy; reduce log volume and pick levels.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "q026",
+      "query": "Our Go logs include bearer tokens and customer emails. Redact them before they reach the log pipeline.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "q027",
+      "query": "Write a pgx query with placeholders to filter Go orders by status and date range.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "q028",
+      "query": "Enable gosec in our .golangci.yml and tune its excludes.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "q029",
+      "query": "Can a user read another tenant's invoice by changing the ID in the URL of this Go handler?",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    }
+  ]
+}

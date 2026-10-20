@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Add a --dry-run flag to our Go command and make sure scripts can rely on its exit status.",
+    "should_trigger": true
+  },
+  {
+    "query": "My Go tool prints JSON to stdout but log lines end up mixed in. Make the output pipeable.",
+    "should_trigger": true
+  },
+  {
+    "query": "Handle Ctrl-C in our Go command so it finishes cleanup before exiting.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a --version flag to our Go binary that reports the build's commit.",
+    "should_trigger": true
+  },
+  {
+    "query": "Environment variables should override the config file in our Go app, but an explicit flag still wins. Implement that.",
+    "should_trigger": true
+  },
+  {
+    "query": "We use Kong for our Go CLI. Help output kills the test process; fix it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Should this new Go admin tool with three subcommands use Cobra or just the flag package?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go service reads settings with Viper and the env value for a nested key is ignored by Unmarshal.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add shell completion for the region flag of our Cobra command.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the argument validation and help text of the new Go CLI in this PR.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a bash script that parses flags with getopts.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure a Kong API gateway plugin for rate limiting.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain what git merge --ff-only does.",
+    "should_trigger": false
+  },
+  {
+    "query": "Change the port in this YAML config file to 9090; nothing else.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go CLI panics with a nil pointer on one machine. Reproduce it and find the root cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write table-driven tests for a pure Go function that parses durations.",
+    "should_trigger": false
+  },
+  {
+    "query": "Lay out a Go repository with two binaries under cmd/ and a shared internal package.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up GoReleaser in GitHub Actions to publish our Go binaries on tag.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure golangci-lint for our Go repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Optimize the compression loop of our Cobra-based Go tool; the profile shows it is the CPU hotspot.",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,268 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-concurrency",
+    "golang-correctness",
+    "golang-performance-engineering",
+    "golang-testing"
+  ],
+  "notes": "Expectations describe this converted candidate set. Reassess labels when the candidate set changes. No legacy skills are staged. Historical scores remain unchanged.",
+  "queries": [
+    {
+      "query": "Add Go unit tests for this parser, including boundary inputs and wrapped errors.",
+      "id": "q000",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-correctness"
+      ]
+    },
+    {
+      "query": "Review these testify assertions and mock expectations in our Go service tests.",
+      "id": "q001",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Add HTTP handler tests to the Go endpoint we just shipped, including malformed requests.",
+      "id": "q002",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "While finishing this Go feature, add isolated PostgreSQL integration tests that run in our existing tagged lane.",
+      "id": "q003",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-correctness"
+      ]
+    },
+    {
+      "query": "Write a regression test for this understood Go bug: the parser accepted a negative limit before the fix.",
+      "id": "q004",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Audit our Go test coverage for meaningful missing assertions and isolation problems.",
+      "id": "q005",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-concurrency",
+        "golang-correctness"
+      ]
+    },
+    {
+      "query": "Choose between assert and require for a Go test that decodes a response and checks nested fields.",
+      "id": "q006",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Create a testify suite for these Go integration tests with fresh mocks per test.",
+      "id": "q007",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Add fuzz properties and executable examples for this Go encoding API.",
+      "id": "q008",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Our Go test fixture shares mutable data across cases. Review its isolation and cleanup design.",
+      "id": "q009",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing",
+        "golang-concurrency",
+        "golang-correctness"
+      ]
+    },
+    {
+      "query": "Why does this Go test hang intermittently in CI? Find the unknown cause.",
+      "id": "q010",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "query": "Debug this Go nil-pointer panic reported by a failing unit test.",
+      "id": "q011",
+      "required": [],
+      "allowed": [
+        "golang-correctness"
+      ],
+      "label_note": "Nonproduction nil-pointer diagnosis is not expressly excluded by correctness; either no match or correctness is defensible."
+    },
+    {
+      "query": "Diagnose this Go race-detector report and find which production access is wrong.",
+      "id": "q012",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ],
+      "label_note": "Shared-state race review is within concurrency scope; production access alone does not establish a production incident."
+    },
+    {
+      "query": "Write Go benchmarks comparing these two encoders, reporting allocations.",
+      "id": "q013",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "query": "Interpret this benchstat output from Go benchmarks and assess the performance regression.",
+      "id": "q014",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "query": "Profile the slow Go test process to find CPU and allocation hotspots.",
+      "id": "q015",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "query": "Optimize the Go service using this pprof capture; the tests already pass.",
+      "id": "q016",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "query": "This Go package imports testify. Rename a production function without changing behavior or tests.",
+      "id": "q017",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "query": "Configure a GitHub Actions workflow to run the existing Go tests and upload coverage artifacts.",
+      "id": "q018",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "query": "Write Python pytest tests and mocks for this handler.",
+      "id": "q019",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "q020",
+      "query": "Review and fix typed-nil error returns and errors.Is wrapping in this Go API.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q021",
+      "query": "Prevent slice backing-array aliasing and integer narrowing overflow in this Go library.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q022",
+      "query": "Design a bounded Go worker pool with explicit channel ownership and cancellation.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "q023",
+      "query": "Design request context propagation and per-attempt deadlines for a Go retry loop.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "query": "Convert the hand-rolled cases in this Go _test.go file into a table-driven test with named subtests.",
+      "id": "q024",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "Add golden-file tests for our Go report renderer's output.",
+      "id": "q025",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "query": "This Go _test.go file times out only on CI. Find out why.",
+      "id": "q026",
+      "required": [],
+      "allowed": []
+    }
+  ]
+}

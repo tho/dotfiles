@@ -1,0 +1,86 @@
+# Optional GHCR example; requires a project Dockerfile and reusable check workflows.
+name: Container
+on:
+  pull_request:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+  vulnerabilities:
+    uses: ./.github/workflows/govulncheck.yml
+  pr-build:
+    if: github.event_name == 'pull_request'
+    needs: [checks, vulnerabilities]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          platforms: linux/amd64
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [checks, vulnerabilities]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Validate semantic release tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PYTAG'
+          import os, re
+          number = r"(?:0|[1-9][0-9]*)"
+          prerelease = rf"(?:{number}|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+          pattern = rf"v{number}\.{number}\.{number}(?:-{prerelease}(?:\.{prerelease})*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+          if re.fullmatch(pattern, os.environ["RELEASE_TAG"]) is None:
+              raise SystemExit("Expected a v-prefixed semantic version tag")
+          PYTAG
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Derive a source-SHA tag
+        id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: echo "tag=ghcr.io/${REPOSITORY,,}:sha-${SOURCE_SHA}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish validated source
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.image.outputs.tag }}
+          provenance: mode=max
+          sbom: true
+      - name: Record digest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "Published digest $IMAGE_DIGEST" >> "$GITHUB_STEP_SUMMARY"

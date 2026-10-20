@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Review this Go change for error contracts and nil safety.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write a Go wrapper that preserves errors.Is and adds operation context.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check whether this Go error return can contain a typed nil.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go getter promises an independent map of slices. Review its copying.",
+    "should_trigger": true
+  },
+  {
+    "query": "While adding CSV export in Go, ensure files close per record and write errors survive cleanup.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check the Go port encoder for negative inputs and narrowing overflow.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review Go floating point comparisons for NaN and domain tolerances.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a usable Go zero value with optional callbacks and lazy map storage.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit duplicate error logging as errors propagate through this Go service.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review this Go append operation for accidental mutation of caller-owned storage.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a Go worker pool with cancellation and bounded concurrency.",
+    "should_trigger": false
+  },
+  {
+    "query": "Investigate a production Go outage from these stack traces and incident logs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Audit this Go HTTP client for SSRF and weak TLS settings.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up slog handlers, log shipping, and sampling for our Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Benchmark slice copying in Go and reduce allocation overhead.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure golangci-lint in our GitHub Actions pipeline.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose a database transaction isolation strategy for the Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rename Go exported types to match our naming conventions.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design distributed tracing and error-rate dashboards for Go services.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create a routing skill for the converted Go skill collection.",
+    "should_trigger": false
+  }
+]

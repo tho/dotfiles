@@ -1,0 +1,138 @@
+[
+  {
+    "query": "Review this Go diff for channel closure and goroutine completion.",
+    "should_trigger": true
+  },
+  {
+    "query": "Design a bounded Go worker pool that drains on shutdown.",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose mutexes or atomics for shared Go counters and a multi-field invariant.",
+    "should_trigger": true
+  },
+  {
+    "query": "While adding a Go export endpoint, propagate its deadline through HTTP and database calls.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain how to cancel an idle Go pipeline when the consumer exits early.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add per-attempt timeouts to my Go retry loop without leaking cancel resources.",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose between Background, TODO, and WithoutCancel for this Go request lifetime.",
+    "should_trigger": true
+  },
+  {
+    "query": "Write typed accessors for request-scoped tenant metadata in Go context.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit goroutine ownership and bounded admission across this Go package.",
+    "should_trigger": true
+  },
+  {
+    "query": "In Go, deduplicate profile lookups while allowing each waiter to cancel independently.",
+    "should_trigger": true
+  },
+  {
+    "query": "Rename ctx to requestCtx in this Go signature; no behavior changes.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain Go typed-nil interfaces and fix this error return.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review slice aliasing in this single-threaded Go parser.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our live Go service is hung. Diagnose this production goroutine dump.",
+    "should_trigger": false
+  },
+  {
+    "query": "Investigate this production Go race-detector report and find the root cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up OpenTelemetry collectors and dashboards for our Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Optimize this SQL query and choose database indexes.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a Python asyncio worker pool with task cancellation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix integer overflow in this Go port decoder.",
+    "should_trigger": false
+  },
+  {
+    "query": "Rewrite the comment on a Go function that happens to accept context.Context.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go exporter buffers spans. Configure its flush deadline and sampling policy.",
+    "should_trigger": false
+  },
+  {
+    "query": "Reduce the number of Prometheus time series produced by our Go route instrumentation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Prevent clients from exhausting our Go service by supplying unlimited telemetry label values. Audit the denial-of-service risk.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go logs contain bearer tokens. Remove the credential leak.",
+    "should_trigger": false
+  },
+  {
+    "query": "Stop Go worker goroutines after their caller cancels, and wait for every worker to exit.",
+    "should_trigger": true
+  },
+  {
+    "query": "Propagate request deadlines through Go application calls without leaking cancellation resources.",
+    "should_trigger": true
+  },
+  {
+    "query": "Choose constructor and interface contracts for a reusable Go background-job library.",
+    "should_trigger": false
+  },
+  {
+    "query": "Wire a Go telemetry provider through constructors so packages do not depend on global state.",
+    "should_trigger": false
+  },
+  {
+    "query": "Is this Go cache built on sync.Map with a WaitGroup-joined refresher safe from data races?",
+    "should_trigger": true
+  },
+  {
+    "query": "This Go test deadlocks sometimes in CI; diagnose why it hangs.",
+    "should_trigger": false
+  },
+  {
+    "query": "go test -race fails intermittently in CI on our Go package; find the root cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Make this pgx transaction roll back when the request is canceled.",
+    "should_trigger": false
+  },
+  {
+    "query": "Cut allocations in this Go hot path with sync.Pool and benchmark the change.",
+    "should_trigger": false
+  },
+  {
+    "query": "Migrate our wg.Add/Done loops to WaitGroup.Go as part of the Go 1.25 upgrade.",
+    "should_trigger": false
+  }
+]

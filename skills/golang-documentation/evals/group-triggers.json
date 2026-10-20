@@ -1,0 +1,227 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Group selection cases for converted skills only. Exclude legacy skills/. Check required selections for misses and selections outside allowed for false matches. Empty lists permit no skill. These are expected labels, not measured results; refresh candidates when the converted group changes.",
+  "queries": [
+    {
+      "query": "Write godoc comments for our Go parser from its implementation.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q000"
+    },
+    {
+      "query": "Update the Go README quick start and verify its commands.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q001"
+    },
+    {
+      "query": "Check CONTRIBUTING against our Go build and test scripts.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q002"
+    },
+    {
+      "query": "Write changelog entries for this Go API diff.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q003"
+    },
+    {
+      "query": "Document configuration precedence for this Go CLI.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation",
+        "golang-cli"
+      ],
+      "id": "q004"
+    },
+    {
+      "query": "Add executable ExampleClient_Get documentation to this Go library.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q005"
+    },
+    {
+      "query": "Fix the OpenAPI generation instructions in our Go service docs.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q006"
+    },
+    {
+      "query": "Audit our Go documentation site for stale links and incompatible code snippets.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q007"
+    },
+    {
+      "query": "Create an llms.txt index for this Go project from existing docs.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q008"
+    },
+    {
+      "query": "While preparing this Go release, fix outdated installation instructions without changing the release pipeline.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ],
+      "id": "q009"
+    },
+    {
+      "query": "Rename this Go interface and choose better parameter names.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions",
+        "golang-maintenance"
+      ],
+      "id": "q010"
+    },
+    {
+      "query": "Add Go parser unit tests with testify.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ],
+      "id": "q011"
+    },
+    {
+      "query": "Fix a goroutine leak and design shutdown cancellation.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ],
+      "id": "q012"
+    },
+    {
+      "query": "Review wrapped errors and typed-nil handling in Go.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ],
+      "id": "q013"
+    },
+    {
+      "query": "Benchmark this Go parser and analyze pprof output.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ],
+      "id": "q014"
+    },
+    {
+      "query": "Prevent path traversal in this Go file server.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ],
+      "id": "q015"
+    },
+    {
+      "query": "Configure GoReleaser and GitHub Actions to publish binaries.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ],
+      "id": "q016"
+    },
+    {
+      "query": "Implement a new Go HTTP endpoint.",
+      "required": [],
+      "allowed": [],
+      "id": "q017"
+    },
+    {
+      "query": "Write documentation for a Python package.",
+      "required": [],
+      "allowed": [],
+      "id": "q018"
+    },
+    {
+      "query": "Explain the tradeoffs of two database architectures.",
+      "required": [],
+      "allowed": [],
+      "id": "q019"
+    },
+    {
+      "query": "Add executable Go documentation examples and unit regression tests for this formatter.",
+      "required": [
+        "golang-documentation",
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-documentation",
+        "golang-testing"
+      ],
+      "id": "q020"
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "candidate_skills": [
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-design",
+    "golang-maintenance",
+    "golang-performance-engineering",
+    "golang-security",
+    "golang-testing"
+  ],
+  "queries": [
+    {
+      "id": "q001",
+      "query": "Choose idiomatic Go names for a client constructor and its options.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q002",
+      "query": "Review Go identifiers: userId, MAX_RETRIES and GetName.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q003",
+      "query": "Can you simplify these nested Go conditionals without changing their behavior?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q004",
+      "query": "Establish Go naming and code clarity conventions for this repository.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q005",
+      "query": "We are preparing a Go release; review exported names for package stutter and compatibility.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q006",
+      "query": "Should this Go boolean field be ready or isReady?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q007",
+      "query": "Review Go import aliases and test function names.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q008",
+      "query": "Make this Go function signature and long call easier to read.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q009",
+      "query": "Review the names ErrMissing and MissingError in a Go API.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q010",
+      "query": "Choose Go names for a panic-on-error parser and a printf-style logger.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "q011",
+      "query": "Write Go integration tests for an HTTP handler using testify.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "q012",
+      "query": "Implement Go error wrapping that preserves errors.Is.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "q013",
+      "query": "Review a Go worker pool for cancellation and channel ownership.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "q014",
+      "query": "Compare Go pprof CPU profiles and optimize the measured hot path.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "q015",
+      "query": "Audit a Go outbound HTTP client for SSRF.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "q016",
+      "query": "Configure golangci-lint naming checks in GitHub Actions.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "q017",
+      "query": "Write godoc prose for this existing Go API without renaming it.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "q018",
+      "query": "Choose a PostgreSQL transaction isolation level for this Go service.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "q019",
+      "query": "Explain Java identifier naming conventions.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "q020",
+      "query": "Draft release notes summarizing already supplied Go benchmark results.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "h001",
+      "query": "Export this Go field as customerUrl or customerURL?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "h002",
+      "query": "Go style question: is an else useful after a branch that returns?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "h003",
+      "query": "Which name reads better for a Go constructor when a package contains one primary type?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "h004",
+      "query": "Tiny Go review: the receiver switches between svc and s across methods. Is that worth changing?",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "h005",
+      "query": "Configure revive to reject inconsistent Go receiver names in CI.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "h006",
+      "query": "Write table-driven Go tests that check all branches of the parser.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "h007",
+      "query": "Our Go request deadlines do not cancel child goroutines. Fix context propagation.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "h008",
+      "query": "Measure whether strings.Builder reduces allocations in our Go encoder.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "h009",
+      "query": "Rename UserId to UserID across every caller in our Go module and keep the build green.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "h010",
+      "query": "Extract the validation block from this long Go handler into its own function without changing behavior.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "h011",
+      "query": "Decide whether our Go storage package should expose an interface or a concrete type, and what its constructor should accept.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    }
+  ]
+}

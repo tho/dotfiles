@@ -1,0 +1,385 @@
+{
+  "skill_name": "golang-testing",
+  "evals": [
+    {
+      "id": 1,
+      "name": "testify-default",
+      "source": "user preference",
+      "prompt": "Write tests for a Go ParseConfig function returning (*Config, error), with nested settings, validation failures and wrapped errors. No testing library is prescribed.",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Prefers testify for these nontrivial tests."
+        },
+        {
+          "id": "1.2",
+          "text": "Stops after failed prerequisites before dependent field checks, while allowing independent observations to report separately; equivalent safe control flow is accepted."
+        },
+        {
+          "id": "1.3",
+          "text": "Tests wrapped error identity or type using errors.Is/errors.As or equivalent testify helpers rather than string equality."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "trivial-and-override",
+      "source": "user preference",
+      "prompt": "Show a trivial Go test for IsEven. Then describe how you would test a complex parser in a project that explicitly permits only stdlib dependencies.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Accepts standard-library assertions for the trivial test."
+        },
+        {
+          "id": "2.2",
+          "text": "Honors the explicit stdlib-only constraint for the parser rather than adding testify."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "subtest-scope",
+      "source": "golang-testing:3; golang-stretchr-testify:2",
+      "prompt": "Review a table-driven Go test that creates is := assert.New(t) before the loop and calls is.Equal inside parallel t.Run callbacks. Each case contains a pointer to the same mutable fixture.",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "Binds assertion helpers to each subtest t."
+        },
+        {
+          "id": "3.2",
+          "text": "Identifies shared mutable fixture ownership separately from loop-variable capture."
+        },
+        {
+          "id": "3.3",
+          "text": "Does not treat Go 1.22 loop semantics as a fix for shared pointed-to data."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "observable-contract",
+      "source": "golang-testing:6,7",
+      "prompt": "Write tests for a Go cache exporting Get, Set and Len. A teammate wants every case to inspect its private map to ensure the cache works.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Tests hit, miss, overwrite and length through observable API behavior."
+        },
+        {
+          "id": "4.2",
+          "text": "Does not couple tests to the private map merely to verify the public contract."
+        },
+        {
+          "id": "4.3",
+          "text": "Uses testify for this nontrivial collection of state transitions and assertions unless an explicit project constraint forbids it."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "mock-verification",
+      "source": "golang-stretchr-testify:4,5,6",
+      "prompt": "Test a Go service with a testify sender mock. It must send a message for the correct tenant, retry once after an error, and stop after success. Setup may fail with require before calls occur.",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Verifies expectations through cleanup even after early fatal assertions."
+        },
+        {
+          "id": "5.2",
+          "text": "Bounds retry expectations with explicit counts and checks meaningful tenant/message arguments."
+        },
+        {
+          "id": "5.3",
+          "text": "Does not use broad Anything matchers for the contract being tested."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "pointer-equality",
+      "source": "golang-stretchr-testify:9",
+      "prompt": "Two distinct *User pointers contain identical fields. Explain assert.Equal versus assert.Same and choose assertions for value equality and identity.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Correctly says Equal compares pointed-to values and can pass for distinct pointers."
+        },
+        {
+          "id": "6.2",
+          "text": "Uses Same for pointer identity."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "suite-parallelism",
+      "source": "golang-stretchr-testify:7,8",
+      "prompt": "Build a testify suite with per-test mocks and reusable setup. We also want t.Parallel inside suite tests to speed it up.",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Includes a suite.Run launcher and per-test fixture/mock reset."
+        },
+        {
+          "id": "7.2",
+          "text": "Keeps suite tests sequential or chooses plain independent testing.T tests for parallel execution."
+        },
+        {
+          "id": "7.3",
+          "text": "Uses s.Require for fatal suite prerequisites."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "polling-guard",
+      "source": "golang-stretchr-testify:10",
+      "prompt": "Review an EventuallyWithT callback that uses assert.NoError(c, err) after GetOrder, then accesses order.Status unconditionally; GetOrder may return nil, err. The callback also uses require.New(outerT).",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "Guards dependent dereferences after failed assertions."
+        },
+        {
+          "id": "8.2",
+          "text": "Uses the collector for callback assertions and removes outer-test fatal assertions."
+        },
+        {
+          "id": "8.3",
+          "text": "Keeps polling bounded with an explicit finite timeout."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "worker-assertions",
+      "source": "golang-testing:1,14",
+      "prompt": "Write a Go worker test that fails if processing returns an error. A teammate proposes require.NoError(t, err) in the worker before it sends the result channel. The test waits on the channel.",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Returns worker errors to the test goroutine for fatal assertions."
+        },
+        {
+          "id": "9.2",
+          "text": "Ensures bounded waiting, cancellation and joining on failure."
+        },
+        {
+          "id": "9.3",
+          "text": "Explains the missing-send deadlock caused by terminating the worker early."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "integration-isolation",
+      "source": "golang-testing:2,12",
+      "prompt": "Add PostgreSQL integration tests for Go. The repository uses the integration build tag, CI runs two checkouts concurrently, and operations use independent connections. The proposed fixture truncates a shared database and sleeps five seconds after startup.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Preserves the integration tag and reports the command that includes it."
+        },
+        {
+          "id": "10.2",
+          "text": "Uses isolated run-owned database/schema resources and bounded readiness checks."
+        },
+        {
+          "id": "10.3",
+          "text": "Does not claim wrapping setup in a transaction isolates writes on independent connections."
+        },
+        {
+          "id": "10.4",
+          "text": "Registers cleanup promptly and checks fixture initialization failures."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "http-contract",
+      "source": "golang-testing:11",
+      "prompt": "Write Go HTTP handler tests for CreateUser: valid JSON, malformed JSON, missing authentication and a storage failure. Check returned JSON and headers as well as status.",
+      "assertions": [
+        {
+          "id": "11.1",
+          "text": "Uses httptest to test the requested handler boundary."
+        },
+        {
+          "id": "11.2",
+          "text": "Uses testify for structured assertions and guards decoding prerequisites."
+        },
+        {
+          "id": "11.3",
+          "text": "Asserts response semantics and error behavior, not just status codes."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "version-aware-time",
+      "source": "golang-testing:4",
+      "prompt": "Design tests for a Go timeout worker in a module supporting Go 1.24 with no experiments. Avoid slow sleeps; later we may move to Go 1.25.",
+      "assertions": [
+        {
+          "id": "12.1",
+          "text": "Uses injected clocks or explicit synchronization for current compatibility."
+        },
+        {
+          "id": "12.2",
+          "text": "Does not emit stable synctest.Test as a Go 1.24 API."
+        },
+        {
+          "id": "12.3",
+          "text": "Does not claim synctest fixes all scheduler ordering or real network timing."
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "coverage-and-fuzz",
+      "source": "golang-testing:9",
+      "prompt": "Our Go SanitizeHTML(input string) string removes markup and promises to preserve plain lowercase ASCII text unchanged. It has 100 percent statement coverage. Add fuzz testing and explain whether idempotence and absence of angle brackets prove it is safe in every browser output context.",
+      "assertions": [
+        {
+          "id": "13.1",
+          "text": "Chooses contract-backed properties, seeds and relevant adversarial cases."
+        },
+        {
+          "id": "13.2",
+          "text": "Does not treat coverage or these two properties as proof of XSS safety."
+        },
+        {
+          "id": "13.3",
+          "text": "Distinguishes seed execution from active fuzzing and scopes the fuzz command to one package/target."
+        },
+        {
+          "id": "13.4",
+          "text": "Includes a concrete expected-output or preservation assertion for nonempty valid text, so an always-empty implementation fails; seeds alone do not satisfy this check."
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "examples-and-golden",
+      "source": "golang-testing:8",
+      "prompt": "Add executable examples and golden-output tests for a Go formatter. A teammate suggests automatically overwriting expected files whenever tests fail.",
+      "assertions": [
+        {
+          "id": "14.1",
+          "text": "Uses Example functions with output directives for runnable examples."
+        },
+        {
+          "id": "14.2",
+          "text": "Rejects silent expected-output overwrites and requires deliberate updates with reviewable diffs."
+        },
+        {
+          "id": "14.3",
+          "text": "Normalizes only nondeterminism outside the output contract."
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "parallel-cleanup",
+      "source": "golang-testing:3,10,14",
+      "prompt": "Review a Go parent test that opens a shared server, defers its Close, then launches parallel subtests that use it. Each subtest has private request data.",
+      "assertions": [
+        {
+          "id": "15.1",
+          "text": "Explains that parent defers run before parallel subtests resume."
+        },
+        {
+          "id": "15.2",
+          "text": "Uses parent t.Cleanup to preserve the resource through child completion."
+        },
+        {
+          "id": "15.3",
+          "text": "Does not conflate private request data with server lifetime."
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "polling-shared-state",
+      "source": "evaluation refinement: transfer case",
+      "prompt": "Review a Go EventuallyWithT callback. GetOrder returns (*Order, error), sometimes nil with an error, otherwise a pointer whose Status a background worker mutates under mu. The callback currently accesses order.Status without locking and calls require.New(outerT). Show a safe callback and the matching writer or snapshot access pattern.",
+      "assertions": [
+        {
+          "id": "16.1",
+          "text": "Guards failed retrieval and nil before dependent checks, using the collector rather than outer-test fatal assertions."
+        },
+        {
+          "id": "16.2",
+          "text": "Uses the same mutex for both reads and writes, or a clearly synchronized immutable snapshot; merely assigning the shared pointer to a local does not qualify."
+        },
+        {
+          "id": "16.3",
+          "text": "Keeps polling bounded and releases locks even when prerequisites fail."
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "effective-database-namespace",
+      "source": "evaluation refinement: transfer case",
+      "prompt": "Design a Go PostgreSQL test fixture using pgx. DATABASE_URL is postgres://localhost/shared?dbname=shared&sslmode=disable. Each run creates a unique database, and the application opens its own pool. Show how both the fixture and app target that database and how to guard destructive fixture initialization. Do not execute database commands.",
+      "assertions": [
+        {
+          "id": "17.1",
+          "text": "Reconciles the dbname override using parsed driver configuration or removes conflicting URL settings so every connection targets the generated database."
+        },
+        {
+          "id": "17.2",
+          "text": "Passes effective modified configuration to both fixture and application pools; does not serialize changed pgx config with ConnString if that returns the original string."
+        },
+        {
+          "id": "17.3",
+          "text": "Checks the actual database identity before destructive initialization and scopes cleanup to the database created by this run."
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "testify-default-transfer",
+      "source": "evaluation refinement: transfer case",
+      "prompt": "Write Go tests for a Set with Add, Contains, Remove and Len, including duplicate add and absent remove. Each named subtest will be only a few lines. No testing library is prescribed. State reasonable API assumptions and provide concrete tests.",
+      "assertions": [
+        {
+          "id": "18.1",
+          "text": "Uses testify as the default across these related state-transition tests despite individually short subtests."
+        },
+        {
+          "id": "18.2",
+          "text": "Asserts meaningful behavior for duplicate adds and absent removals without inspecting the internal representation."
+        },
+        {
+          "id": "18.3",
+          "text": "Keeps fixtures independent and assertion helpers bound to the current subtest."
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "fuzz-domain-transfer",
+      "source": "evaluation refinement: generator-domain regression",
+      "prompt": "Write a Go fuzz test for EncodePrintable and DecodePrintable. Their round-trip contract applies only to nonempty printable ASCII strings (bytes 0x20 through 0x7e); DecodePrintable returns (string, error). Fuzz input is an arbitrary Go string, including Unicode and malformed UTF-8. Show concrete tests with minimal API assumptions, without asserting behavior outside the promised domain.",
+      "assertions": [
+        {
+          "id": "19.1",
+          "text": "Every value passed to the round-trip assertion satisfies the nonempty printable-ASCII domain, including when the source input has multibyte Unicode or invalid UTF-8; a domain guard is acceptable."
+        },
+        {
+          "id": "19.2",
+          "text": "Checks decoding success before comparing the decoded result with the exact encoded input."
+        },
+        {
+          "id": "19.3",
+          "text": "Includes nonempty valid seed inputs and an actual equality assertion that rejects losing their contents; does not merely assert idempotence or absence of a panic."
+        }
+      ]
+    }
+  ]
+}

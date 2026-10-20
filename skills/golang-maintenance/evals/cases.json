@@ -1,0 +1,175 @@
+[
+  {
+    "id": "1",
+    "name": "type-move",
+    "input": "Plan moving exported oldpkg.Invoice into model in a Go library consumed by other modules. It has methods using private fields. We require source compatibility and use reflection to log type package names. Do not edit.",
+    "rubric": [
+      "Plans a true alias at the old spelling, moves methods with the definition, and checks private dependencies and import cycles.",
+      "Recognizes reflection package/name changes despite alias assignability.",
+      "Does not remove the alias based only on local references; does not raise the Go floor or claim checks ran."
+    ]
+  },
+  {
+    "id": "2",
+    "name": "defer-extraction",
+    "input": "Refactor the validation half of a Go function into a helper. It currently locks mu, defers mu.Unlock(), validates, and then writes shared state. Preserve behavior. Explain the extraction boundary.",
+    "rubric": [
+      "Keeps the lock held through shared-state mutation.",
+      "Recognizes moving the defer into the validation helper releases the lock too early.",
+      "Separates structural changes from synchronization redesign."
+    ]
+  },
+  {
+    "id": "3",
+    "name": "uncovered-refactor",
+    "input": "Plan refactoring an untested Go billing function. Global test coverage is 92%. The function has rounding quirks and inconsistent errors. Also preserve my unrelated working-tree edits.",
+    "rubric": [
+      "Uses characterization evidence over the touched behavior rather than global coverage.",
+      "Preserves quirks in the structural change and lists correctness fixes separately.",
+      "Does not reset, stash away, or commit unrelated work automatically."
+    ]
+  },
+  {
+    "id": "4",
+    "name": "module-floor",
+    "input": "Our workspace and installed toolchain are Go 1.27, but a library module must retain go 1.21 for consumers. Modernize its loops and map helpers without raising that floor.",
+    "rubric": [
+      "Distinguishes workspace/toolchain from module language floor.",
+      "Does not introduce integer range or newer APIs into Go 1.21 code.",
+      "Checks maps.Clone nil semantics and requests evidence from the retained minimum toolchain; unavailable checks are not passes."
+    ]
+  },
+  {
+    "id": "5",
+    "name": "map-nil",
+    "input": "Modernize this Go 1.21 function without changing behavior: func Clone(m map[string]int) map[string]int { out := make(map[string]int, len(m)); for k,v := range m { out[k]=v }; return out }. Callers write to Clone(nil).",
+    "rubric": [
+      "Recognizes maps.Clone(nil) returns nil while the original is writable.",
+      "Keeps the existing implementation or explicitly preserves the non-nil result for nil input.",
+      "Includes the nil-input write contract in verification."
+    ]
+  },
+  {
+    "id": "6",
+    "name": "rand-stream",
+    "input": "Modernize our Go 1.22 simulation using math/rand.NewSource(42). Golden results depend on the exact random sequence. Can we replace it with rand/v2?",
+    "rubric": [
+      "Does not treat rand/v2 as a drop-in preserving seeded sequences.",
+      "Retains the sequence contract or frames changing it as an explicit behavioral migration.",
+      "Does not classify every math/rand use as deprecated or insecure."
+    ]
+  },
+  {
+    "id": "7",
+    "name": "json-compatibility",
+    "input": "After upgrading to Go 1.27, our webhook handler still imports encoding/json. Someone says duplicate-key payloads must now fail because v2 is underneath it. Evaluate that claim and plan the check.",
+    "rubric": [
+      "Distinguishes the v1 API compatibility behavior from explicit v2 stricter defaults.",
+      "Does not infer a duplicate-key regression solely from the toolchain bump.",
+      "Checks the actual decoder/API and payload before proposing a compatibility workaround."
+    ]
+  },
+  {
+    "id": "8",
+    "name": "timer-setting",
+    "input": "Review a Go 1.27 upgrade plan claiming asynctimerchan=0 preserves old buffered channels, so all removed GODEBUG entries must be deleted to build.",
+    "rubric": [
+      "Corrects old buffered behavior to asynctimerchan=1.",
+      "Distinguishes final default values from rejected old values in module/source settings.",
+      "Checks actual timer assumptions before modifying settings or receiver logic."
+    ]
+  },
+  {
+    "id": "9",
+    "name": "cut-last",
+    "input": "Modernize for Go 1.27: func Split(s string) (string,string) { if i := strings.LastIndex(s,\"/\"); i >= 0 { return s[:i],s[i+1:] }; return \"\",s }. Preserve the no-separator and leading-separator behavior.",
+    "rubric": [
+      "Uses CutLast only with explicit preservation of the missing-separator return pair.",
+      "Preserves leading and trailing separators, not just the happy path.",
+      "Does not claim identical behavior from a blind direct return."
+    ]
+  },
+  {
+    "id": "10",
+    "name": "read-only-scan",
+    "input": "Scan the Go 1.24 module at fixtures/scan for modernization opportunities only. Read its .modernize exclusions. Return concrete findings with file locations and minimum Go versions. Do not change any files, dependencies or the Go version. No execution or dependency installation is authorized.",
+    "rubric": [
+      "Identifies at least one concrete supported modernization in fixtures/scan/scan.go, with a location and correct minimum Go version.",
+      "Honors the logging exclusion and Go 1.24 target; does not propose replacing log.Printf with slog.",
+      "Every fixture file remains byte-identical and the transcript contains no attempted writes, tidy, installs or fixers; claims distinguish recommendations from executed validation."
+    ],
+    "files": [
+      "fixtures/scan/.modernize",
+      "fixtures/scan/go.mod",
+      "fixtures/scan/scan.go"
+    ]
+  },
+  {
+    "id": "11",
+    "name": "mixed-order",
+    "input": "Plan moving a generic Go type from package a to b using a compatibility alias. Current minimum is Go 1.22; upgrading to 1.24 is authorized. Then optimize its hot lookup loop.",
+    "rubric": [
+      "Recognizes the generic-alias language prerequisite and orders the authorized version change before that alias-based move.",
+      "Separates version migration, structural move, and measured optimization.",
+      "Includes consumer compatibility and distinct benchmark evidence."
+    ]
+  },
+  {
+    "id": "12",
+    "name": "tool-refusal",
+    "input": "gopls refuses an exported Go method rename because of an interface conflict. The tree also has templates naming that method. Finish safely; do not change the public contract.",
+    "rubric": [
+      "Investigates the conflict rather than forcing a text replacement.",
+      "Checks template/string references in addition to typed references.",
+      "Reports an incompatible rename as constrained or proposes an additive compatible alternative."
+    ]
+  },
+  {
+    "id": "13",
+    "name": "execute-rename",
+    "input": "In fixtures/rename, rename the Go Record.Label field to Name and update its Go callers and template selectors. This Go field rename is authorized, but preserve the JSON key label and rendered output record=alpha. Keep go 1.21, existing test coverage and unrelated.txt. Apply the change and run build, vet and tests. Use the installed toolchain; disable downloads and report its actual version. Do not commit.",
+    "rubric": [
+      "Record exposes Name, callers and template selectors use it, and both original contract tests and independent JSON/render checks pass.",
+      "Preserves JSON key label, go.mod and unrelated.txt; does not delete or weaken original contract tests.",
+      "Actually executes successful build, vet and tests, and reports the installed toolchain without claiming unavailable minimum-version execution."
+    ],
+    "files": [
+      "fixtures/rename/go.mod",
+      "fixtures/rename/record.go",
+      "fixtures/rename/record_test.go",
+      "fixtures/rename/unrelated.txt"
+    ]
+  },
+  {
+    "id": "14",
+    "name": "execute-move",
+    "input": "In fixtures/move, move oldpkg.Invoice and its methods to a new model package with model.New. Preserve oldpkg.Invoice as a true alias and oldpkg.New as a compatibility constructor. Preserve private cents, zero value, and the existing consumer test unchanged. Keep go 1.21 and unrelated.txt. Apply the change and run build, vet and tests. Use the installed toolchain without downloads; report its actual version. Do not commit.",
+    "rubric": [
+      "The canonical Invoice definition and methods reside in model; oldpkg exposes a true alias and compatible New wrapper; an external test assigns model.New results directly to oldpkg.Invoice.",
+      "Old consumer and independent cross-package identity/zero-value tests pass; go.mod, consumer test and unrelated.txt remain byte-identical.",
+      "Actually executes successful build, vet and tests and honestly reports the toolchain and compatibility checks."
+    ],
+    "files": [
+      "fixtures/move/consumer/consumer_test.go",
+      "fixtures/move/go.mod",
+      "fixtures/move/oldpkg/invoice.go",
+      "fixtures/move/unrelated.txt"
+    ]
+  },
+  {
+    "id": "15",
+    "name": "execute-modernize",
+    "input": "Modernize Clone in fixtures/modernize using Go 1.21 maps helpers while preserving writable results for nil input and independent maps. Keep go 1.21, the existing tests and unrelated.txt unchanged. Apply the change and run build, vet and tests. Use the installed toolchain with downloads disabled, and distinguish that from testing on Go 1.21. Do not commit.",
+    "rubric": [
+      "Uses maps.Copy or maps.Clone with an explicit nil-result guard while preserving the original copy contract.",
+      "Existing and independent tests can write to Clone(nil), preserve values and confirm independence; go.mod, existing tests and unrelated.txt remain byte-identical.",
+      "Actually executes successful build, vet and tests and reports actual version without claiming a newer compiler proves Go 1.21 execution."
+    ],
+    "files": [
+      "fixtures/modernize/clone.go",
+      "fixtures/modernize/clone_test.go",
+      "fixtures/modernize/go.mod",
+      "fixtures/modernize/unrelated.txt"
+    ]
+  }
+]

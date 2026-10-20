@@ -1,0 +1,99 @@
+[
+  {
+    "id": "small-service",
+    "input": "Design a Go service with config, a shared DB pool, an order store, order logic, and HTTP handlers. No framework is selected. Show package boundaries, constructor signatures and startup failure ownership. Does this need clean architecture and a DI library?",
+    "rubric": [
+      "Recommends simple manual wiring without a size-based framework mandate.",
+      "Places necessary interface contracts at consumers without demanding interfaces for every dependency.",
+      "Distinguishes shared pool ownership and cleans up successful acquisitions if later construction fails."
+    ]
+  },
+  {
+    "id": "options-validation",
+    "input": "Design the constructor for a Go client with optional minimum and maximum delays. Options may be supplied in any order and min must not exceed max. Compare a config struct and functional options.",
+    "rubric": [
+      "Allows both config struct and options with stated tradeoffs rather than mandating options.",
+      "Validates the final min/max pair after defaults and options, not just each option independently."
+    ]
+  },
+  {
+    "id": "zero-and-enums",
+    "input": "Can private fields plus a NewStatus constructor make invalid Go Status values impossible? Would type Status int and three iota constants solve it?",
+    "rubric": [
+      "Explains zero-valued structs remain constructible.",
+      "Explains named integer enums admit undeclared values and defines boundary or operation validation."
+    ]
+  },
+  {
+    "id": "api-compatibility",
+    "input": "Review a proposed Go API change: NewStore used to return a public Store interface; now it returns *store. The author says accept interfaces, return structs makes this automatically compatible.",
+    "rubric": [
+      "Rejects automatic compatibility, including assignments to function types or callers relying on the old signature.",
+      "Treats interface return as possibly intentional rather than inherently wrong."
+    ]
+  },
+  {
+    "id": "embedding",
+    "input": "Our Go Envelope embeds a dependency that just added MarshalJSON. Envelope has its own exported fields and tags. Is embedding only a code-reuse detail?",
+    "rubric": [
+      "Explains promoted marshaling methods can change serialization of the outer type.",
+      "Suggests named-field delegation or explicit marshaling and a wire-output check."
+    ]
+  },
+  {
+    "id": "copy-contract",
+    "input": "Design Snapshot() for a Go registry storing map[string][]*Item. Callers must be free to mutate results without changing registry state. Is maps.Clone enough?",
+    "rubric": [
+      "Says map cloning is shallow and slices and pointed-to items still alias.",
+      "Copies all mutable layers promised independent or changes the contract explicitly."
+    ]
+  },
+  {
+    "id": "generic-keys",
+    "input": "Review a generic Set[K comparable] map[K]struct{} instantiated as Set[any]. Is inserting []int{1} safe because the generic type compiled?",
+    "rubric": [
+      "Explains dynamic unhashable values can still panic with an interface key.",
+      "Proposes an explicit accepted-key contract or boundary check without claiming generics prove runtime comparability."
+    ]
+  },
+  {
+    "id": "di-runtime",
+    "input": "A proposal says samber/do generics prove all providers exist and eliminate cycles at compile time, while Fx instantiates all registered providers eagerly. Review these claims.",
+    "rubric": [
+      "Rejects compile-time graph completeness for samber/do.",
+      "Explains provider demand in Fx and separates compilation from graph/startup validation."
+    ]
+  },
+  {
+    "id": "di-scope",
+    "input": "Our Go application has a DB pool, a stateless validator and tenant-specific request data. Should all stateful services be singletons, all stateless services transient, and every dependency lazy?",
+    "rubric": [
+      "Chooses scopes from lifetime and isolation rather than statefulness alone.",
+      "Explains required readiness checks versus optional lazy work and first-use failure costs."
+    ]
+  },
+  {
+    "id": "aggregate-failure",
+    "input": "An Order.Add method appends an item and then validates the new total, returning error on overflow. Place then saves the order and publishes an event. Review the design boundaries.",
+    "rubric": [
+      "Identifies failed mutation leaving invalid in-memory state.",
+      "Does not treat save then publish as atomic; names a consistency mechanism or explicit failure contract."
+    ]
+  },
+  {
+    "id": "presence",
+    "input": "Design a Go 1.23 PATCH request field whose absent, null and numeric zero meanings differ. Will omitzero alone preserve all three?",
+    "rubric": [
+      "Does not use Go 1.24 omitzero as a Go 1.23 solution.",
+      "Distinguishes presence from value and proposes custom decoding or an explicit presence representation."
+    ]
+  },
+  {
+    "id": "iterator-contract",
+    "input": "Design a Go 1.23 API for lazy records from a closeable source. A caller may stop early and the source may return an error after its last record.",
+    "rubric": [
+      "Specifies release on early termination and obeying yield false.",
+      "Preserves terminal errors and describes deferred errors or repeatability."
+    ]
+  }
+]

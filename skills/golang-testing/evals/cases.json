@@ -1,0 +1,211 @@
+[
+  {
+    "id": "1",
+    "input": "Write tests for a Go ParseConfig function returning (*Config, error), with nested settings, validation failures and wrapped errors. No testing library is prescribed.",
+    "rubric": [
+      "Prefers testify for these nontrivial tests.",
+      "Stops after failed prerequisites before dependent field checks, while allowing independent observations to report separately; equivalent safe control flow is accepted.",
+      "Tests wrapped error identity or type using errors.Is/errors.As or equivalent testify helpers rather than string equality."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "2",
+    "input": "Show a trivial Go test for IsEven. Then describe how you would test a complex parser in a project that explicitly permits only stdlib dependencies.",
+    "rubric": [
+      "Accepts standard-library assertions for the trivial test.",
+      "Honors the explicit stdlib-only constraint for the parser rather than adding testify."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "3",
+    "input": "Review a table-driven Go test that creates is := assert.New(t) before the loop and calls is.Equal inside parallel t.Run callbacks. Each case contains a pointer to the same mutable fixture.",
+    "rubric": [
+      "Binds assertion helpers to each subtest t.",
+      "Identifies shared mutable fixture ownership separately from loop-variable capture.",
+      "Does not treat Go 1.22 loop semantics as a fix for shared pointed-to data."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "4",
+    "input": "Write tests for a Go cache exporting Get, Set and Len. A teammate wants every case to inspect its private map to ensure the cache works.",
+    "rubric": [
+      "Tests hit, miss, overwrite and length through observable API behavior.",
+      "Does not couple tests to the private map merely to verify the public contract.",
+      "Uses testify for this nontrivial collection of state transitions and assertions unless an explicit project constraint forbids it."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "5",
+    "input": "Test a Go service with a testify sender mock. It must send a message for the correct tenant, retry once after an error, and stop after success. Setup may fail with require before calls occur.",
+    "rubric": [
+      "Verifies expectations through cleanup even after early fatal assertions.",
+      "Bounds retry expectations with explicit counts and checks meaningful tenant/message arguments.",
+      "Does not use broad Anything matchers for the contract being tested."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "6",
+    "input": "Two distinct *User pointers contain identical fields. Explain assert.Equal versus assert.Same and choose assertions for value equality and identity.",
+    "rubric": [
+      "Correctly says Equal compares pointed-to values and can pass for distinct pointers.",
+      "Uses Same for pointer identity."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "7",
+    "input": "Build a testify suite with per-test mocks and reusable setup. We also want t.Parallel inside suite tests to speed it up.",
+    "rubric": [
+      "Includes a suite.Run launcher and per-test fixture/mock reset.",
+      "Keeps suite tests sequential or chooses plain independent testing.T tests for parallel execution.",
+      "Uses s.Require for fatal suite prerequisites."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "8",
+    "input": "Review an EventuallyWithT callback that uses assert.NoError(c, err) after GetOrder, then accesses order.Status unconditionally; GetOrder may return nil, err. The callback also uses require.New(outerT).",
+    "rubric": [
+      "Guards dependent dereferences after failed assertions.",
+      "Uses the collector for callback assertions and removes outer-test fatal assertions.",
+      "Keeps polling bounded with an explicit finite timeout."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "9",
+    "input": "Write a Go worker test that fails if processing returns an error. A teammate proposes require.NoError(t, err) in the worker before it sends the result channel. The test waits on the channel.",
+    "rubric": [
+      "Returns worker errors to the test goroutine for fatal assertions.",
+      "Ensures bounded waiting, cancellation and joining on failure.",
+      "Explains the missing-send deadlock caused by terminating the worker early."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "10",
+    "input": "Add PostgreSQL integration tests for Go. The repository uses the integration build tag, CI runs two checkouts concurrently, and operations use independent connections. The proposed fixture truncates a shared database and sleeps five seconds after startup.",
+    "rubric": [
+      "Preserves the integration tag and reports the command that includes it.",
+      "Uses isolated run-owned database/schema resources and bounded readiness checks.",
+      "Does not claim wrapping setup in a transaction isolates writes on independent connections.",
+      "Registers cleanup promptly and checks fixture initialization failures."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "11",
+    "input": "Write Go HTTP handler tests for CreateUser: valid JSON, malformed JSON, missing authentication and a storage failure. Check returned JSON and headers as well as status.",
+    "rubric": [
+      "Uses httptest to test the requested handler boundary.",
+      "Uses testify for structured assertions and guards decoding prerequisites.",
+      "Asserts response semantics and error behavior, not just status codes."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "12",
+    "input": "Design tests for a Go timeout worker in a module supporting Go 1.24 with no experiments. Avoid slow sleeps; later we may move to Go 1.25.",
+    "rubric": [
+      "Uses injected clocks or explicit synchronization for current compatibility.",
+      "Does not emit stable synctest.Test as a Go 1.24 API.",
+      "Does not claim synctest fixes all scheduler ordering or real network timing."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "13",
+    "input": "Our Go SanitizeHTML(input string) string removes markup and promises to preserve plain lowercase ASCII text unchanged. It has 100 percent statement coverage. Add fuzz testing and explain whether idempotence and absence of angle brackets prove it is safe in every browser output context.",
+    "rubric": [
+      "Chooses contract-backed properties, seeds and relevant adversarial cases.",
+      "Does not treat coverage or these two properties as proof of XSS safety.",
+      "Distinguishes seed execution from active fuzzing and scopes the fuzz command to one package/target.",
+      "Includes a concrete expected-output or preservation assertion for nonempty valid text, so an always-empty implementation fails; seeds alone do not satisfy this check."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "14",
+    "input": "Add executable examples and golden-output tests for a Go formatter. A teammate suggests automatically overwriting expected files whenever tests fail.",
+    "rubric": [
+      "Uses Example functions with output directives for runnable examples.",
+      "Rejects silent expected-output overwrites and requires deliberate updates with reviewable diffs.",
+      "Normalizes only nondeterminism outside the output contract."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "15",
+    "input": "Review a Go parent test that opens a shared server, defers its Close, then launches parallel subtests that use it. Each subtest has private request data.",
+    "rubric": [
+      "Explains that parent defers run before parallel subtests resume.",
+      "Uses parent t.Cleanup to preserve the resource through child completion.",
+      "Does not conflate private request data with server lifetime."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "16",
+    "input": "Review a Go EventuallyWithT callback. GetOrder returns (*Order, error), sometimes nil with an error, otherwise a pointer whose Status a background worker mutates under mu. The callback currently accesses order.Status without locking and calls require.New(outerT). Show a safe callback and the matching writer or snapshot access pattern.",
+    "rubric": [
+      "Guards failed retrieval and nil before dependent checks, using the collector rather than outer-test fatal assertions.",
+      "Uses the same mutex for both reads and writes, or a clearly synchronized immutable snapshot; merely assigning the shared pointer to a local does not qualify.",
+      "Keeps polling bounded and releases locks even when prerequisites fail."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "17",
+    "input": "Design a Go PostgreSQL test fixture using pgx. DATABASE_URL is postgres://localhost/shared?dbname=shared&sslmode=disable. Each run creates a unique database, and the application opens its own pool. Show how both the fixture and app target that database and how to guard destructive fixture initialization. Do not execute database commands.",
+    "rubric": [
+      "Reconciles the dbname override using parsed driver configuration or removes conflicting URL settings so every connection targets the generated database.",
+      "Passes effective modified configuration to both fixture and application pools; does not serialize changed pgx config with ConnString if that returns the original string.",
+      "Checks the actual database identity before destructive initialization and scopes cleanup to the database created by this run."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "18",
+    "input": "Write Go tests for a Set with Add, Contains, Remove and Len, including duplicate add and absent remove. Each named subtest will be only a few lines. No testing library is prescribed. State reasonable API assumptions and provide concrete tests.",
+    "rubric": [
+      "Uses testify as the default across these related state-transition tests despite individually short subtests.",
+      "Asserts meaningful behavior for duplicate adds and absent removals without inspecting the internal representation.",
+      "Keeps fixtures independent and assertion helpers bound to the current subtest."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  },
+  {
+    "id": "19",
+    "input": "Write a Go fuzz test for EncodePrintable and DecodePrintable. Their round-trip contract applies only to nonempty printable ASCII strings (bytes 0x20 through 0x7e); DecodePrintable returns (string, error). Fuzz input is an arbitrary Go string, including Unicode and malformed UTF-8. Show concrete tests with minimal API assumptions, without asserting behavior outside the promised domain.",
+    "rubric": [
+      "Every value passed to the round-trip assertion satisfies the nonempty printable-ASCII domain, including when the source input has multibyte Unicode or invalid UTF-8; a domain guard is acceptable.",
+      "Checks decoding success before comparing the decoded result with the exact encoded input.",
+      "Includes nonempty valid seed inputs and an actual equality assertion that rejects losing their contents; does not merely assert idempotence or absence of a panic."
+    ],
+    "state_prefix": "[This is a self-contained synthetic testing exercise, not a request to modify a checked-out project. Respond in English with concrete Go examples or a code review as requested. Use supplied contracts; where API details are omitted, state minimal illustrative assumptions and proceed. Do not ask for source files or wait for clarification. No repository changes are needed.]",
+    "files": []
+  }
+]

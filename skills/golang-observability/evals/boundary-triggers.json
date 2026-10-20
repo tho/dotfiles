@@ -1,0 +1,102 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-design",
+    "golang-documentation",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Additional boundary regression cases authored before results of the revised descriptions. Not blinded holdouts. All converted candidates, no legacy skills.",
+  "queries": [
+    {
+      "id": "b000",
+      "query": "Our Go exporter buffers spans. Configure its flush deadline and sampling policy.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "b001",
+      "query": "Reduce the number of Prometheus time series produced by our Go route instrumentation.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "b002",
+      "query": "Prevent clients from exhausting our Go service by supplying unlimited telemetry label values. Audit the denial-of-service risk.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "b003",
+      "query": "Our Go logs contain bearer tokens. Remove the credential leak.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "b004",
+      "query": "Stop Go worker goroutines after their caller cancels, and wait for every worker to exit.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "b005",
+      "query": "Propagate request deadlines through Go application calls without leaking cancellation resources.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "b006",
+      "query": "Choose constructor and interface contracts for a reusable Go background-job library.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "b007",
+      "query": "Wire a Go telemetry provider through constructors so packages do not depend on global state.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design",
+        "golang-observability"
+      ]
+    }
+  ]
+}

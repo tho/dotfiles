@@ -1,0 +1,185 @@
+{
+  "skill_name": "golang-documentation",
+  "evals": [
+    {
+      "id": 1,
+      "name": "code-over-stale-prose",
+      "prompt": "Review documentation: Parse returns ErrEmpty only for an empty string, but its comment promises ErrEmpty for whitespace too. Tests confirm whitespace is valid. No intent or design record is supplied.",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Identifies the mismatch using supplied implementation and tests."
+        },
+        {
+          "id": "1.2",
+          "text": "Does not invent intent or change implementation to satisfy stale prose."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "version-floor",
+      "prompt": "Update Go setup docs. go.mod says go 1.22; CI supports 1.22 and 1.24. The local toolchain is 1.24. A draft says go get -tool installs our doc generator.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Checks command compatibility with Go 1.22 and avoids treating local 1.24 as the support floor."
+        },
+        {
+          "id": "2.2",
+          "text": "Uses a compatible verified installation approach or reports missing tooling evidence; does not raise go.mod."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "configuration-precedence",
+      "prompt": "Write configuration docs from this Go loader: start with defaults, apply config file, apply explicitly set flags, then apply nonempty APP_PORT env. File and env ports are decimal integers. Default is 8080.",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "States environment overrides explicit flags in this loader."
+        },
+        {
+          "id": "3.2",
+          "text": "Documents default and integer format without adding unsupported configuration sources."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "example-association",
+      "prompt": "In a Go package client exporting New and (*Client).Get, explain executable example names for construction, Get, and a cached variant.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Uses ExampleNew, ExampleClient_Get, and ExampleClient_Get_cached."
+        },
+        {
+          "id": "4.2",
+          "text": "Explains _test.go placement and prefers external package client_test for public usage."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "compile-vs-execute",
+      "prompt": "Review these Go documentation checks: ExampleNew has no output comment; README has a Go code fence; go test -run ExampleMissing reports no tests to run. The author says all examples passed.",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Distinguishes compiled ExampleNew from executed output checks."
+        },
+        {
+          "id": "5.2",
+          "text": "Does not treat README fences or an empty test selection as tested examples."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "output-contract",
+      "prompt": "A Go Example prints two identical lines named ready. Expected output uses Unordered output with only one ready line. Another Example has an empty Output directive. Explain execution semantics.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Says unordered output still checks duplicate counts."
+        },
+        {
+          "id": "6.2",
+          "text": "Says empty Output executes and asserts empty stdout."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "deprecation-evidence",
+      "prompt": "Write a doc comment for deprecated Go Parse in favor of ParseStrict. No removal release or date has been decided.",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Uses Deprecated: in its own paragraph with the supplied replacement."
+        },
+        {
+          "id": "7.2",
+          "text": "Invents no removal deadline or release."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "release-scope",
+      "prompt": "Write Go changelog text for this supplied change: decoder now rejects a negative length before allocating. No performance measurements, release date, or security assessment exist.",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "States the specific observable fix."
+        },
+        {
+          "id": "8.2",
+          "text": "Does not invent performance gains, broad reliability claims, release dates, or security conclusions."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "generator-version",
+      "prompt": "Review Go API documentation saying our pinned Swagger 2 generator emits OpenAPI 3 and requiring go get -tool on a Go 1.22 project.",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Flags both format and toolchain incompatibilities."
+        },
+        {
+          "id": "9.2",
+          "text": "Requires checking pinned generator configuration instead of changing dependencies or generated output alone."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "private-docs",
+      "prompt": "Improve a private Go library README and package docs. The old checklist mandates public Playground links and registration on documentation aggregators.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Keeps private documentation local unless public sharing is authorized."
+        },
+        {
+          "id": "10.2",
+          "text": "Does not fabricate URLs or perform external registration."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "installation-evidence",
+      "prompt": "Write install docs for a Go repo example.com/acme/tool/v2 with command at cmd/tool, go 1.23, no release assets, and no Homebrew or container distribution.",
+      "assertions": [
+        {
+          "id": "11.1",
+          "text": "Uses the actual versioned command path for source installation."
+        },
+        {
+          "id": "11.2",
+          "text": "Does not invent binary downloads, package managers, or images."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "practical-verification",
+      "prompt": "Update a Go README example against the current local API. A previous run compiled it against a published version instead. The minimum supported toolchain is unavailable.",
+      "assertions": [
+        {
+          "id": "12.1",
+          "text": "Checks the snippet against the local module rather than accidentally using the published version."
+        },
+        {
+          "id": "12.2",
+          "text": "Reports which toolchain ran and leaves minimum-version execution unverified."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-design",
+    "golang-documentation",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not measured results. Stage all converted skills together; exclude legacy skills. Refresh candidate inventory before running. Count missed required loads and extra loads separately.",
+  "queries": [
+    {
+      "id": "pr-checks",
+      "query": "Add GitHub Actions to test, lint and build our Go module on pull requests.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "release",
+      "query": "Set up GoReleaser to publish archives only when the tagged Go revision passes its checks.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "container",
+      "query": "Create a Go container workflow that builds fork PRs and publishes trusted release tags to GHCR.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "dependencies",
+      "query": "Schedule Go vulnerability scans and compatibility tests with newer dependencies without version-bump PRs.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "exit-status",
+      "query": "Our Go test workflow stays green when the test command fails. Fix the workflow exit-code handling.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "matrix",
+      "query": "We support two Go toolchains and three module roots. Wire their test matrix into GitHub Actions.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "lint-ci",
+      "query": "Run our existing golangci-lint configuration in GitHub Actions with compatible pinned tooling.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "merge-queue",
+      "query": "Our Go required checks never appear for the merge queue. Repair the workflow events.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "security-ci",
+      "query": "Add a blocking govulncheck job to this Go repository, including scheduled scans of the committed graph.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "library-release",
+      "query": "Automate release validation for our Go library and its submodule tags without building invented executables.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "local-lint",
+      "query": "Configure .golangci.yml to enable errcheck locally.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "one-dependency",
+      "query": "Upgrade only github.com/google/uuid in go.mod and explain its new API.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "write-tests",
+      "query": "Write table-driven Go tests for this parser contract.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "app-flake",
+      "query": "A Go test fails intermittently on CI with duplicate records. Reproduce it and find the application race.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-concurrency",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "app-security",
+      "query": "Review this Go HTTP handler for SSRF and fix the input validation.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "benchmark",
+      "query": "Profile and optimize this Go hot path using benchmark evidence.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "layout",
+      "query": "Choose a Go repository package layout for a new service.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "docs",
+      "query": "Write godoc examples for this exported Go API.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "shutdown",
+      "query": "Design cancellation and ownership for these Go worker goroutines.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "generic-ci",
+      "query": "Configure a Python-only GitHub Actions test workflow.",
+      "required": [],
+      "allowed": []
+    }
+  ]
+}

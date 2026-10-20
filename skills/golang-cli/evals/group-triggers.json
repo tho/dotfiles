@@ -1,0 +1,319 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not measured results. Evaluate all converted skills together; exclude legacy skills. Missing required selections and selections outside allowed are failures. Empty lists permit no skill. candidate_skills must match the skill folders under skills-v2/.",
+  "queries": [
+    {
+      "id": "cli01",
+      "query": "Build a tiny Go CLI with a count flag and one positional file; use the standard library.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli",
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "cli02",
+      "query": "Choose between flag, Kong and ff for a Go tool with subcommands and env configuration.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli03",
+      "query": "Our Kong CLI exits the test process when help is requested. Fix the parser boundary.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli",
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "cli04",
+      "query": "Add environment and file configuration to my ff/v3 CLI.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli05",
+      "query": "Why does a Cobra child pre-run hook skip the root hook?",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli06",
+      "query": "Implement flag-value completions for an existing Go Cobra command.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli07",
+      "query": "Our Viper service has no CLI. AutomaticEnv sees a value but Unmarshal misses it.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli08",
+      "query": "Check my Go command exit statuses for help, invalid flags and failed execution.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli",
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "cli09",
+      "query": "After the release, fix our Go CLI so JSON is pipeable and diagnostics go to stderr.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli10",
+      "query": "Review Viper config watcher ownership and retaining the last valid configuration.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli",
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "cli11",
+      "query": "Write a bash script that parses flags and validates positional arguments.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "cli12",
+      "query": "Configure a Kong API gateway route and an upstream health check.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "cli13",
+      "query": "Explain git ff-only merge behavior.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "cli14",
+      "query": "Edit this YAML config to set port 9090. No code changes.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "cli15",
+      "query": "Our Go CLI imports Cobra, but this task is only to optimize a proven CPU hotspot in its compression loop.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "cli16",
+      "query": "Rename exported Go identifiers and receiver variables for consistency.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "cli17",
+      "query": "Fix a SQL transaction that loses concurrent Go account updates.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "cli18",
+      "query": "Find an SSRF bypass in the Go URL fetcher.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "cli19",
+      "query": "Write godoc for exported Go library types.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "cli20",
+      "query": "Design Go package boundaries and dependency injection for an order service.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "cli21",
+      "query": "Find a goroutine leak in a Go worker pool.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "cli22",
+      "query": "Our Go library returns a typed nil as an error. Explain the surprising nil comparison.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "cli23",
+      "query": "Set up table-driven tests for a pure Go tax calculation function.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "cli24",
+      "query": "Add Prometheus request counters to a Go HTTP service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "cli25",
+      "query": "Review our Go Cobra CLI for an unsafe shell command built from user flags.",
+      "required": [
+        "golang-cli",
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-cli",
+        "golang-security",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "cli26",
+      "query": "Our Go CLI panics with a nil pointer on one customer's machine. Reproduce it and find the root cause.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "cli27",
+      "query": "Wire GoReleaser to stamp the version and commit into our Go binaries in the release workflow.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release",
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "cli28",
+      "query": "Lay out a new Go repository with two binaries under cmd/ and a shared internal package.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "cli29",
+      "query": "Configure golangci-lint for our Cobra-based Go repository and tune the noisy linters.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "cli30",
+      "query": "Write a configuration reference page documenting every YAML setting of our Go service.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    }
+  ]
+}

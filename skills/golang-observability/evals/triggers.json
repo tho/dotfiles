@@ -1,0 +1,98 @@
+[
+  {
+    "query": "Add structured JSON logging to our Go service with log/slog.",
+    "should_trigger": true
+  },
+  {
+    "query": "Instrument our Go HTTP handlers with Prometheus request counts and latency histograms.",
+    "should_trigger": true
+  },
+  {
+    "query": "Wire OpenTelemetry tracing across our Go API and downstream HTTP client.",
+    "should_trigger": true
+  },
+  {
+    "query": "Correlate slog logs with the active trace in our Go worker.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create routine availability burn-rate alerts for our Go service.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit the logging, metrics and tracing coverage of this Go service.",
+    "should_trigger": true
+  },
+  {
+    "query": "As part of launching our Go checkout service, add a Grafana dashboard and actionable SLO alerts.",
+    "should_trigger": true
+  },
+  {
+    "query": "Migrate this Go service from logrus to slog while preserving our log fields.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review our Go instrumentation for duplicate spans and unbounded metric labels.",
+    "should_trigger": true
+  },
+  {
+    "query": "Configure parent-based tracing sampling and bounded exporter shutdown in Go.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go API p99 doubled after deployment. Collect profiles to identify the bottleneck.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare the Go parser benchmarks with benchstat and decide whether the optimization works.",
+    "should_trigger": false
+  },
+  {
+    "query": "Interpret this Go CPU profile and identify the hotspot.",
+    "should_trigger": false
+  },
+  {
+    "query": "Investigate growing heap retention in this Go process using pprof evidence.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use production metrics to validate whether this Go GC tuning improved latency.",
+    "should_trigger": false
+  },
+  {
+    "query": "Inspect this Go execution trace for scheduler delays.",
+    "should_trigger": false
+  },
+  {
+    "query": "Emit signup and checkout events from our Go service to Segment for the growth team.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add OpenTelemetry to our Python service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure GoReleaser to publish binaries.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix a typed-nil error return in this Go package.",
+    "should_trigger": false
+  },
+  {
+    "query": "Switch our Go service's logrus calls to slog without breaking the log pipeline fields.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add an alert for error-rate spikes on our Go API and route it to the on-call team.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our burn-rate alert fired overnight; find why the Go API started returning 500s.",
+    "should_trigger": false
+  },
+  {
+    "query": "Wrap these Go errors with %w so callers can use errors.Is.",
+    "should_trigger": false
+  }
+]

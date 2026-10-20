@@ -1,0 +1,505 @@
+{
+  "skill_name": "golang-concurrency",
+  "evals": [
+    {
+      "id": 1,
+      "name": "inactivity-timer",
+      "source": "golang-concurrency:1",
+      "prompt": "Write a Go worker loop with a five-second inactivity timeout that reports inactivity and keeps waiting. Target Go 1.23 timer semantics. Support cancellation.",
+      "assertions": [
+        {
+          "id": "1.1",
+          "text": "Resets the inactivity deadline on activity and after reporting inactivity; does not substitute a periodic ticker."
+        },
+        {
+          "id": "1.2",
+          "text": "Avoids repeated timer allocation in the hot loop and permits cancellation and closed-input termination."
+        },
+        {
+          "id": "1.3",
+          "text": "Does not use an unconditional stale-channel drain under Go 1.23 timer semantics."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "consumer-stops-early",
+      "source": "golang-concurrency:2",
+      "prompt": "A Go consumer has enough results and wants to close the producer channel to stop production. Design termination and completion ownership.",
+      "assertions": [
+        {
+          "id": "2.1",
+          "text": "Uses a stop signal instead of racing channel close with producer sends."
+        },
+        {
+          "id": "2.2",
+          "text": "Makes blocked production interruptible and provides a way to observe producer completion."
+        },
+        {
+          "id": "2.3",
+          "text": "Assigns channel closure to an owner that knows all sends have ended."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "waitgroup-registration",
+      "source": "golang-concurrency:3",
+      "prompt": "Review Go code that calls wg.Add(1) inside each goroutine, defers wg.Done(), and calls wg.Wait() after the spawn loop. Fix it for Go 1.24.",
+      "assertions": [
+        {
+          "id": "3.1",
+          "text": "Registers work before spawning, either individually or as a known batch."
+        },
+        {
+          "id": "3.2",
+          "text": "Explains why Wait can otherwise observe zero and return early."
+        },
+        {
+          "id": "3.3",
+          "text": "Balances completion and does not use WaitGroup.Go on Go 1.24."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "pipeline-directions",
+      "source": "golang-concurrency:4,8",
+      "prompt": "Implement a cancellable Go generator and doubling stage. Input may stay open and idle; the consumer may stop early. Explain completion.",
+      "assertions": [
+        {
+          "id": "4.1",
+          "text": "Exposes directional channel APIs appropriate to each caller."
+        },
+        {
+          "id": "4.2",
+          "text": "Makes both input receive and output send cancellable."
+        },
+        {
+          "id": "4.3",
+          "text": "Closes output after sends finish and lets the owner observe completion."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "bounded-queue",
+      "source": "golang-concurrency:5",
+      "prompt": "Design the channel capacity for a Go dispatcher feeding workers. Bursts are possible but memory must stay bounded.",
+      "assertions": [
+        {
+          "id": "5.1",
+          "text": "Ties capacity to handoff, burst, or measured workload needs rather than an arbitrary large number."
+        },
+        {
+          "id": "5.2",
+          "text": "Defines backpressure or rejection when capacity is exhausted."
+        },
+        {
+          "id": "5.3",
+          "text": "Bounds queued and active work and describes shutdown."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "handoff-aliases",
+      "source": "golang-concurrency:6",
+      "prompt": "A Go producer sends Task values containing Payload []byte to workers, then immediately reuses the payload buffer. Review and fix ownership.",
+      "assertions": [
+        {
+          "id": "6.1",
+          "text": "Identifies that copying Task does not copy the byte storage."
+        },
+        {
+          "id": "6.2",
+          "text": "Uses sufficient copying, exclusive transfer, or synchronization to prevent concurrent mutation."
+        },
+        {
+          "id": "6.3",
+          "text": "Does not claim pointers are inherently unsafe or value channels inherently safe."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "bounded-fetches",
+      "source": "golang-concurrency:7",
+      "prompt": "Implement concurrent Go fetching of 50 URLs, at most ten active, canceling remaining work on the first error and waiting for started work.",
+      "assertions": [
+        {
+          "id": "7.1",
+          "text": "Bounds active fetches and propagates cancellation to HTTP work."
+        },
+        {
+          "id": "7.2",
+          "text": "Reports the failure and joins started work before returning."
+        },
+        {
+          "id": "7.3",
+          "text": "Uses errgroup or a correct equivalent; does not claim SetLimit admission itself is context-cancellable."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "map-invariants",
+      "source": "golang-concurrency:9",
+      "prompt": "Choose synchronization for a Go cache with frequent overlapping writes and a cross-key invariant. Reads and writes are equally frequent.",
+      "assertions": [
+        {
+          "id": "8.1",
+          "text": "Protects the cross-key invariant with coordinated locking or equivalent ownership."
+        },
+        {
+          "id": "8.2",
+          "text": "Does not assume sync.Map operations provide a multi-key transaction."
+        },
+        {
+          "id": "8.3",
+          "text": "Avoids unconditional speed claims about Mutex, RWMutex, and sync.Map."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "pool-alias-lifetime",
+      "source": "golang-concurrency:10",
+      "prompt": "Review a Go encoder that takes a bytes.Buffer from sync.Pool, returns buf.Bytes(), and defers putting the buffer back. Include clean-state requirements.",
+      "assertions": [
+        {
+          "id": "9.1",
+          "text": "Identifies returned bytes alias pooled storage that may be reused."
+        },
+        {
+          "id": "9.2",
+          "text": "Copies output or transfers ownership without returning the still-aliased buffer."
+        },
+        {
+          "id": "9.3",
+          "text": "Establishes clean buffer state and does not treat the pool as persistent storage."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "background-panic-policy",
+      "source": "golang-concurrency:11",
+      "prompt": "Design asynchronous notifications in a Go HTTP service returning 202. Address panics, overload, errors, and shutdown.",
+      "assertions": [
+        {
+          "id": "10.1",
+          "text": "Bounds work and gives it service-level completion and shutdown ownership."
+        },
+        {
+          "id": "10.2",
+          "text": "Defines whether panic recovery is a deliberate isolation boundary and reports failures if recovering."
+        },
+        {
+          "id": "10.3",
+          "text": "Does not silently recover or claim HTTP handler recovery catches a child goroutine panic."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "singleflight-contexts",
+      "source": "golang-concurrency:12",
+      "prompt": "Deduplicate simultaneous Go profile lookups. Each caller can cancel independently; the shared lookup should survive one waiter leaving but have a bounded lifetime.",
+      "assertions": [
+        {
+          "id": "11.1",
+          "text": "Uses singleflight or equivalent per-key in-flight suppression with a separate bounded lookup lifetime."
+        },
+        {
+          "id": "11.2",
+          "text": "Allows waiters to stop waiting independently."
+        },
+        {
+          "id": "11.3",
+          "text": "Does not claim DoChan waiter cancellation cancels shared work or singleflight caches completed results."
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "sequential-transform",
+      "source": "golang-concurrency:13",
+      "prompt": "In Go 1.23, should a small in-memory filter/map of users to emails use a goroutine pipeline? Explain the choice.",
+      "assertions": [
+        {
+          "id": "12.1",
+          "text": "Chooses a loop or iterator for this small sequential transform."
+        },
+        {
+          "id": "12.2",
+          "text": "Explains when overlap or sufficient parallel work could justify goroutines."
+        },
+        {
+          "id": "12.3",
+          "text": "Does not claim all CPU-bound work is unsuitable for concurrency."
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "request-propagation",
+      "source": "golang-context:1",
+      "prompt": "Write a Go order handler that queries a database and calls a payment status API. Both must respect request cancellation.",
+      "assertions": [
+        {
+          "id": "13.1",
+          "text": "Propagates r.Context() or derived children through both operations."
+        },
+        {
+          "id": "13.2",
+          "text": "Uses context-aware SQL and HTTP APIs."
+        },
+        {
+          "id": "13.3",
+          "text": "Keeps the HTTP context alive through body consumption and closes owned bodies."
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "retry-scope",
+      "source": "golang-context:2",
+      "prompt": "Write a Go HTTP retry function with three attempts, five seconds per attempt, caller cancellation, and a returned byte slice.",
+      "assertions": [
+        {
+          "id": "14.1",
+          "text": "Derives each attempt from the caller and releases its cancel function and response body before the next attempt."
+        },
+        {
+          "id": "14.2",
+          "text": "Consumes the body before canceling its request context."
+        },
+        {
+          "id": "14.3",
+          "text": "Stops on caller cancellation, including during backoff."
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "typed-metadata",
+      "source": "golang-context:3",
+      "prompt": "Write Go middleware and a cross-package accessor for a tenant ID already authenticated by earlier middleware.",
+      "assertions": [
+        {
+          "id": "15.1",
+          "text": "Uses a package-private comparable key type with a typed accessor."
+        },
+        {
+          "id": "15.2",
+          "text": "Handles missing metadata without panic."
+        },
+        {
+          "id": "15.3",
+          "text": "Does not treat an arbitrary client header as authenticated identity."
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "name": "draining-worker",
+      "source": "golang-context:4",
+      "prompt": "Design Go Worker Start and Stop methods. Stop must reject new jobs, finish the current job, and report completion.",
+      "assertions": [
+        {
+          "id": "16.1",
+          "text": "Separates admission stop from aborting current work."
+        },
+        {
+          "id": "16.2",
+          "text": "Provides observable completion rather than only a cancel call."
+        },
+        {
+          "id": "16.3",
+          "text": "Keeps per-call and owned worker lifetimes explicit without mechanically forbidding all lifetime-owning structs."
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "name": "detached-audit",
+      "source": "golang-context:5",
+      "prompt": "A Go 1.21 payment handler must asynchronously deliver an audit event with trace metadata even if the client disconnects. Delivery must survive process restart.",
+      "assertions": [
+        {
+          "id": "17.1",
+          "text": "Explains that WithoutCancel preserves values but removes cancellation and deadline."
+        },
+        {
+          "id": "17.2",
+          "text": "Uses durable delivery such as an outbox or queue for restart survival rather than promising a goroutine is durable."
+        },
+        {
+          "id": "17.3",
+          "text": "Bounds and owns any in-process detached work."
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "name": "nested-budgets",
+      "source": "golang-context:6",
+      "prompt": "A Go operation has a ten-second total timeout. Cache gets two seconds, then database must get its full eight seconds even if cache used two seconds plus overhead. Implement the budget.",
+      "assertions": [
+        {
+          "id": "18.1",
+          "text": "Identifies the incompatible full-duration guarantee under the total deadline."
+        },
+        {
+          "id": "18.2",
+          "text": "Derives operation timeouts from the parent and respects its remaining budget."
+        },
+        {
+          "id": "18.3",
+          "text": "Releases owned cancel functions without detaching to bypass the total deadline."
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "name": "incremental-context",
+      "source": "golang-context:7",
+      "prompt": "Plan incremental context propagation in Go from main through request handlers and services to database calls. Some intermediate APIs do not accept context yet.",
+      "assertions": [
+        {
+          "id": "19.1",
+          "text": "Uses TODO only as an explicit temporary gap and roots Background at an owned entry point."
+        },
+        {
+          "id": "19.2",
+          "text": "Uses real request contexts where available rather than substituting placeholders."
+        },
+        {
+          "id": "19.3",
+          "text": "Shows a path to remove gaps and never passes nil context."
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "name": "transaction-context",
+      "source": "golang-context:8",
+      "prompt": "Review database/sql code that accepts ctx, calls db.Begin(), then tx.ExecContext(ctx, ...), then tx.Commit(). Fix context propagation.",
+      "assertions": [
+        {
+          "id": "20.1",
+          "text": "Uses BeginTx(ctx, nil) or appropriate options."
+        },
+        {
+          "id": "20.2",
+          "text": "Keeps ctx on transaction operations and handles rollback/error ownership."
+        },
+        {
+          "id": "20.3",
+          "text": "Does not invent sql.Tx.CommitContext or RollbackContext."
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "value-boundaries",
+      "source": "golang-context:9",
+      "prompt": "Design ProcessOrder in Go with a database, base logger, authenticated identity, trace ID, and order details.",
+      "assertions": [
+        {
+          "id": "21.1",
+          "text": "Keeps database and order arguments explicit rather than hiding them in context."
+        },
+        {
+          "id": "21.2",
+          "text": "Uses context metadata for suitable request-scoped identity and tracing."
+        },
+        {
+          "id": "21.3",
+          "text": "Distinguishes a base logger dependency from a request-enriched logger convention."
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "name": "afterfunc-coordination",
+      "source": "golang-context:10",
+      "prompt": "In Go 1.21 register cancellation cleanup with AfterFunc while ordinary completion also releases the same resource. The release is not safe to call twice or concurrently.",
+      "assertions": [
+        {
+          "id": "22.1",
+          "text": "Coordinates exactly-once release and resource use rather than racing two cleanups."
+        },
+        {
+          "id": "22.2",
+          "text": "Explains that stopping AfterFunc does not join a callback already running."
+        },
+        {
+          "id": "22.3",
+          "text": "Handles ordinary completion even if context never cancels."
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "blocked-admission",
+      "source": "new:merged-lifetimes",
+      "prompt": "Review a Go function using errgroup.WithContext and SetLimit(1). The first task ignores context and blocks forever; the producer is blocked submitting the second task. Will canceling ctx release Go or Wait?",
+      "assertions": [
+        {
+          "id": "23.1",
+          "text": "Explains neither admission nor Wait is forced to return by cancellation."
+        },
+        {
+          "id": "23.2",
+          "text": "Addresses the noncooperative dependency and context-aware admission where required."
+        },
+        {
+          "id": "23.3",
+          "text": "Does not fix bounded execution by spawning an unbounded number of admission goroutines."
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "group-context-after-wait",
+      "source": "new:merged-lifetimes",
+      "prompt": "A Go function successfully waits for errgroup.WithContext then uses the derived context for a final database write. Review it.",
+      "assertions": [
+        {
+          "id": "24.1",
+          "text": "Identifies that the group context is canceled when Wait returns, even on success."
+        },
+        {
+          "id": "24.2",
+          "text": "Uses a suitable still-live parent or separately owned context for post-group work."
+        },
+        {
+          "id": "24.3",
+          "text": "Preserves the caller deadline rather than switching blindly to Background."
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "select-work-evaluation",
+      "source": "new:merged-lifetimes",
+      "prompt": "Review Go code: select { case out <- expensive(ctx): case <-ctx.Done(): return }. Does it skip expensive when canceled? Does select prioritize cancellation?",
+      "assertions": [
+        {
+          "id": "25.1",
+          "text": "Explains send operands are evaluated before selection."
+        },
+        {
+          "id": "25.2",
+          "text": "Explains ready cancellation has no select priority."
+        },
+        {
+          "id": "25.3",
+          "text": "Gives expensive work a cancellation contract and states the limits of preliminary checks."
+        }
+      ]
+    }
+  ]
+}

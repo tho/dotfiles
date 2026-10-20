@@ -1,0 +1,245 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not measured results. Evaluate all converted skills together, excluding legacy skills. Count missing required selections and selections outside allowed separately. Refresh candidates when the converted group changes. triggers.json is for isolated checks only.",
+  "queries": [
+    {
+      "id": "setup01",
+      "query": "Start a tiny Go command-line tool at example.com/tools/count. It has one binary and no external dependencies. Choose a minimal layout.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup",
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "setup02",
+      "query": "Set up a Go logging library other teams can import. Should its package live at the root or under pkg?",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup03",
+      "query": "Our Go server and worker deploy together. Organize their executable entry points and shared code in one repository.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup04",
+      "query": "I have ten packages in one Go module. Would go.work improve the organization?",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup05",
+      "query": "Set up local development for two independently released Go modules using a workspace.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup06",
+      "query": "We need to reorganize our Go repository into modules because the SDK now releases independently from the server. Choose the layout.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup",
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "setup07",
+      "query": "We are onboarding a second service. First choose whether our Go monorepo needs one module or a workspace, then describe the directory tree.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup08",
+      "query": "Initialize a Go module under our existing vanity import domain without changing its spelling.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup09",
+      "query": "Run go mod init for a new service repo. Where should main.go and the HTTP handlers go?",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "setup10",
+      "query": "Where should testdata fixtures and shared test helpers live in the new Go module?",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "boundary01",
+      "query": "Move oldpkg to newpkg exactly as the approved plan specifies and update callers. Do not revisit the layout.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "boundary02",
+      "query": "Choose functional options or a config struct for this Go constructor.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "boundary03",
+      "query": "Add a verbose flag and exit codes to my existing Go CLI.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "boundary04",
+      "query": "Rename the exported Go function across its callers without changing behavior.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "boundary05",
+      "query": "Add table-driven unit tests for this Go parser.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "boundary06",
+      "query": "Configure GitHub Actions to run Go tests.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "boundary07",
+      "query": "Upgrade our Go module dependency on golang.org/x/text.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "boundary08",
+      "query": "Set up a Python workspace with uv.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "boundary09",
+      "query": "Should our existing Go service use hexagonal or clean architecture for its packages?",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "boundary10",
+      "query": "go mod tidy fails on a missing require in one of our go.work member modules.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies",
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "boundary11",
+      "query": "Bump the go directive in go.mod to 1.24 and adopt the new idioms.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "boundary12",
+      "query": "go build fails with an import cycle after my last commit.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-maintenance"
+      ]
+    }
+  ]
+}

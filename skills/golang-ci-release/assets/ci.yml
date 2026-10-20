@@ -1,0 +1,81 @@
+# Single-module example. Adapt the Go 1.26 support floor and existing lint policy.
+# Install as .github/workflows/ci.yml for the release templates.
+name: Go CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test-build:
+    name: Test and build (${{ matrix.go }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ['1.26.x', stable]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: false
+      - name: Check committed source in isolation
+        uses: geomys/sandboxed-step@a6bfc174e532cea4f378e3427bcde8b714c2e810 # v1.2.2
+        with:
+          env: |
+            GOTOOLCHAIN=local
+          run: |
+            go version
+            go mod download
+            go mod verify
+            go build -mod=readonly ./...
+            go test -mod=readonly -race -shuffle=on -count=1 ./...
+
+  module-metadata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Check tidy with the project's selected toolchain
+        uses: geomys/sandboxed-step@a6bfc174e532cea4f378e3427bcde8b714c2e810 # v1.2.2
+        with:
+          env: |
+            GOTOOLCHAIN=local
+          run: |
+            go version
+            go mod tidy
+            git diff -- go.mod go.sum
+            test -z "$(git status --porcelain -- go.mod go.sum)"
+
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+          cache: false
+      # Uses the project's existing golangci-lint v2 configuration.
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+          skip-cache: true
+          args: --timeout=5m

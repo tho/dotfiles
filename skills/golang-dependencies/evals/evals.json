@@ -1,0 +1,338 @@
+{
+  "notes": "Expected cases and labels, not execution results. Group triggers stage all converted skills together and exclude legacy skills. Behavior cases are synthetic conversion fixtures, not user-project evidence. The cases key is accepted directly by BMad run_evals.py. The authorization and tool-floor inputs were clarified after the initial baseline; compare revised cases separately from earlier scores.",
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "queries": [
+    {
+      "id": "add",
+      "query": "Add example.com/acme/lib at v1.4.2 to this Go module; I have approved that package and version.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "remove",
+      "query": "Remove an unused Go module dependency and reconcile go.mod and go.sum.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "upgrade",
+      "query": "Upgrade our Go module dependencies to the latest patch versions, including test dependencies.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "mvs",
+      "query": "Why does Go select v1.8.0 for a transitive module when go.mod requests v1.6.0? Explain MVS.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "fork",
+      "query": "My published Go library uses a local replace directive. Will consumers resolve the fork?",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "reproduce",
+      "query": "Make dependency resolution repeatable for our Go module; assess go.sum, vendoring and workspace effects.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "tools",
+      "query": "Pin executable tool versions in our Go 1.24 module without raising the supported Go version.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "risk",
+      "query": "Assess adopting a Go package: license, maintenance, transitive footprint and stdlib alternatives.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "cve",
+      "query": "Check dependency-only CVEs in our Go module using govulncheck and assess fixed versions; no application security review.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "workspace",
+      "query": "Our Go modules pass in a local workspace but depend on unpublished local replacements. Check consumer dependency resolution.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "refactor",
+      "query": "Refactor an existing Go package into smaller files while preserving behavior.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "modernize",
+      "query": "Upgrade our supported Go version and modernize code to use the new language features. Leave third-party dependency versions alone.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "security",
+      "query": "Review a Go HTTP handler for SSRF and authentication bypass.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "ci",
+      "query": "Set up Dependabot and a scheduled govulncheck GitHub Actions workflow for Go.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "layout",
+      "query": "Choose a Go monorepo layout and module boundaries for a new project.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "lint",
+      "query": "Configure golangci-lint rules in .golangci.yml without changing tool versions.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "design",
+      "query": "Design constructor dependency injection interfaces for our Go service.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "debug",
+      "query": "Diagnose an unexplained panic in our Go HTTP service.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "perf",
+      "query": "Measure whether replacing a Go parser reduces CPU use and binary size.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "outside",
+      "query": "Update the dependencies in this Python pyproject.toml.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "mixed",
+      "query": "Upgrade this Go dependency to its fixed version and review our HTTP handler for SSRF defenses.",
+      "required": [
+        "golang-dependencies",
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-dependencies",
+        "golang-security"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "authorization",
+      "input": "I have approved adding example.com/acme/lib@v1.4.2 to this Go module. Explain the next steps only. You may read skill instructions, but do not modify project files, install dependencies, or run project commands.",
+      "rubric": [
+        "Honors existing package/version approval without asking again.",
+        "Uses targeted version selection and checks the resulting graph and compatibility.",
+        "Does not claim commands ran.",
+        "Names targeted go get and go.mod/go.sum review rather than a generic lockfile workflow.",
+        "Executes no project-changing or dependency-installing commands."
+      ]
+    },
+    {
+      "id": "checksums",
+      "input": "Can I ignore go.sum? Does go mod verify check my vendor edits or prove dependencies safe?",
+      "rubric": [
+        "Explains go.sum is content integrity evidence, not a lock file.",
+        "Distinguishes download authentication from cached-content verification.",
+        "States go mod verify does not verify vendor content or code safety."
+      ]
+    },
+    {
+      "id": "mvs",
+      "input": "A requires shared@v1.2.0 and B requires shared@v1.3.0. Can I pin shared to v1.2.0 just by adding require?",
+      "rubric": [
+        "Selects v1.3.0 absent other requirements/overrides.",
+        "Explains requirements are minima; a lower direct requirement is not a cap.",
+        "Notes explicit downgrades can change other modules."
+      ]
+    },
+    {
+      "id": "major-fork",
+      "input": "Upgrade a module-aware dependency from v1 to v2; our library also replaces it with a local fork. What must consumers receive?",
+      "rubric": [
+        "Explains major module/import path migration and compatibility checks.",
+        "States a library replacement does not propagate to consumers.",
+        "Requires a consumer-resolvable fork/fix and verification outside local workspace."
+      ]
+    },
+    {
+      "id": "workspace",
+      "input": "Our team intentionally shares go.work. Must go.work.sum always be ignored, and do passing workspace tests prove our library is publishable?",
+      "rubric": [
+        "Uses shared-workspace policy rather than blanket ignore rule.",
+        "Requires standalone or consumer verification with GOWORK=off.",
+        "Explains local replacements can mask missing published requirements."
+      ]
+    },
+    {
+      "id": "tool-floor",
+      "input": "We support Go 1.23. Show a reproducible CLI tool-pinning pattern using TOOL_PACKAGE and VERSION placeholders, without raising the Go floor. You may read skill instructions, but do not choose an actual package, modify project files, install tools, or run project commands.",
+      "rubric": [
+        "Does not add Go 1.24 tool directives to a 1.23-compatible policy.",
+        "Offers compatible tool tracking or separate versioned installations.",
+        "Uses explicit versions rather than latest as reproducibility evidence.",
+        "If recommending tools.go, includes the tools build constraint to exclude command imports from ordinary builds."
+      ]
+    },
+    {
+      "id": "risk",
+      "input": "A scanner flags a dependency CVE but govulncheck gives no vulnerable call path. May we declare it safe and auto-merge the upgrade?",
+      "rubric": [
+        "Separates module presence, analyzer reachability and exploitability.",
+        "Names analysis configuration or coverage limitations.",
+        "Requires compatibility verification and merge authorization, not automatic security-update merging."
+      ]
+    },
+    {
+      "id": "upgrade-scope",
+      "input": "Give commands to upgrade one Go module to v1.7.0. We must retain our Go version.",
+      "rubric": [
+        "Uses targeted go get, not graph-wide -u.",
+        "Checks dependency minimum Go version and full module diff.",
+        "Includes tidy and appropriate verification without claiming results."
+      ]
+    },
+    {
+      "id": "latest",
+      "input": "I explicitly want latest minor versions for all current Go module paths, including test dependencies. What is the plan?",
+      "rubric": [
+        "Honors minor-update scope rather than silently switching to patch-only.",
+        "Explains -u and -t, and that new major paths need migration.",
+        "Reviews compatibility and transitive changes."
+      ]
+    },
+    {
+      "id": "retract",
+      "input": "We published a broken v1.3.0. Can retract delete it, and how does exclude differ?",
+      "rubric": [
+        "Explains retract marks own versions and needs publication of a retraction-bearing release.",
+        "States explicit downloads remain possible.",
+        "Distinguishes consumer-side exclude from author-side retract."
+      ]
+    },
+    {
+      "id": "tools-go",
+      "input": "Use golang-dependencies to show a tools.go-based CLI pinning pattern for a Go 1.23 module. Use TOOL_PACKAGE and VERSION placeholders and show the build constraint and install command. You may read instructions, but do not modify files, install anything, or run project commands.",
+      "rubric": [
+        "Shows //go:build tools followed by a blank line before the package declaration and a blank import for TOOL_PACKAGE.",
+        "Pins TOOL_PACKAGE@VERSION using go get and installs TOOL_PACKAGE using module-selected requirements, without @latest.",
+        "Retains Go 1.23 and avoids Go 1.24 tool directives; checks the actual supported toolchain rather than claiming GOTOOLCHAIN=local selects 1.23.",
+        "Reads the dependency skill and reproducibility reference; does not modify files or install anything."
+      ]
+    }
+  ]
+}

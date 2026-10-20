@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Write a Go database/sql repository query that scans nullable profile fields and distinguishes a missing user.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review our sqlx IN query expansion and empty ID list handling.",
+    "should_trigger": true
+  },
+  {
+    "query": "Fix a Go QueryContext loop that leaks rows on Scan errors.",
+    "should_trigger": true
+  },
+  {
+    "query": "Implement atomic inventory reservation with Go and PostgreSQL transactions.",
+    "should_trigger": true
+  },
+  {
+    "query": "Explain native pgx transaction cleanup when the request context is canceled.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go SQL pool has rising WaitCount. Check connection ownership and sizing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add bounded pgx batch inserts with explicit partial-failure semantics.",
+    "should_trigger": true
+  },
+  {
+    "query": "Review a Go helper returning live sql.Rows after deferring cancellation of its query context.",
+    "should_trigger": true
+  },
+  {
+    "query": "Check whether our Go MySQL transaction isolation prevents lost updates.",
+    "should_trigger": true
+  },
+  {
+    "query": "Debug a Go repository that uses db.ExecContext inside a transaction with MaxOpenConns set to one.",
+    "should_trigger": true
+  },
+  {
+    "query": "Audit a Go HTTP endpoint for SQL injection through a user-controlled ORDER BY column.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design Go worker-pool cancellation and channel ownership.",
+    "should_trigger": false
+  },
+  {
+    "query": "Explain context.WithoutCancel and request-scoped values in our Go service architecture.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write PostgreSQL migration SQL for a new invoicing schema.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write Go integration tests for a repository using testcontainers; focus on test isolation.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write godoc for our exported Go database repository interface.",
+    "should_trigger": false
+  },
+  {
+    "query": "Choose clearer Go names for our database repository methods.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix a typed-nil error returned by a Go cache interface.",
+    "should_trigger": false
+  },
+  {
+    "query": "Compare Go benchmarks and CPU profiles for JSON serialization.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure GitHub Actions to run govulncheck.",
+    "should_trigger": false
+  }
+]

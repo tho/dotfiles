@@ -1,0 +1,200 @@
+[
+  {
+    "id": "benchmark-validity",
+    "input": "Our Go 1.24 parsing benchmark reports 0.3 ns/op. It uses a b.N loop, ignores the result, and reuses a reader across iterations. How should we establish a valid baseline?",
+    "rubric": [
+      "Investigates elimination and consumed input without claiming timing alone proves a cause.",
+      "Recommends valid b.Loop usage or a justified b.N benchmark with observable work and excluded setup.",
+      "Keeps fixture and benchmark definitions identical across comparisons and reports allocations."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "inconclusive-comparison",
+    "input": "benchstat shows Parse at 4.592 us/op versus 4.481 us/op, ~ (p=0.089 n=10), with wide intervals. Can we claim a 2.4% improvement and omit the ~ row?",
+    "rubric": [
+      "Calls the timing comparison inconclusive and retains the row.",
+      "Does not claim equivalence or rerun until significant.",
+      "Proposes noise control and a predeclared follow-up if the practical decision warrants it."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "serial-candidates",
+    "input": "Three agents implemented competing optimizations in worktrees on the same VM. Can they each run benchmarks concurrently against their own fresh baseline?",
+    "rubric": [
+      "Requires serial measurement on shared hardware.",
+      "Compares candidates against the same baseline and controlled environment.",
+      "Distinguishes independent implementation from measurement and addresses winner selection bias."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "toolchain-confound",
+    "input": "Baseline was Go 1.24 on a laptop, candidate Go 1.26 on CI. Candidate is 12% faster. Write the conclusion for our code optimization.",
+    "rubric": [
+      "Declines to attribute the difference to the code.",
+      "Requires rebuilding baseline and candidate on the same toolchain and hardware with matched flags and workload.",
+      "Labels current evidence unverified or incomparable."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "external-wait",
+    "input": "Our Go API p99 is 800ms with low CPU. Most distributed trace time is a database request, and many goroutines are waiting on database/sql. Should we first pool handler buffers?",
+    "rubric": [
+      "Investigates external latency, connection waits and query behavior before allocation tuning.",
+      "Uses waiting or trace evidence rather than treating a CPU profile as the full latency budget.",
+      "Does not assert goroutine stacks alone prove the database server is the cause."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "allocation-versus-retention",
+    "input": "CPU is dominated by mallocgc and GC. alloc_space climbs steadily but inuse_space after comparable GCs stays flat. Is this a memory leak? What should we optimize?",
+    "rubric": [
+      "Separates cumulative allocation churn from retained heap growth.",
+      "Follows allocation sites to application callers.",
+      "Proposes measured allocation reduction and verifies CPU, allocation and correctness effects without asserting a leak."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "pool-ownership",
+    "input": "A faster handler returns buf.Bytes() and defers pool.Put(buf). Tests sometimes see responses change after return. It saves two allocations. Accept it?",
+    "rubric": [
+      "Rejects the candidate due to ownership or aliasing failure despite allocation gains.",
+      "Keeps storage owned until the consumer finishes or copies before returning it to the pool.",
+      "Rechecks correctness and remeasures the safe candidate without promising durable pool entries or a universal size cutoff."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "correctness-regression",
+    "input": "Replacing reflect.DeepEqual with slices.Equal gives a significant 20% speedup, but one test now equates nil and empty slices where the old API distinguished them. Approve the performance change?",
+    "rubric": [
+      "Rejects acceptance while the behavior regression violates the API contract.",
+      "Explains the semantic mismatch and proposes preserving required behavior.",
+      "Requires correctness checks and a new performance comparison for the corrected version."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "http-pool-semantics",
+    "input": "Our default HTTP client has MaxIdleConnsPerHost=2. Does that mean only two requests can run? Should we disable keep-alive and drain every response even if unlimited?",
+    "rubric": [
+      "Distinguishes idle connection limits from active limits and HTTP/2 requests.",
+      "Investigates reuse and dialing, reuses clients/transports and preserves useful defaults.",
+      "Bounds draining by deadlines and payload policy and closes bodies."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "runtime-budget",
+    "input": "Our container has a 512MiB limit and calls a C image library. Will GOMEMLIMIT=460MiB guarantee no OOM? Should we lower GOGC for p99?",
+    "rubric": [
+      "Explains the soft Go-managed memory limit and memory outside its accounting.",
+      "Measures headroom and GC CPU/memory/latency tradeoffs instead of promising no OOM or lower p99.",
+      "Checks actual runtime/container settings rather than blindly copying a percentage."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "compiler-and-simd",
+    "input": "An optimization proposal replaces all pointer receivers with values to force inlining, then uses bounds-check elimination logs as proof of SIMD. Is that evidence sufficient?",
+    "rubric": [
+      "Rejects receiver-type guarantees and inspects actual escape/inlining decisions.",
+      "Separates bounds-check elimination from SIMD and inspects generated instructions.",
+      "Requires a measured relevant hotspot, portable feature support and benchmark verification."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "complexity-and-cache",
+    "input": "A reviewer says ordinary repeated append is O(n^2), and suggests an unbounded cache plus singleflight as a general replacement. Assess the proposal.",
+    "rubric": [
+      "States amortized linear total growth cost for ordinary append.",
+      "Explains singleflight suppresses concurrent duplicate work but is not a cache.",
+      "Requires workload evidence, cache bounds, invalidation, key isolation and measured tradeoffs."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "production-metrics",
+    "input": "RSS rises but Go heap is stable. Can RSS minus go_memstats_sys_bytes prove a C leak? Our new build also has lower aggregate p99 during a quieter traffic window.",
+    "rubric": [
+      "Rejects subtracting different memory accounting quantities as proof of C allocations.",
+      "Correlates cgo/mmap and OS memory evidence with the symptom.",
+      "Requires matched load/cohorts before attributing p99 change to the deployment."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "gctrace-phases",
+    "input": "Interpret this gctrace fragment: 0.015+89+1.2 ms clock, 180->340->200 MB. Was there an 89ms stop-the-world pause?",
+    "rubric": [
+      "Identifies the middle duration as concurrent mark/scan rather than a stop-the-world pause.",
+      "Identifies first and last wall-clock phases as stop-the-world phases.",
+      "Describes heap at GC start, at GC end, and live heap without calling the middle heap value a measured peak."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "ci-gate",
+    "input": "Design a regression gate on shared CI. We could run cob in my dirty checkout, compare against last week on another runner, and retry failures until green.",
+    "rubric": [
+      "Uses a disposable clean checkout for tools that reset revisions.",
+      "Measures base and candidate serially under matched conditions with repeated samples.",
+      "Defines practical thresholds and invalid/inconclusive outcomes; does not retry until pass or treat benchstat exit success as a gate."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "pgo-comparison",
+    "input": "We added default.pgo and a buffer reuse change together and saw 8% lower CPU. How do we decide what helped?",
+    "rubric": [
+      "Separates the hypotheses and records profile identity and build flags.",
+      "Explicitly compares PGO disabled versus the chosen profile under representative workload.",
+      "Requires correctness and comparable measurements before assigning gains."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "parallel-latency",
+    "input": "RunParallel reports 20 ns/op at GOMAXPROCS=16. Can I report that every request has p99 latency under 20ns, including goroutines that finish after the benchmark?",
+    "rubric": [
+      "Distinguishes aggregate throughput from request latency percentiles.",
+      "Ensures asynchronous work completes within the measured operation.",
+      "Requires separate representative latency measurement and documents concurrency."
+    ],
+    "state_prefix": null,
+    "files": []
+  },
+  {
+    "id": "complete-evidence-handoff",
+    "input": "We have matching Go version and hardware, ten baseline/candidate samples, Parse time -15% p=0.001, B/op +40%, all relevant correctness checks passing. Target was less than 10% extra allocation for lower latency. Write the review conclusion.",
+    "rubric": [
+      "Reports both timing gain and allocation regression.",
+      "Does not accept the candidate as satisfying the stated target.",
+      "Includes or requests reproducibility artifacts and distinguishes benchmark results from production latency evidence."
+    ],
+    "state_prefix": null,
+    "files": []
+  }
+]

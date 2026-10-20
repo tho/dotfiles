@@ -1,0 +1,78 @@
+[
+  {
+    "query": "Set up a .golangci.yml for our Go monorepo with a small explicit set of linters.",
+    "should_trigger": true
+  },
+  {
+    "query": "We bumped golangci-lint from v1 to v2 and the config no longer loads. Fix it without losing checks.",
+    "should_trigger": true
+  },
+  {
+    "query": "Configure gofumpt and goimports for this Go repo so formatting is consistent.",
+    "should_trigger": true
+  },
+  {
+    "query": "staticcheck says SA4006 on this Go function. What does it mean and should we fix it?",
+    "should_trigger": true
+  },
+  {
+    "query": "go vet complains about copylocks in our Go server struct. Explain and fix.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go codebase has 3000 lint findings. How do we turn golangci-lint on without blocking every PR?",
+    "should_trigger": true
+  },
+  {
+    "query": "Review the //nolint comments in this Go package and tell me which ones are unjustified.",
+    "should_trigger": true
+  },
+  {
+    "query": "golangci-lint hits context deadline exceeded on our big Go repo. What should we change?",
+    "should_trigger": true
+  },
+  {
+    "query": "While cleaning up this Go service, run the linters on the packages I touched and explain the output.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add errcheck settings so type assertions are checked in our golangci config.",
+    "should_trigger": true
+  },
+  {
+    "query": "Rename these Go identifiers so they follow idiomatic naming.",
+    "should_trigger": false
+  },
+  {
+    "query": "Is this Go function too long to read? Suggest a cleaner structure.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a golangci-lint job to our GitHub Actions workflow for the Go repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Audit this Go HTTP handler for SSRF and path traversal.",
+    "should_trigger": false
+  },
+  {
+    "query": "Our Go tests deadlock intermittently under -race. Find the cause.",
+    "should_trigger": false
+  },
+  {
+    "query": "Upgrade our Go module dependencies and check them for known CVEs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Modernize this Go code to use the slices and maps packages from newer Go versions.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure ESLint and Prettier for our TypeScript frontend.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write godoc comments for the exported API of this Go package.",
+    "should_trigger": false
+  }
+]

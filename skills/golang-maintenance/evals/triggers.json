@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Refactor this Go function into smaller helpers without changing behavior.",
+    "should_trigger": true
+  },
+  {
+    "query": "Rename Client.Send to Publish across all Go callers, keeping the wire protocol unchanged.",
+    "should_trigger": true
+  },
+  {
+    "query": "Move our exported Go Invoice type into the model package without breaking downstream callers.",
+    "should_trigger": true
+  },
+  {
+    "query": "Plan a staged Go package split with compatibility aliases and caller migration.",
+    "should_trigger": true
+  },
+  {
+    "query": "Inline this Go helper while preserving evaluation order and side effects.",
+    "should_trigger": true
+  },
+  {
+    "query": "Upgrade our supported Go version from 1.22 to 1.25 and migrate compatible idioms.",
+    "should_trigger": true
+  },
+  {
+    "query": "Modernize our Go loops and maps usage while retaining Go 1.21 support.",
+    "should_trigger": true
+  },
+  {
+    "query": "Replace deprecated Go standard library APIs after checking the target release.",
+    "should_trigger": true
+  },
+  {
+    "query": "Scan our Go repository for version-driven modernization opportunities; do not edit it.",
+    "should_trigger": true
+  },
+  {
+    "query": "After this release, refactor our Go package and separately plan the target Go toolchain upgrade.",
+    "should_trigger": true
+  },
+  {
+    "query": "Suggest a clearer Go name for this receiver variable.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design the packages and public interfaces for a new Go order service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Optimize this measured CPU hotspot in our Go service.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write table-driven tests for this Go parser.",
+    "should_trigger": false
+  },
+  {
+    "query": "Design cancellation ownership in our Go worker pool.",
+    "should_trigger": false
+  },
+  {
+    "query": "Fix this Go SQL transaction boundary.",
+    "should_trigger": false
+  },
+  {
+    "query": "Reorganize this repo into a go.work workspace with two modules.",
+    "should_trigger": false
+  },
+  {
+    "query": "Upgrade golang.org/x/net to the latest minor version and tidy go.sum.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure the staticcheck SA1019 deprecation check in .golangci.yml.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a GitHub Actions workflow that runs govulncheck on pull requests.",
+    "should_trigger": false
+  }
+]

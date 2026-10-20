@@ -1,0 +1,362 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not results. Stage all converted candidates together; exclude the legacy source directory. Missing required selections and selections outside allowed are failures. Refresh this inventory as conversions are added. These cases focus on maintenance boundaries, not exhaustive sibling coverage.",
+  "queries": [
+    {
+      "id": "maint01",
+      "query": "Refactor this Go function into smaller helpers without changing behavior.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint02",
+      "query": "Rename Client.Send to Publish across all Go callers, keeping the wire protocol unchanged.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint03",
+      "query": "Move our exported Go Invoice type into the model package without breaking downstream callers.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint04",
+      "query": "Plan a staged Go package split with compatibility aliases and caller migration.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint05",
+      "query": "Inline this Go helper while preserving evaluation order and side effects.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint06",
+      "query": "Upgrade our supported Go version from 1.22 to 1.25 and migrate compatible idioms.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint07",
+      "query": "Modernize our Go loops and maps usage while retaining Go 1.21 support.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint08",
+      "query": "Replace deprecated Go standard library APIs after checking the target release.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint09",
+      "query": "Scan our Go repository for version-driven modernization opportunities; do not edit it.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maint10",
+      "query": "After this release, refactor our Go package and separately plan the target Go toolchain upgrade.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "boundary01",
+      "query": "Suggest a clearer Go name for this receiver variable.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "boundary02",
+      "query": "Design the packages and public interfaces for a new Go order service.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "boundary03",
+      "query": "Optimize this measured CPU hotspot in our Go service.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "boundary04",
+      "query": "Write table-driven tests for this Go parser.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "boundary05",
+      "query": "Explain a typed-nil error in this Go function.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "boundary06",
+      "query": "Design cancellation ownership in our Go worker pool.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "boundary07",
+      "query": "Add Prometheus request metrics to this Go service.",
+      "required": [
+        "golang-observability"
+      ],
+      "allowed": [
+        "golang-observability"
+      ]
+    },
+    {
+      "id": "boundary08",
+      "query": "Write godoc for this Go API.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "boundary09",
+      "query": "Fix this Go SQL transaction boundary.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "boundary10",
+      "query": "Audit the Go URL fetcher for SSRF.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "boundary11",
+      "query": "Add a Cobra subcommand and completion to this Go CLI.",
+      "required": [
+        "golang-cli"
+      ],
+      "allowed": [
+        "golang-cli"
+      ]
+    },
+    {
+      "id": "boundary12",
+      "query": "Update Dependabot and add a generic CI scanner job.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "boundary13",
+      "query": "Refactor this Python function into two helpers.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "boundary14",
+      "query": "Bump a third-party Go module patch release; no language or API migration.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "boundary15",
+      "query": "Schedule a maintenance window for the database server.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "boundary16",
+      "query": "The repository uses Go 1.27. Add a new business endpoint; no refactoring or modernization is requested.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "mixed01",
+      "query": "Choose better exported Go names, then apply the renames safely across callers.",
+      "required": [
+        "golang-maintenance",
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-maintenance",
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "mixed02",
+      "query": "Design better boundaries for our existing Go packages, then plan the compatibility-preserving moves.",
+      "required": [
+        "golang-maintenance",
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-maintenance",
+        "golang-design"
+      ]
+    },
+    {
+      "id": "mixed03",
+      "query": "Refactor our hot Go loop without changing behavior and benchmark it for regressions.",
+      "required": [
+        "golang-maintenance",
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-maintenance",
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "mixed04",
+      "query": "Modernize Go test APIs for our upgrade to Go 1.25 and rewrite the affected tests.",
+      "required": [
+        "golang-maintenance",
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-maintenance",
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "boundary17",
+      "query": "Reorganize this repo into a go.work workspace with two modules.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "boundary18",
+      "query": "Upgrade golang.org/x/net to the latest minor version.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    },
+    {
+      "id": "boundary19",
+      "query": "Configure the staticcheck SA1019 deprecation check in .golangci.yml.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "boundary20",
+      "query": "Tests started failing after we bumped to Go 1.25; find out why.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-maintenance"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Minimal golangci-lint v2 baseline. Adapt to the project's pinned release.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - errcheck
+    - nolintlint
+  settings:
+    nolintlint:
+      require-specific: true
+      require-explanation: true
+      allow-unused: false
+
+# Formatting is applied with `golangci-lint fmt`.
+formatters:
+  enable:
+    - gofmt

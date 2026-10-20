@@ -1,0 +1,268 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-ci-release",
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-debugging",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-lint",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not results. Stage all converted skills together; exclude legacy skills. Refresh candidate list when the collection changes. Count missed required loads and loads outside allowed separately.",
+  "queries": [
+    {
+      "id": "configure",
+      "query": "Configure .golangci.yml for a Go service with an explicit set of linters.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "migrate",
+      "query": "Upgrade our golangci-lint v1 configuration to v2 while preserving checks.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "run",
+      "query": "Run golangci-lint for the affected Go packages and explain its output.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "vet",
+      "query": "Run go vet on this Go module and interpret its copylocks diagnostic.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "staticcheck",
+      "query": "Standalone staticcheck ignores my nolint comment. Help me handle SA1019 correctly.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "suppress",
+      "query": "Audit our //nolint directives and enforce linter names and meaningful reasons.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "adopt",
+      "query": "Adopt Go linting with a backlog of 2000 findings and a policy for new changes.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "timeout",
+      "query": "golangci-lint times out without reporting issues. Diagnose the analysis failure.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "format",
+      "query": "Configure gofumpt and goimports in golangci-lint v2 and show how to run formatting.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "style-diagnostic",
+      "query": "Explain what revive means by receiver-naming and how to configure that rule.",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint",
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "naming",
+      "query": "Should this Go interface be named UserService or UserStore? Explain naming tradeoffs.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "style",
+      "query": "Review this Go function for naming and readable control flow. No tooling changes.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "ci",
+      "query": "Wire our existing golangci-lint command into a GitHub Actions job. Keep its configuration unchanged.",
+      "required": [
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "modernize",
+      "query": "Modernize this Go code using current language features, preserving behavior.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "security",
+      "query": "Review this Go HTTP handler for SSRF vulnerabilities and unsafe redirects.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "debug",
+      "query": "Our Go service panics on a missing request header. Find the root cause.",
+      "required": [
+        "golang-debugging"
+      ],
+      "allowed": [
+        "golang-debugging",
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "test",
+      "query": "Write table-driven Go tests for this parser contract.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "docs",
+      "query": "Write godoc for this exported Go API and add a compiling example.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "benchmark",
+      "query": "Compare these Go parsers using benchmarks and allocation measurements.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "outside",
+      "query": "Configure ESLint for this TypeScript project.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "mixed",
+      "query": "Configure golangci-lint v2 and wire it into our GitHub Actions workflow.",
+      "required": [
+        "golang-lint",
+        "golang-ci-release"
+      ],
+      "allowed": [
+        "golang-lint",
+        "golang-ci-release"
+      ]
+    },
+    {
+      "id": "gosec-triage",
+      "query": "Our golangci-lint run flags gosec G304 on a file read from a request parameter. Is this a real path traversal and how do we fix it?",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security",
+        "golang-lint"
+      ]
+    },
+    {
+      "id": "typecheck",
+      "query": "golangci-lint reports typecheck errors on our Go module even though go build passes. Why?",
+      "required": [
+        "golang-lint"
+      ],
+      "allowed": [
+        "golang-lint",
+        "golang-debugging"
+      ]
+    },
+    {
+      "id": "pin-tool",
+      "query": "Pin golangci-lint for our Go module with a go.mod tool directive so everyone runs the same version.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies",
+        "golang-lint"
+      ]
+    }
+  ]
+}

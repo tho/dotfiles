@@ -1,0 +1,74 @@
+[
+  {
+    "query": "Add example.com/acme/lib v1.4.2 to go.mod and review what go mod tidy changes in go.sum.",
+    "should_trigger": true
+  },
+  {
+    "query": "Why did go get bump three indirect modules when I only asked for one Go dependency?",
+    "should_trigger": true
+  },
+  {
+    "query": "Our Go library replaces a dependency with a fork; will downstream consumers get the fork?",
+    "should_trigger": true
+  },
+  {
+    "query": "We published a broken v1.3.0 of our Go module. Should we retract it or exclude it?",
+    "should_trigger": true
+  },
+  {
+    "query": "Set GOPRIVATE for our internal Go modules without disabling checksum verification for public ones.",
+    "should_trigger": true
+  },
+  {
+    "query": "Pin golangci-lint and mockgen versions in our Go module so every developer runs the same tools.",
+    "should_trigger": true
+  },
+  {
+    "query": "Should we take on this Go package for YAML parsing or stick with what we already import? Check license and transitive footprint.",
+    "should_trigger": true
+  },
+  {
+    "query": "govulncheck reports a CVE in golang.org/x/net; pick a fixed version and tell me if the call path matters.",
+    "should_trigger": true
+  },
+  {
+    "query": "Upgrade all Go dependencies to the latest minor versions, including test-only ones.",
+    "should_trigger": true
+  },
+  {
+    "query": "Vendor our Go dependencies and explain what go mod verify does and does not check.",
+    "should_trigger": true
+  },
+  {
+    "query": "Raise our go directive to 1.25 and replace deprecated APIs with the new idioms.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a go.work workspace layout for our three Go services in one repository.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add a Dependabot config and a weekly govulncheck GitHub Actions job for our Go repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Review this Go handler for SSRF; the outgoing URL comes from user input.",
+    "should_trigger": false
+  },
+  {
+    "query": "Configure golangci-lint rules in .golangci.yml for our Go project.",
+    "should_trigger": false
+  },
+  {
+    "query": "Refactor this Go package into smaller files without changing behavior.",
+    "should_trigger": false
+  },
+  {
+    "query": "Measure whether swapping our Go JSON library reduces allocations in the hot path.",
+    "should_trigger": false
+  },
+  {
+    "query": "Update the dependencies in this Node package.json.",
+    "should_trigger": false
+  }
+]

@@ -1,0 +1,147 @@
+[
+  {
+    "id": "1",
+    "input": "Review documentation: Parse returns ErrEmpty only for an empty string, but its comment promises ErrEmpty for whitespace too. Tests confirm whitespace is valid. No intent or design record is supplied.",
+    "rubric": [
+      "Identifies the mismatch using supplied implementation and tests.",
+      "Does not invent intent or change implementation to satisfy stale prose."
+    ],
+    "files": []
+  },
+  {
+    "id": "2",
+    "input": "Update Go setup docs. go.mod says go 1.22; CI supports 1.22 and 1.24. The local toolchain is 1.24. A draft says go get -tool installs our doc generator.",
+    "rubric": [
+      "Checks command compatibility with Go 1.22 and avoids treating local 1.24 as the support floor.",
+      "Uses a compatible verified installation approach or reports missing tooling evidence; does not raise go.mod."
+    ],
+    "files": []
+  },
+  {
+    "id": "3",
+    "input": "Write configuration docs from this Go loader: start with defaults, apply config file, apply explicitly set flags, then apply nonempty APP_PORT env. File and env ports are decimal integers. Default is 8080.",
+    "rubric": [
+      "States environment overrides explicit flags in this loader.",
+      "Documents default and integer format without adding unsupported configuration sources."
+    ],
+    "files": []
+  },
+  {
+    "id": "4",
+    "input": "In a Go package client exporting New and (*Client).Get, explain executable example names for construction, Get, and a cached variant.",
+    "rubric": [
+      "Uses ExampleNew, ExampleClient_Get, and ExampleClient_Get_cached.",
+      "Explains _test.go placement and prefers external package client_test for public usage."
+    ],
+    "files": []
+  },
+  {
+    "id": "5",
+    "input": "Review these Go documentation checks: ExampleNew has no output comment; README has a Go code fence; go test -run ExampleMissing reports no tests to run. The author says all examples passed.",
+    "rubric": [
+      "Distinguishes compiled ExampleNew from executed output checks.",
+      "Does not treat README fences or an empty test selection as tested examples."
+    ],
+    "files": []
+  },
+  {
+    "id": "6",
+    "input": "A Go Example prints two identical lines named ready. Expected output uses Unordered output with only one ready line. Another Example has an empty Output directive. Explain execution semantics.",
+    "rubric": [
+      "Says unordered output still checks duplicate counts.",
+      "Says empty Output executes and asserts empty stdout."
+    ],
+    "files": []
+  },
+  {
+    "id": "7",
+    "input": "Write a doc comment for deprecated Go Parse in favor of ParseStrict. No removal release or date has been decided.",
+    "rubric": [
+      "Uses Deprecated: in its own paragraph with the supplied replacement.",
+      "Invents no removal deadline or release."
+    ],
+    "files": []
+  },
+  {
+    "id": "8",
+    "input": "Write Go changelog text for this supplied change: decoder now rejects a negative length before allocating. No performance measurements, release date, or security assessment exist.",
+    "rubric": [
+      "States the specific observable fix.",
+      "Does not invent performance gains, broad reliability claims, release dates, or security conclusions."
+    ],
+    "files": []
+  },
+  {
+    "id": "9",
+    "input": "Review Go API documentation saying our pinned Swagger 2 generator emits OpenAPI 3 and requiring go get -tool on a Go 1.22 project.",
+    "rubric": [
+      "Flags both format and toolchain incompatibilities.",
+      "Requires checking pinned generator configuration instead of changing dependencies or generated output alone."
+    ],
+    "files": []
+  },
+  {
+    "id": "10",
+    "input": "Improve a private Go library README and package docs. The old checklist mandates public Playground links and registration on documentation aggregators.",
+    "rubric": [
+      "Keeps private documentation local unless public sharing is authorized.",
+      "Does not fabricate URLs or perform external registration."
+    ],
+    "files": []
+  },
+  {
+    "id": "11",
+    "input": "Write install docs for a Go repo example.com/acme/tool/v2 with command at cmd/tool, go 1.23, no release assets, and no Homebrew or container distribution.",
+    "rubric": [
+      "Uses the actual versioned command path for source installation.",
+      "Does not invent binary downloads, package managers, or images."
+    ],
+    "files": []
+  },
+  {
+    "id": "12",
+    "input": "Update fixtures/local/README.md against the local Go API in fixtures/local. Verify the corrected snippet produces its documented output using this checkout, not a published module. Leave labels.go and go.mod unchanged. The minimum supported toolchain is unavailable; do not download it. Work offline with the installed Go toolchain; do not install tools or change Go requirements. You may write within the isolated workspace and use temporary files for Go caches and checks. ",
+    "rubric": [
+      "Updates README to call labels.Format with prefix user and name Ada, retaining expected output user:Ada.",
+      "Actually executes the corrected README snippet against the local module and observes user:Ada; a recommendation or unrelated package test alone does not pass.",
+      "Leaves labels.go and go.mod byte-identical to the fixture.",
+      "Reports the actual toolchain used and explicitly leaves minimum-version execution unverified."
+    ],
+    "files": [
+      "fixtures/local/go.mod",
+      "fixtures/local/labels.go",
+      "fixtures/local/README.md"
+    ]
+  },
+  {
+    "id": "13",
+    "input": "Review the README and godoc in fixtures/audit against its Go implementation. Run practical documentation checks. Report discrepancies with file references and exact check results. This is review-only; do not edit the fixture. Work offline with the installed Go toolchain; do not install tools or change Go requirements. You may write within the isolated workspace and use temporary files for Go caches and checks. ",
+    "rubric": [
+      "Identifies both README and Port godoc precedence errors from config.go: nonempty env overrides explicitly set flags, then file, then default 8080; empty env preserves the prior choice.",
+      "Actually executes ExamplePort and ExamplePort_emptyEnv successfully and recognizes that ExampleMissing selects no runnable example.",
+      "Inspects go doc output or an equivalent Go documentation renderer for Port; merely reading comments is insufficient for this rendering check.",
+      "Leaves all fixture files byte-identical and accurately distinguishes observed checks from unverified version support."
+    ],
+    "files": [
+      "fixtures/audit/go.mod",
+      "fixtures/audit/config.go",
+      "fixtures/audit/config_test.go",
+      "fixtures/audit/README.md"
+    ]
+  },
+  {
+    "id": "14",
+    "input": "Repair the executable Go documentation examples in fixtures/examples for the current public API. Both examples should execute and check their output. Keep greeter.go and go.mod unchanged, and run the repaired examples. Work offline with the installed Go toolchain; do not install tools or change Go requirements. You may write within the isolated workspace and use temporary files for Go caches and checks. ",
+    "rubric": [
+      "Fixes the constructor call with prefix Hello and keeps the method example associated with Client.Greet in the external greeter_test package.",
+      "Adds Output: Hi Bo to the quiet variant so it executes rather than merely compiles.",
+      "Actually runs both ExampleClient_Greet and ExampleClient_Greet_quiet successfully after the edits, with observed output assertions; no empty test selection.",
+      "Leaves greeter.go and go.mod byte-identical; reports actual commands and toolchain without claiming minimum-version testing."
+    ],
+    "files": [
+      "fixtures/examples/go.mod",
+      "fixtures/examples/greeter.go",
+      "fixtures/examples/example_test.go"
+    ]
+  }
+]

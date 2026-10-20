@@ -1,0 +1,346 @@
+{
+  "candidate_root": "skills-v2",
+  "candidate_skills": [
+    "golang-cli",
+    "golang-concurrency",
+    "golang-conventions",
+    "golang-correctness",
+    "golang-database",
+    "golang-dependencies",
+    "golang-design",
+    "golang-documentation",
+    "golang-maintenance",
+    "golang-observability",
+    "golang-performance-engineering",
+    "golang-project-setup",
+    "golang-security",
+    "golang-testing"
+  ],
+  "notes": "Expected labels, not measured results. All converted skills are candidates together; legacy skills are excluded. Missing required selections and selections outside allowed are failures. Empty sets permit no skill.",
+  "queries": [
+    {
+      "id": "design01",
+      "query": "Design the package boundaries for a Go order service with HTTP and queue entry points.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design02",
+      "query": "Help choose flat, clean or hexagonal architecture for this Go app.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design03",
+      "query": "Review our Go domain model and aggregate boundaries before implementation.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design04",
+      "query": "Design a Go constructor with optional timeouts and cross-field validation.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design05",
+      "query": "Should this Go library expose an interface or a concrete struct?",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design06",
+      "query": "Choose pointer or value receivers and embedding for this Go API.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design07",
+      "query": "Wire the dependencies in this Go service using constructors.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design08",
+      "query": "Compare manual DI, Wire, Fx and samber/do for a Go application.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design09",
+      "query": "Design a generic Go priority queue API with clear ownership.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design10",
+      "query": "For the next release, redesign our Go config types to preserve absent versus explicit-zero JSON fields.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "near01",
+      "query": "Fix a typed-nil error bug in this Go constructor.",
+      "required": [
+        "golang-correctness"
+      ],
+      "allowed": [
+        "golang-correctness"
+      ]
+    },
+    {
+      "id": "near02",
+      "query": "Diagnose a Go goroutine leak during graceful shutdown.",
+      "required": [
+        "golang-concurrency"
+      ],
+      "allowed": [
+        "golang-concurrency"
+      ]
+    },
+    {
+      "id": "near03",
+      "query": "Benchmark the map versus slice implementations and analyze pprof.",
+      "required": [
+        "golang-performance-engineering"
+      ],
+      "allowed": [
+        "golang-performance-engineering"
+      ]
+    },
+    {
+      "id": "near04",
+      "query": "Rename this Go interface and its parameters for clarity.",
+      "required": [
+        "golang-conventions"
+      ],
+      "allowed": [
+        "golang-conventions"
+      ]
+    },
+    {
+      "id": "near05",
+      "query": "Write godoc for our existing Go constructors without changing their API.",
+      "required": [
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "near06",
+      "query": "Write tests for UserService using a fake store injected through its existing constructor.",
+      "required": [
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "near07",
+      "query": "Implement this PostgreSQL transaction using pgx in Go.",
+      "required": [
+        "golang-database"
+      ],
+      "allowed": [
+        "golang-database"
+      ]
+    },
+    {
+      "id": "near08",
+      "query": "Audit a Go HTTP client for attacker-controlled SSRF.",
+      "required": [
+        "golang-security"
+      ],
+      "allowed": [
+        "golang-security"
+      ]
+    },
+    {
+      "id": "near09",
+      "query": "Configure GoReleaser to publish our Go service.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "near10",
+      "query": "Choose a Kubernetes deployment architecture for our Go services.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "mixed01",
+      "query": "Design a Go client constructor and write unit tests for invalid configuration.",
+      "required": [
+        "golang-design",
+        "golang-testing"
+      ],
+      "allowed": [
+        "golang-design",
+        "golang-testing"
+      ]
+    },
+    {
+      "id": "mixed02",
+      "query": "Design a Go library API and document its public contracts in godoc.",
+      "required": [
+        "golang-design",
+        "golang-documentation"
+      ],
+      "allowed": [
+        "golang-design",
+        "golang-documentation"
+      ]
+    },
+    {
+      "id": "maintenance-heldout01",
+      "query": "The Go package layout has been approved: relocate Receipt to billing and keep the old import working. Implement that move.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maintenance-heldout02",
+      "query": "Choose whether our Go billing and shipping packages should share an interface or a concrete value type.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "maintenance-heldout03",
+      "query": "We already agreed to split the Go package. Sequence its file moves and compatibility shims without revisiting boundaries.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maintenance-heldout04",
+      "query": "Reconsider the public constructor contract of our Go cache library, including zero-value and ownership choices.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "maintenance-heldout05",
+      "query": "Evaluate two package layouts for this Go library, choose one, then migrate callers without breaking source compatibility.",
+      "required": [
+        "golang-design",
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-design",
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maintenance-heldout06",
+      "query": "Implement a Go health endpoint returning the fixed text ok; preserve the existing layout and APIs.",
+      "required": [],
+      "allowed": []
+    },
+    {
+      "id": "maintenance-heldout07",
+      "query": "Adopt supported standard library idioms in a Go 1.24 module without changing its API design.",
+      "required": [
+        "golang-maintenance"
+      ],
+      "allowed": [
+        "golang-maintenance"
+      ]
+    },
+    {
+      "id": "maintenance-heldout08",
+      "query": "Wire our Go application dependencies through constructors; decide ownership and cleanup responsibilities.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "design11",
+      "query": "Pick hexagonal vs flat packages for this new Go service's order logic.",
+      "required": [
+        "golang-design"
+      ],
+      "allowed": [
+        "golang-design"
+      ]
+    },
+    {
+      "id": "near11",
+      "query": "Lay out cmd/ and internal/ for a new Go module with two binaries.",
+      "required": [
+        "golang-project-setup"
+      ],
+      "allowed": [
+        "golang-project-setup"
+      ]
+    },
+    {
+      "id": "near12",
+      "query": "Check the license and transitive dependencies before adding go.uber.org/fx to go.mod.",
+      "required": [
+        "golang-dependencies"
+      ],
+      "allowed": [
+        "golang-dependencies"
+      ]
+    }
+  ]
+}
