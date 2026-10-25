@@ -1,12 +1,4 @@
 [aliases]
-claude = "env HERDR_AGENT=claude nono run -s -p claude-rw --allow-cwd -- claude --permission-mode=auto"
-claudero = "env HERDR_AGENT=claude nono run -s -p claude-ro --allow-cwd -- claude --permission-mode=auto"
-codex = "env HERDR_AGENT=codex nono run -s -p codex-rw --allow-cwd -- codex"
-codexro = "env HERDR_AGENT=codex nono run -s -p codex-ro --allow-cwd -- codex"
-pi = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi"
-pins = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi --no-session"
-piro = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi"
-pirons = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi --no-session"
 
 [env]
 ASTRO_TELEMETRY_DISABLED = 1
