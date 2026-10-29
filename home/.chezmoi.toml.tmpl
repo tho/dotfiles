@@ -1,5 +1,6 @@
-{{- $name := promptStringOnce . "name" "Name" -}}
-{{- $email := promptStringOnce . "email" "Email address" -}}
+{{- /* Defaults from the global git identity, so `chezmoi init --promptDefaults` works unattended (e.g. in a Docker sandbox). */ -}}
+{{- $name := promptStringOnce . "name" "Name" (output "sh" "-c" "git config --global user.name || true" | trim) -}}
+{{- $email := promptStringOnce . "email" "Email address" (output "sh" "-c" "git config --global user.email || true" | trim) -}}
 
 {{- $osID := .chezmoi.os -}}
 {{- if (and (eq .chezmoi.os "linux") (hasKey .chezmoi.osRelease "id")) -}}
