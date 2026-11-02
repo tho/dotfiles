@@ -2,6 +2,7 @@
   "extends": [
     "nolabs-ai/pi",
     "base",
+    "hunk",
     "lm-studio",
     "providers"
   ],
