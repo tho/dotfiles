@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "pi-rw"
+  ],
+  "meta": {
+    "name": "pi-rw-ns",
+    "description": "Pi coding agent profile (rw, no session)"
+  },
+  "command_args": [
+    "--no-session"
+  ]
+}

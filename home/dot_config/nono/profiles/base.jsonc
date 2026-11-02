@@ -25,6 +25,8 @@
       "vscode_macos"
     ]
   },
+  // The agent packs set this to true. Scalars resolve rightmost-wins across
+  // "extends", so this only overrides them while "base" stays last in the list.
   "allow_launch_services": false,
   "workdir": {
     "access": "read"
@@ -40,8 +42,16 @@
       }
     ],
     "deny": [
-      "/sbin",
-      "/usr/sbin",
+      // Landlock cannot carve a deny out of system_read_linux_core's grants,
+      // so these only take effect on macOS (Seatbelt).
+      {
+        "path": "/sbin",
+        "when": "macos"
+      },
+      {
+        "path": "/usr/sbin",
+        "when": "macos"
+      },
       {
         "path": "/Applications",
         "when": "macos"
@@ -72,8 +82,13 @@
       "HOME",
       "TMPDIR",
       "LANG",
+      "LC_ALL",
       "LC_CTYPE",
+      "TZ",
+      "SHELL",
       "TERM",
+      "COLORTERM",
+      "NO_COLOR",
       "EDITOR",
       "VISUAL",
       "MANPATH",

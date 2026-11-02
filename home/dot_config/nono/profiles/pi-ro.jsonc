@@ -10,6 +10,7 @@
     "name": "pi-ro",
     "description": "Pi coding agent profile (ro)"
   },
+  "binary": "pi",
   "workdir": {
     "access": "read"
   },

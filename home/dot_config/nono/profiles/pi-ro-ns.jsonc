@@ -1,0 +1,12 @@
+{
+  "extends": [
+    "pi-ro"
+  ],
+  "meta": {
+    "name": "pi-ro-ns",
+    "description": "Pi coding agent profile (ro, no session)"
+  },
+  "command_args": [
+    "--no-session"
+  ]
+}

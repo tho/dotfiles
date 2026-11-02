@@ -1,12 +1,21 @@
 {
   "extends": [
     "nolabs-ai/codex",
-    "base"
+    "base",
+    "hunk"
   ],
   "meta": {
     "name": "codex-ro",
     "description": "Codex coding agent profile (ro)"
   },
+  "binary": "codex",
+  "command_args": [
+    "--no-daemon",
+    "--sandbox",
+    "danger-full-access",
+    "--ask-for-approval",
+    "on-request"
+  ],
   "workdir": {
     "access": "read"
   },

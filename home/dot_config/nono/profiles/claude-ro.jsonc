@@ -1,12 +1,17 @@
 {
   "extends": [
     "nolabs-ai/claude",
-    "base"
+    "base",
+    "hunk"
   ],
   "meta": {
     "name": "claude-ro",
     "description": "Claude Code coding agent profile (ro)"
   },
+  "binary": "claude",
+  "command_args": [
+    "--permission-mode=auto"
+  ],
   "filesystem": {
     "allow": [
       {

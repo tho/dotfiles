@@ -1,12 +1,34 @@
 {{ if eq .osid "linux-debian" "linux-ubuntu" -}}
+
+{{ $sudo := "sudo " -}}
+{{ if eq .chezmoi.username "root" -}}
+{{   $sudo = "" -}}
+{{ end -}}
+
 #!/bin/bash
 
 set -eufo pipefail
 
 if ! command -v nono >/dev/null; then
-    installer="$(mktemp)"
-    trap 'rm -f -- "$installer"' EXIT
-    curl -fsSL https://nono.sh/install.sh -o "$installer"
-    NONO_INSTALL_DIR="$HOME/.local/bin" sh "$installer"
+    arch="$(dpkg --print-architecture)"
+    case "$arch" in
+        amd64 | arm64) ;;
+        *)
+            printf 'nono: no .deb published for %s\n' "$arch" >&2
+            exit 1
+            ;;
+    esac
+
+    tmp="$(mktemp -d)"
+    trap 'rm -rf -- "$tmp"' EXIT
+
+    tag="$(curl -fsSL https://api.github.com/repos/nolabs-ai/nono/releases/latest | jq -r .tag_name)"
+    deb="nono-cli_${tag#v}_${arch}.deb"
+    base="https://github.com/nolabs-ai/nono/releases/download/$tag"
+    curl -fsSL -o "$tmp/$deb" "$base/$deb"
+    curl -fsSL "$base/SHA256SUMS.txt" | grep -F -- " $deb" >"$tmp/SHA256SUMS"
+    (cd "$tmp" && sha256sum -c --strict SHA256SUMS)
+
+    {{ $sudo }}dpkg -i "$tmp/$deb"
 fi
 {{ end -}}

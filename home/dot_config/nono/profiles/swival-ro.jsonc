@@ -9,6 +9,7 @@
     "name": "swival-ro",
     "description": "Swival coding agent profile (ro)"
   },
+  "binary": "swival",
   "workdir": {
     "access": "read"
   },
