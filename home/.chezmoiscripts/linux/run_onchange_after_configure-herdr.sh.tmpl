@@ -1,0 +1,59 @@
+{{ if .sbx -}}
+#!/usr/bin/env bash
+
+# Merge sandbox settings into the herdr server config, keeping all other keys:
+# - [terminal] default_shell = "/bin/bash", only if unset: sbx's ssh endpoint
+#   sets SHELL=/bin/sh, which herdr's panes inherit otherwise.
+# - [worktrees] directory = "<clone>/.worktrees", on the workspace disk
+#   instead of the 20 GB root disk; git in the sandbox ignores .worktrees/.
+# The create-time apply runs from $HOME and sets only the shell; the config
+# kit's startup hook reruns this from the workspace, which renders a different
+# script, so it runs again and adds the worktree directory.
+set -euo pipefail
+
+command -v uv >/dev/null || { echo 'configure-herdr: uv not found' >&2; exit 0; }
+
+readonly dir={{ env "CHEZMOI_SANDBOX_PROJECT_DIR" | default .chezmoi.commandDir | replace "'" "'\\''" | printf "'%s'" }}
+project_dir=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
+worktrees=
+[[ "$project_dir" == "$HOME" ]] || worktrees=$project_dir/.worktrees
+
+config=${XDG_CONFIG_HOME:-$HOME/.config}/herdr/config.toml
+mkdir -p -- "$(dirname -- "$config")"
+
+uv run --quiet --no-project --with 'tomlkit>=0.13,<1' python -I - "$config" "$worktrees" <<'PY'
+import os
+import sys
+import tempfile
+
+import tomlkit
+
+path, worktrees = sys.argv[1], sys.argv[2]
+try:
+    with open(path) as f:
+        old = f.read()
+except FileNotFoundError:
+    old = ""
+
+config = tomlkit.parse(old)
+if "terminal" not in config:
+    config["terminal"] = tomlkit.table()
+config["terminal"].setdefault("default_shell", "/bin/bash")
+if worktrees:
+    if "worktrees" not in config:
+        config["worktrees"] = tomlkit.table()
+    config["worktrees"]["directory"] = worktrees
+
+new = tomlkit.dumps(config)
+if new != old:
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".config.toml.")
+    with os.fdopen(fd, "w") as f:
+        f.write(new)
+    try:
+        mode = os.stat(path).st_mode & 0o7777
+    except FileNotFoundError:
+        mode = 0o644
+    os.chmod(tmp, mode)
+    os.replace(tmp, path)
+PY
+{{ end -}}

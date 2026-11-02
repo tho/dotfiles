@@ -16,11 +16,6 @@
 .local/bin/fd
 {{ end }}
 
-{{ if not .sbx }}
-.config/herdr
-.config/herdr/**
-{{ end }}
-
 {{ if .sbx }}
 .chezmoiscripts/linux/*nono*
 .config/fish/conf.d/aliases.fish
