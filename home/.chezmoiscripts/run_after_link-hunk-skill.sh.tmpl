@@ -1,0 +1,49 @@
+#!/bin/sh
+set -eu
+
+# Expose hunk's bundled review skill to coding agents. Runs on every apply so the
+# links follow hunk upgrades (e.g. Homebrew's versioned Cellar path).
+command -v hunk >/dev/null || exit 0
+
+skill_file=$(hunk skill path hunk-review 2>/dev/null) || exit 0
+skill_dir=$(dirname -- "$skill_file")
+[ -f "$skill_dir/SKILL.md" ] || exit 0
+
+{{ if .sbx -}}
+# sbx mounts ~/.claude/skills read-only, so link into the workspace repo instead
+# and keep the links out of git through the repo's local exclude file.
+dir={{ env "CHEZMOI_SANDBOX_PROJECT_DIR" | default .chezmoi.commandDir | replace "'" "'\\''" | printf "'%s'" }}
+[ -d "$dir" ] || exit 0
+project_dir=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
+# The create-time apply runs from $HOME; the config kit's startup hook reruns
+# the scripts from the workspace.
+[ "$project_dir" != "$HOME" ] || exit 0
+exclude=$(git -C "$project_dir" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null || true)
+
+# .claude/skills: Claude Code. .agents/skills: Codex and pi.
+set -- "$project_dir/.claude/skills" "$project_dir/.agents/skills"
+{{- else -}}
+# ~/.claude/skills: Claude Code. ~/.agents/skills: Codex and pi.
+set -- "$HOME/.claude/skills" "$HOME/.agents/skills"
+{{- end }}
+
+for skills do
+    dest="$skills/hunk-review"
+    if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+        printf 'Not replacing non-symlink: %s\n' "$dest" >&2
+        continue
+    fi
+{{- if .sbx }}
+    if [ -n "$exclude" ]; then
+        # No trailing slash: git sees the link as a file, not a directory.
+        pattern="/${dest#"$project_dir"/}"
+        mkdir -p -- "$(dirname -- "$exclude")"
+        touch -- "$exclude"
+        [ ! -s "$exclude" ] || [ -z "$(tail -c1 -- "$exclude")" ] || echo >>"$exclude"
+        grep -qxF -- "$pattern" "$exclude" || printf '%s\n' "$pattern" >>"$exclude"
+    fi
+{{- end }}
+    [ "$(readlink -- "$dest" 2>/dev/null || true)" = "$skill_dir" ] && continue
+    mkdir -p -- "$skills"
+    ln -sfn -- "$skill_dir" "$dest"
+done
