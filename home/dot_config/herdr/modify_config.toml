@@ -1,0 +1,20 @@
+#!/usr/bin/env -S uv run --quiet --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["tomlkit>=0.13,<1"]
+# ///
+
+# sbx's ssh endpoint sets SHELL=/bin/sh, and herdr's server, started over
+# that ssh, gives new panes $SHELL unless default_shell is set.
+
+import sys
+
+import tomlkit
+
+config = tomlkit.parse(sys.stdin.read())
+
+if "terminal" not in config:
+    config["terminal"] = tomlkit.table()
+config["terminal"].setdefault("default_shell", "/bin/bash")
+
+sys.stdout.write(tomlkit.dumps(config))
