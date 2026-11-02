@@ -4,6 +4,8 @@
 
 {{ if ne .chezmoi.os "darwin" }}
 .chezmoiscripts/darwin/**
+.config/herdr-app
+.config/herdr-app/**
 {{ end }}
 
 {{ if ne .chezmoi.os "linux" }}

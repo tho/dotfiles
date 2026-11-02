@@ -1,12 +1,12 @@
 [aliases]
-nclaude = "env HERDR_AGENT=claude nono run -s -p claude-rw --allow-cwd -- claude --permission-mode=auto"
-nclaudero = "env HERDR_AGENT=claude nono run -s -p claude-ro --allow-cwd -- claude --permission-mode=auto"
-ncodex = "env HERDR_AGENT=codex nono run -s -p codex-rw --allow-cwd -- codex"
-ncodexro = "env HERDR_AGENT=codex nono run -s -p codex-ro --allow-cwd -- codex"
-npi = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi"
-npins = "env HERDR_AGENT=pi nono run -s -p pi-rw --allow-cwd -- pi --no-session"
-npiro = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi"
-npirons = "env HERDR_AGENT=pi nono run -s -p pi-ro --allow-cwd -- pi --no-session"
+nclaude = "nono run -s -p claude-rw --allow-cwd -- claude --permission-mode=auto"
+nclaudero = "nono run -s -p claude-ro --allow-cwd -- claude --permission-mode=auto"
+ncodex = "nono run -s -p codex-rw --allow-cwd -- codex"
+ncodexro = "nono run -s -p codex-ro --allow-cwd -- codex"
+npi = "nono run -s -p pi-rw --allow-cwd -- pi"
+npins = "nono run -s -p pi-rw --allow-cwd -- pi --no-session"
+npiro = "nono run -s -p pi-ro --allow-cwd -- pi"
+npirons = "nono run -s -p pi-ro --allow-cwd -- pi --no-session"
 
 [env]
 ASTRO_TELEMETRY_DISABLED = 1
