@@ -24,6 +24,11 @@
 .config/shell/aliases.sh
 {{ end }}
 
+{{ if not (lookPath "sbx") }}
+.config/sbxenv
+.config/sbxenv/**
+{{ end }}
+
 {{ if not (lookPath "fish") }}
 .config/fish
 .config/fish/**
