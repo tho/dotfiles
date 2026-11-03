@@ -1,0 +1,284 @@
+version: "2"
+
+# Strictest config within reason: every linter on, every setting at its
+# tightest value, with the explicit exceptions listed below. Agents write code
+# against this; a golangci-lint upgrade may add linters that fail CI — accepted.
+#
+# Options the docs flag as false-positive-prone stay at their defaults.
+# Numeric thresholds stay at their defaults unless the docs recommend otherwise.
+
+run:
+  issues-exit-code: 2
+  modules-download-mode: readonly
+  relative-path-mode: gomod
+  allow-parallel-runners: true
+
+linters:
+  default: all
+
+  disable:
+    # Contradict idiomatic Go.
+    - noinlineerr      # forbids `if err := f(); err != nil`
+    - varnamelen       # fights short names in short scopes
+    - err113           # demands a sentinel error for every dynamic error
+    - exhaustruct      # zero values are the Go default
+    - exhaustruct_v5
+    - mnd              # cannot tell a magic number from a self-explaining literal; goconst catches repetition
+
+    # Opinion, not quality.
+    - testpackage      # internal tests are legitimate; the package boundary is a design choice
+
+    # Overlap: another enabled linter covers this better.
+    - cyclop           # gocyclo
+    - funlen           # gocyclo (branching) and gocognit (nesting)
+    - nonamedreturns   # CONTRADICTS revive's confusing-results
+
+    # Deprecated; replacement stays enabled.
+    - gomodguard       # -> gomodguard_v2
+    - wsl              # -> wsl_v5
+
+  settings:
+    copyloopvar:
+      check-alias: true
+
+    decorder:
+      disable-dec-order-check: false
+      disable-init-func-first-check: false
+      disable-dec-num-check: false
+
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: io/ioutil
+              desc: deprecated; use io and os
+            - pkg: github.com/pkg/errors
+              desc: use fmt.Errorf with %w and the errors package
+            - pkg: golang.org/x/net/context
+              desc: use context
+
+    embeddedstructfieldcheck:
+      forbid-mutex: true
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    errchkjson:
+      check-error-free-encoding: true
+      report-no-exported: true
+
+    exhaustive:
+      check:
+        - switch
+        - mapliteral
+        - typeswitch
+
+    forbidigo:
+      analyze-types: true
+
+    gochecksumtype:
+      default-signifies-exhaustive: false
+      include-shared-interfaces: true
+
+    gocognit:
+      min-complexity: 20  # default 30; docs recommend 10-20
+
+    gocyclo:
+      min-complexity: 20  # default 30; docs recommend 10-20
+
+    goconst:
+      ignore-tests: true   # repeated fixture literals are the test, not a constant
+      numbers: true
+      find-duplicates: true
+      eval-const-expressions: true
+
+    gocritic:
+      enable-all: true
+      disabled-checks:
+        - rangeValCopy   # demands pointers for any struct over 128 bytes; hurts readability for no measured gain
+        - hugeParam      # same, at 80 bytes
+        - unnamedResult  # duplicate of revive's confusing-results
+
+    godoclint:
+      default: all
+      options:
+        max-len:
+          length: 120    # match lll
+
+    godot:
+      scope: toplevel  # default checks only declaration comments; `all` would police inline comments
+
+    gomoddirectives:
+      exclude-forbidden: true
+      go-debug-forbidden: true
+
+    gomodguard_v2:
+      local-replace-directives: true
+
+    gosec:
+      excludes:
+        - G104           # errcheck owns unhandled errors
+      config:
+        global:
+          nosec: true    # one suppression mechanism: nolint
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # churns field order for no measurable gain
+
+    iface:
+      enable:
+        - identical
+        - unused
+        - opaque
+        - unexported
+        - unusedmethod
+
+    iotamixing:
+      report-individual: true
+
+    misspell:
+      locale: US
+
+    nakedret:
+      max-func-lines: 0  # never; gofumpt clothe-returns agrees
+
+    nilnil:
+      only-two: false
+
+    nlreturn:
+      block-size: 2
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+    paralleltest:
+      check-cleanup: true
+
+    perfsprint:
+      loop-other-ops: true
+
+    prealloc:
+      simple: false
+      for-loops: true
+
+    predeclared:
+      mode:
+        - shadow
+        - declare
+
+    reassign:
+      patterns:
+        - ".*"
+
+    revive:
+      severity: error
+      enable-all-rules: true
+      directives:
+        - name: specify-disable-reason
+        - name: specify-disable-rule
+      rules:
+        - name: add-constant
+          disabled: true          # goconst and mnd own this
+        - name: cyclomatic
+          disabled: true          # gocyclo owns this
+        - name: cognitive-complexity
+          disabled: true          # gocognit owns this
+        - name: line-length-limit
+          disabled: true          # lll owns this
+        - name: function-length
+          disabled: true          # gocyclo and gocognit own this
+        - name: max-public-structs
+          disabled: true
+        - name: nested-structs
+          disabled: true          # anonymous structs for one-use JSON envelopes are idiomatic
+        - name: optimize-operands-order
+          disabled: true          # reorders conditions by guessed cost; hurts readability
+        - name: enforce-map-style
+          arguments: ["literal"]
+        - name: enforce-slice-style
+          arguments: ["literal"]
+        - name: enforce-repeated-arg-type-style
+          arguments: ["short"]  # gofumpt group-params agrees
+        - name: enforce-switch-style
+          arguments: ["allowNoDefault"]  # exhaustive owns enum switches; a default hides new members
+        - name: exported
+          arguments:
+            - check-private-receivers
+            - check-public-interface
+
+    sloglint:
+      no-global: all
+      context: scope   # `all` would demand a ctx even where none exists
+      static-msg: true
+      msg-style: lowercased
+      attr-only: true
+      args-on-sep-lines: true
+
+    staticcheck:
+      checks:
+        - all
+      dot-import-whitelist: []
+
+    tagalign:
+      strict: true
+
+    testifylint:
+      enable-all: true
+      formatter:
+        require-string-msg: true
+      suite-extra-assert-call:
+        mode: require
+
+    usestdlibvars:
+      time-date-month: true
+      time-weekday: true
+      time-month: true
+      time-layout: true
+      crypto-hash: true
+      default-rpc-path: true
+      sql-isolation-level: true
+      tls-signature-scheme: true
+      constant-kind: true
+
+    usetesting:
+      os-temp-dir: true
+
+    unparam:
+      check-exported: true
+
+    unused:
+      field-writes-are-uses: false
+      generated-is-used: false
+
+  exclusions:
+    generated: strict
+    warn-unused: true  # reports exclusion rules that matched nothing, so stale ones get deleted
+
+formatters:
+  enable:
+    - gci
+    - gofumpt
+
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule  # read from go.mod; no per-repo prefix needed
+
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true
+
+issues:
+  # Defaults hide issues: uniq-by-line reports only the first issue per source
+  # line, and the caps truncate.
+  uniq-by-line: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
