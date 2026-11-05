@@ -37,15 +37,14 @@ linters:
     - nlreturn         # wsl_v5 return/branch checks
     - whitespace       # wsl_v5 leading/trailing-whitespace checks
     - forcetypeassert  # errcheck check-type-assertions
+    - copyloopvar      # modernize forvar
+    - intrange         # modernize rangeint
 
     # Deprecated; replacement stays enabled.
     - gomodguard       # -> gomodguard_v2
     - wsl              # -> wsl_v5
 
   settings:
-    copyloopvar:
-      check-alias: true
-
     decorder:
       disable-dec-order-check: false
       disable-init-func-first-check: false
@@ -173,10 +172,8 @@ linters:
 
     modernize:
       disable:
-        - forvar         # copyloopvar, which also checks aliases
-        - plusbuild      # revive redundant-build-tag
-        - rangeint       # intrange
-        - testingcontext # usetesting context-background
+        - plusbuild      # revive redundant-build-tag also covers version and filename tags
+        - testingcontext # usetesting also covers temp dirs, env, and chdir
 
     nakedret:
       max-func-lines: 0  # never; gofumpt clothe-returns agrees
