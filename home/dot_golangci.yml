@@ -364,6 +364,9 @@ linters:
   exclusions:
     generated: strict
     warn-unused: true  # reports exclusion rules that matched nothing, so stale ones get deleted
+    rules:
+      - source: '^func ' # wrapped signatures read worse than long ones
+        linters: [lll]
 
 formatters:
   enable:
