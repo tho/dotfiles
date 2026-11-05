@@ -1,8 +1,12 @@
 version: "2"
 
 # Strictest config within reason: every linter on, every setting at its
-# tightest value, with the explicit exceptions listed below. Agents write code
-# against this; a golangci-lint upgrade may add linters that fail CI — accepted.
+# tightest value. Agents write code against this; a golangci-lint upgrade may
+# add linters that fail CI — accepted.
+#
+# The yardstick for every exception: a check is off only if it contradicts
+# idiomatic Go, is opinion rather than quality, or is a subset of another
+# enabled check. Each exception names its reason.
 #
 # Options the docs flag as false-positive-prone stay at their defaults.
 # Numeric thresholds stay at their defaults unless the docs recommend otherwise.
@@ -28,6 +32,8 @@ linters:
     # Opinion, not quality.
     - testpackage      # internal tests are legitimate; the package boundary is a design choice
     - tagalign         # sorting and padding keys inside struct tags is cosmetic churn
+    - tagliatelle      # tag case is dictated by the wire format, not by style
+    - ireturn          # returning an interface is a design choice; constructors and factories do it deliberately
 
     # Overlap: another enabled linter covers this better.
     - cyclop           # gocyclo
@@ -46,9 +52,7 @@ linters:
 
   settings:
     decorder:
-      disable-dec-order-check: false
       disable-init-func-first-check: false
-      disable-dec-num-check: false
 
     depguard:
       rules:
@@ -77,6 +81,9 @@ linters:
         - switch
         - mapliteral
         - typeswitch
+
+    funcorder:
+      struct-method: false  # a private helper reads best right below its caller
 
     forbidigo:
       analyze-types: true
@@ -190,10 +197,6 @@ linters:
 
     perfsprint:
       loop-other-ops: true
-
-    prealloc:
-      simple: false
-      for-loops: true
 
     predeclared:
       mode:
