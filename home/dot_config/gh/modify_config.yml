@@ -1,4 +1,11 @@
 #!/bin/sh
+# Force telemetry off while leaving every other line byte-for-byte intact.
+# A fromYaml/toYaml round-trip rewrites empty values (http_unix_socket:) as
+# "null", which gh then treats as a literal socket path.
 set -eu
 
-chezmoi execute-template --with-stdin '{{ .chezmoi.stdin | fromYaml | default dict | setValueAtPath "telemetry" "disabled" | toYaml }}'
+awk '
+/^telemetry:/ { print "telemetry: disabled"; seen = 1; next }
+{ print }
+END { if (!seen) print "telemetry: disabled" }
+'
