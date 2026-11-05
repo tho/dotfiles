@@ -64,6 +64,8 @@ linters:
               desc: use fmt.Errorf with %w and the errors package
             - pkg: golang.org/x/net/context
               desc: use context
+            - pkg: math/rand$
+              desc: use math/rand/v2, or crypto/rand for anything secret
 
     embeddedstructfieldcheck:
       forbid-mutex: true
