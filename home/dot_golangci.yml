@@ -27,11 +27,16 @@ linters:
 
     # Opinion, not quality.
     - testpackage      # internal tests are legitimate; the package boundary is a design choice
+    - tagalign         # sorting and padding keys inside struct tags is cosmetic churn
 
     # Overlap: another enabled linter covers this better.
     - cyclop           # gocyclo
     - funlen           # gocyclo (branching) and gocognit (nesting)
     - nonamedreturns   # CONTRADICTS revive's confusing-results
+    - maintidx         # gocyclo and gocognit, same as funlen
+    - nlreturn         # wsl_v5 return/branch checks
+    - whitespace       # wsl_v5 leading/trailing-whitespace checks
+    - forcetypeassert  # errcheck check-type-assertions
 
     # Deprecated; replacement stays enabled.
     - gomodguard       # -> gomodguard_v2
@@ -99,6 +104,11 @@ linters:
         - rangeValCopy   # demands pointers for any struct over 128 bytes; hurts readability for no measured gain
         - hugeParam      # same, at 80 bytes
         - unnamedResult  # duplicate of revive's confusing-results
+        - whyNoLint      # nolintlint require-explanation
+        - paramTypeCombine # revive enforce-repeated-arg-type-style
+        - importShadow   # revive import-shadowing
+        - builtinShadow  # predeclared shadow mode
+        - tooManyResultsChecker # revive function-result-limit is stricter
 
     godoclint:
       default: all
@@ -148,9 +158,6 @@ linters:
     nilnil:
       only-two: false
 
-    nlreturn:
-      block-size: 2
-
     nolintlint:
       require-explanation: true
       require-specific: true
@@ -191,6 +198,14 @@ linters:
           disabled: true          # lll owns this
         - name: function-length
           disabled: true          # gocyclo and gocognit own this
+        - name: empty-lines
+          disabled: true          # wsl_v5 owns this
+        - name: unchecked-type-assertion
+          disabled: true          # errcheck owns this
+        - name: unhandled-error
+          disabled: true          # errcheck owns this
+        - name: max-control-nesting
+          disabled: true          # gocognit owns this
         - name: max-public-structs
           disabled: true
         - name: nested-structs
@@ -222,9 +237,6 @@ linters:
       checks:
         - all
       dot-import-whitelist: []
-
-    tagalign:
-      strict: true
 
     testifylint:
       enable-all: true
