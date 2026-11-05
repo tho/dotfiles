@@ -109,6 +109,28 @@ linters:
         - importShadow   # revive import-shadowing
         - builtinShadow  # predeclared shadow mode
         - tooManyResultsChecker # revive function-result-limit is stricter
+        - builtinShadowDecl # predeclared declare mode
+        - captLocal      # revive unexported-naming also covers non-params
+        - caseOrder      # staticcheck SA4020
+        - commentFormatting # revive comment-spacings
+        - defaultCaseOrder # staticcheck ST1015
+        - deferInLoop    # revive defer covers every loop kind
+        - dupBranchBody  # revive identical-branches
+        - dupImport      # staticcheck ST1019
+        - dupSubExpr     # staticcheck SA4000
+        - dynamicFmtString # govet printf and staticcheck SA1006
+        - equalFold      # staticcheck SA6005
+        - exposedSyncMutex # embeddedstructfieldcheck forbid-mutex
+        - externalErrorReassign # reassign with pattern .*
+        - ifElseChain    # staticcheck QF1003
+        - octalLiteral   # gofumpt rewrites to 0o
+        - preferFprint   # staticcheck QF1012
+        - redundantSprint # staticcheck S1039
+        - singleCaseSwitch # revive unnecessary-stmt
+        - todoCommentWithoutDetail # godox forbids the comment altogether
+        - typeDefFirst   # decorder dec-order puts all funcs after all types
+        - typeSwitchVar  # staticcheck S1034
+        - yodaStyleExpr  # staticcheck ST1017
 
     godoclint:
       default: all
@@ -122,9 +144,6 @@ linters:
     gomoddirectives:
       exclude-forbidden: true
       go-debug-forbidden: true
-
-    gomodguard_v2:
-      local-replace-directives: true
 
     gosec:
       excludes:
@@ -151,6 +170,13 @@ linters:
 
     misspell:
       locale: US
+
+    modernize:
+      disable:
+        - forvar         # copyloopvar, which also checks aliases
+        - plusbuild      # revive redundant-build-tag
+        - rangeint       # intrange
+        - testingcontext # usetesting context-background
 
     nakedret:
       max-func-lines: 0  # never; gofumpt clothe-returns agrees
@@ -208,6 +234,63 @@ linters:
           disabled: true          # gocognit owns this
         - name: max-public-structs
           disabled: true
+        # Subsets of govet, staticcheck, modernize, or a dedicated linter.
+        - name: atomic
+          disabled: true          # govet atomic
+        - name: bare-return
+          disabled: true          # nakedret
+        - name: bool-literal-in-expr
+          disabled: true          # staticcheck S1002
+        - name: context-keys-type
+          disabled: true          # staticcheck SA1029
+        - name: dot-imports
+          disabled: true          # staticcheck ST1001
+        - name: duplicated-imports
+          disabled: true          # staticcheck ST1019
+        - name: error-naming
+          disabled: true          # errname
+        - name: error-return
+          disabled: true          # staticcheck ST1008
+        - name: error-strings
+          disabled: true          # staticcheck ST1005
+        - name: errorf
+          disabled: true          # staticcheck S1028
+        - name: identical-ifelseif-conditions
+          disabled: true          # staticcheck SA4014
+        - name: package-comments
+          disabled: true          # godoclint pkg-doc and require-pkg-doc
+        - name: package-naming
+          disabled: true          # staticcheck ST1003
+        - name: receiver-naming
+          disabled: true          # staticcheck ST1006 and ST1016
+        - name: redefines-builtin-id
+          disabled: true          # predeclared
+        - name: string-of-int
+          disabled: true          # govet stringintconv
+        - name: time-equal
+          disabled: true          # staticcheck QF1009
+        - name: time-naming
+          disabled: true          # staticcheck ST1011
+        - name: unconditional-recursion
+          disabled: true          # staticcheck SA5007
+        - name: unnecessary-if
+          disabled: true          # staticcheck S1008
+        - name: unreachable-code
+          disabled: true          # govet unreachable
+        - name: use-any
+          disabled: true          # modernize any
+        - name: use-errors-new
+          disabled: true          # perfsprint errorf
+        - name: use-slices-sort
+          disabled: true          # modernize slicessort
+        - name: use-waitgroup-go
+          disabled: true          # modernize waitgroupgo
+        - name: useless-break
+          disabled: true          # revive unnecessary-stmt and staticcheck SA4011
+        - name: var-naming
+          disabled: true          # staticcheck ST1003
+        - name: waitgroup-by-value
+          disabled: true          # govet copylocks
         - name: nested-structs
           disabled: true          # anonymous structs for one-use JSON envelopes are idiomatic
         - name: optimize-operands-order
@@ -236,6 +319,16 @@ linters:
     staticcheck:
       checks:
         - all
+        - -SA9003        # revive empty-block covers every block, not only if/else
+        - -SA9009        # gocheckcompilerdirectives
+        - -ST1000        # godoclint pkg-doc
+        - -ST1012        # errname
+        - -ST1013        # usestdlibvars
+        - -ST1020        # godoclint start-with-name
+        - -ST1021        # godoclint start-with-name
+        - -ST1022        # godoclint start-with-name
+        - -ST1023        # revive var-declaration also drops explicit zero values
+        - -QF1011        # same check as ST1023
       dot-import-whitelist: []
 
     testifylint:
