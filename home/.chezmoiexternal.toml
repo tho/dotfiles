@@ -3,3 +3,49 @@
     url = "https://github.com/tpope/vim-sensible/archive/refs/tags/v2.0.tar.gz"
     stripComponents = 1
     checksum.sha256 = "1cfb72afe7c291f4b44e1b703cc52b0ac62a6a5aa82238fc3599f360505730f2"
+
+{{- /* Linux release binaries, pinned by version and checksum; macOS gets these from Homebrew. */}}
+{{- if eq .osid "linux-debian" "linux-ubuntu" }}
+{{-   $arch := .chezmoi.arch }}
+{{-   if not (has $arch (list "amd64" "arm64")) }}
+{{-     fail (printf "no pinned release binaries for %s" $arch) }}
+{{-   end }}
+
+{{-   $v := "0.24.1" }}
+[".hunk"]
+    type = "archive"
+    url = "https://github.com/modem-dev/hunk/releases/download/v{{ $v }}/hunkdiff-linux-{{ get (dict "amd64" "x64" "arm64" "arm64") $arch }}.tar.gz"
+    stripComponents = 1
+    checksum.sha256 = "{{ get (dict "amd64" "4b8c98f8d97745499916cc1e1d2f27ffd258c6d6358dd4532f61e41c5eb19692" "arm64" "ab49c8aba82c3c9872f1c5eefd96d1c4c2491e5b80647f97b2e81fc6c4676deb") $arch }}"
+
+{{-   $v = "0.66.3" }}
+[".local/bin/lazygit"]
+    type = "archive-file"
+    url = "https://github.com/jesseduffield/lazygit/releases/download/v{{ $v }}/lazygit_{{ $v }}_linux_{{ get (dict "amd64" "x86_64" "arm64" "arm64") $arch }}.tar.gz"
+    path = "lazygit"
+    executable = true
+    checksum.sha256 = "{{ get (dict "amd64" "0a23f429a95f0d09db298b3c291536d818de066aa5a85c255806f0490ff6656b" "arm64" "ac0b48237f3d0283813e7154ec063237e519532feb0470c0881a1793ee78fd42") $arch }}"
+
+{{-   if not .sbx }}
+{{-     $v = "0.81.0" }}
+[".local/bin/nono"]
+    type = "archive-file"
+    url = "https://github.com/nolabs-ai/nono/releases/download/v{{ $v }}/nono-v{{ $v }}-{{ get (dict "amd64" "x86_64" "arm64" "aarch64") $arch }}-unknown-linux-gnu.tar.gz"
+    path = "nono"
+    executable = true
+    checksum.sha256 = "{{ get (dict "amd64" "7ecc33ff9c349bdfa84b4496e7a7555f67bcc33f1e125c7df9efb653c6c4e569" "arm64" "a4d87ddb0917ef96224bcc41a2587318d7d0e92441e7ff454696e5980c9f7924") $arch }}"
+{{-   end }}
+
+{{-   $v = "0.13.7" }}
+{{-   $url := printf "https://github.com/astral-sh/uv/releases/download/%s/uv-%s-unknown-linux-gnu.tar.gz" $v (get (dict "amd64" "x86_64" "arm64" "aarch64") $arch) }}
+{{-   $sha256 := get (dict "amd64" "c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83" "arm64" "71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc") $arch }}
+{{-   range list "uv" "uvx" }}
+[".local/bin/{{ . }}"]
+    type = "archive-file"
+    url = "{{ $url }}"
+    stripComponents = 1
+    path = "{{ . }}"
+    executable = true
+    checksum.sha256 = "{{ $sha256 }}"
+{{-   end }}
+{{- end }}

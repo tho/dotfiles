@@ -14,10 +14,10 @@
 
 {{ if not (eq .osid "linux-debian" "linux-ubuntu") }}
 .local/bin/fd
+.local/bin/hunk
 {{ end }}
 
 {{ if .sbx }}
-.chezmoiscripts/linux/*nono*
 .config/fish/conf.d/aliases.fish
 .config/nono
 .config/nono/**

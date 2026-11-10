@@ -1,0 +1,22 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /* Leaves the file byte-for-byte alone when every setting already holds. Otherwise
+       rewrites it via toToml, which keeps all values but drops comments and sorts keys. */ -}}
+{{- $current := fromToml .chezmoi.stdin -}}
+{{- $config := fromToml .chezmoi.stdin -}}
+{{- $config = setValueAtPath "analytics.enabled" false $config -}}
+{{- $config = setValueAtPath "feedback.enabled" false $config -}}
+{{- $config = setValueAtPath "otel.exporter" "none" $config -}}
+{{- $config = setValueAtPath "otel.log_agent_responses" false $config -}}
+{{- $config = setValueAtPath "otel.log_guardian_assessments" false $config -}}
+{{- $config = setValueAtPath "otel.log_user_prompt" false $config -}}
+{{- $config = setValueAtPath "otel.metrics_exporter" "none" $config -}}
+{{- $config = setValueAtPath "otel.trace_exporter" "none" $config -}}
+{{- /* Profiles can override analytics; OpenTelemetry and feedback are global settings. */ -}}
+{{- range $name, $_ := get $config "profiles" | default dict -}}
+{{-   $config = setValueAtPath (list "profiles" $name "analytics" "enabled") false $config -}}
+{{- end -}}
+{{- if eq (toJson $config) (toJson $current) -}}
+{{-   .chezmoi.stdin -}}
+{{- else -}}
+{{-   toToml $config -}}
+{{- end -}}
