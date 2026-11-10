@@ -1,7 +1,0 @@
-#!/bin/sh
-set -eu
-
-jq -s '
-  (.[0] // {})
-  | .telemetry = false
-'
