@@ -7,3 +7,9 @@
 	br = branch
 	co = checkout
 	st = status
+[diff]
+	tool = hunk
+[difftool]
+	prompt = false
+[difftool "hunk"]
+	cmd = hunk difftool \"$LOCAL\" \"$REMOTE\" \"$MERGED\"
