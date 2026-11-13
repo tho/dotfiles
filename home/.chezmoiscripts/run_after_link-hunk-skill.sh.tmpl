@@ -15,8 +15,7 @@ skill_dir=$(dirname -- "$skill_file")
 dir={{ env "CHEZMOI_SANDBOX_PROJECT_DIR" | default .chezmoi.commandDir | replace "'" "'\\''" | printf "'%s'" }}
 [ -d "$dir" ] || exit 0
 project_dir=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$dir")
-# The create-time apply runs from $HOME; the config kit's startup hook reruns
-# the scripts from the workspace.
+# sbxenv's config kit applies from the workspace; skip an apply run from $HOME.
 [ "$project_dir" != "$HOME" ] || exit 0
 exclude=$(git -C "$project_dir" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null || true)
 
