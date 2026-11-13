@@ -24,6 +24,16 @@ if [[ -L "$settings_file" ]]; then
   exit 1
 fi
 
+# Keep the file out of git through the repo's local exclude file.
+exclude=$(git -C "$project_dir" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null || true)
+if [[ -n "$exclude" ]]; then
+  mkdir -p -- "$(dirname -- "$exclude")"
+  touch -- "$exclude"
+  [[ ! -s "$exclude" || -z "$(tail -c1 -- "$exclude")" ]] || echo >>"$exclude"
+  grep -qxF -- /.claude/settings.local.json "$exclude" ||
+    printf '%s\n' /.claude/settings.local.json >>"$exclude"
+fi
+
 mkdir -p -- "$project_dir/.claude"
 settings_tmp=$(mktemp "$project_dir/.claude/.settings.local.json.XXXXXX")
 trap 'rm -f -- "$settings_tmp"' EXIT
