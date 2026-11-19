@@ -2,6 +2,11 @@
 *~
 .DS_Store
 
+# Rex script docs and tests live in the source only.
+.config/rex/projects/README.md
+.config/rex/projects/test
+.config/rex/projects/test/**
+
 {{ if ne .chezmoi.os "darwin" }}
 .chezmoiscripts/darwin/**
 {{ end }}
