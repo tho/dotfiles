@@ -1,0 +1,21 @@
+# syntax=docker/sandbox-kit:3
+# sbx kit: hosts these dotfiles need inside a sandbox, beyond what sbxenv's
+# kits/config allows (GitHub, deb.debian.org, dhi.io). Add it to ~/.sbxenv.yaml
+# under kits: by absolute path. Recreate sandboxes after a change.
+schemaVersion: "3"
+displayName: Dotfiles egress
+description: Hosts the dotfiles and their tools need in a sandbox
+kind: mixin
+# Bump on any change, so `sbx env plan` shows the kit as changed.
+version: "1.1.0"
+capabilities:
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          # PyPI index and package downloads, for pip and uv.
+          - pypi.org:443
+          - files.pythonhosted.org:443
+          # superlogical blob storage.
+          - blob.superlogical.com:443
+          - 3xtpsvt5bhrezq6q.private.blob.vercel-storage.com:443
