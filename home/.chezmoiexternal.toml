@@ -48,4 +48,13 @@
     executable = true
     checksum.sha256 = "{{ $sha256 }}"
 {{-   end }}
+
+{{-   $v = "0.82.0" }}
+[".local/bin/wt"]
+    type = "archive-file"
+    url = "https://github.com/max-sixty/worktrunk/releases/download/v{{ $v }}/worktrunk-{{ get (dict "amd64" "x86_64" "arm64" "aarch64") $arch }}-unknown-linux-musl.tar.xz"
+    stripComponents = 1
+    path = "wt"
+    executable = true
+    checksum.sha256 = "{{ get (dict "amd64" "d1e38cf36d8c14ef0682a6d6617f8a512b1a971feb3dfa437419d00136e19a3e" "arm64" "b907f891bc051dcfc13fa479194e156b356f434a37103522ea1fe1b7ded899b5") $arch }}"
 {{- end }}
