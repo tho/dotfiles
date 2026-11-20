@@ -76,7 +76,7 @@ rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")
 
 ## Picking a branch
 
-Switch Branch and Open Worktree both show the project picker, then one list of branches. Choose a row or type a name. The project picker lists first the project that holds the folder of the terminal you ran the action from, counting a worktree as part of its project. Then it lists the project you last switched, opened or went to in either action, then the others in order of last use, then projects never opened, by name. With `project_order = "name"` the rest are listed by name. Clean Up Branch uses the same order.
+Switch Branch and Open Worktree both show the project picker, then one list of branches. Choose a row or type a name. The project picker lists first the project that holds the folder of the terminal you ran the action from, counting a worktree as part of its project. Then it lists the project you last switched, opened or went to in either action, then the others in order of last use, then projects never opened, by name. With `project_order = "name"` the rest are listed by name. Of two listed folders, one inside the other, the deeper one that holds the terminal's folder is first. Clean Up Branch and Review Pull Request use the same order.
 
 | You pick | Switch Branch | Open Worktree |
 |---|---|---|
@@ -86,7 +86,7 @@ Switch Branch and Open Worktree both show the project picker, then one list of b
 | A name that matches nothing | Creates the branch, then as a local branch | Same |
 
 - **New branches** always ask for a base. The list has the default base first, then the main checkout's branch, then every other branch. You can also type one, such as `origin/main`. A branch started from a remote branch does not track it (`--no-track`).
-- **The default base is fetched.** When the default base has a remote branch (the one the local branch tracks, else `origin/<base>`), the first row is that remote branch, such as `origin/main`, marked `default · fetched first`. Choosing it fetches that one branch and starts the new branch from it. If the fetch fails, the action stops with git's message. Every other base, local `main` included, is used as it is, unpushed commits and all. Local `main` itself is never moved.
+- **The default base is fetched.** When the default base has a remote branch (the one the local branch tracks, else `origin/<base>`, or `base` itself when it is set to a remote branch such as `origin/main`), the first row is that remote branch, such as `origin/main`, marked `default · fetched first`. Choosing it fetches that one branch and starts the new branch from it. If the fetch fails, the action stops with git's message. Every other base, local `main` included, is used as it is, unpushed commits and all. Local `main` itself is never moved.
 - **Remote branches** are listed as `<remote>/<branch>` unless a local branch has the same name. Apart from the default base, nothing is fetched, so the list shows what you fetched last.
 - **Hidden rows:** Switch Branch does not list branches held by a worktree, and Open Worktree does not list the main checkout's branch. Typing such a name shows git's refusal.
 - Spaces in a typed name become dashes.
@@ -117,14 +117,17 @@ Sessions are tracked by id, so renaming one is safe. Switch Branch never opens a
 
 ## Reviewing a pull request
 
-**Review Pull Request…** needs the [GitHub CLI](https://cli.github.com) on the host that has the project, logged in and on the server's `PATH`. Pick a project, then a pull request, or type its number (`123`, `#123`) or paste its link.
+**Review Pull Request…** needs the [GitHub CLI](https://cli.github.com) on the host that has the project, logged in and on the server's `PATH`. Pick a project, then a pull request, or type its number (`123`, `#123`) or paste its link. A typed number or link also opens a closed or merged pull request. A link to a pull request of another repository is refused.
 
-- **The list** shows open pull requests, newest first, with those whose review is asked of you (or your team) first. Each row reads `#123 Title` and `branch · @author · draft · review requested`. A folder icon means it already has a worktree.
-- **A new worktree** gets a branch named after the pull request's branch, following it on the remote, so a fix can be pushed. A pull request from a fork gets `pr/<number>` instead and follows nothing. A branch of that name that already exists and was not made by this action, such as your own, is opened as it is. The session is called `my-app · #123`.
-- **Opening it again** fetches the pull request. If it has moved on, a dialog asks first:
+- **The list** shows open pull requests, up to 500, newest first, with those whose review is asked of you (or your team) first. If `gh` cannot say which those are, none is listed first or marked. Each row reads `#123 Title` and `branch · @author · draft · review requested`. A folder icon means it already has a worktree.
+- **A new worktree** gets a branch named after the pull request's branch, following it on the remote, so a fix can be pushed. A pull request from a fork gets `pr/<number>` instead and follows nothing, so it cannot be pushed back, and Clean Up Branch usually needs **Force delete** for it. The same goes for a pull request whose branch was deleted on the remote, which gets its branch's name. A branch of that name that already exists and was not made by this action, such as your own, is opened as it is. The session is called `my-app · #123`.
+- **Opening it again** fetches the pull request. If it has moved on, a list with two rows asks first. It does not ask when the worktree already has the new head, for example after `git pull` there.
   - **Update** (first, so Return takes it): your commits in the worktree, if any, are rebased onto the new head, and uncommitted changes are stashed and put back. This works after a force push too: only the commits you made since the last update are moved.
   - **Keep as is**, or Escape: nothing changes, and the next time asks again.
 - **If the rebase stops**, for example on a conflict, it is undone and the worktree is as it was. You still land in the session, and the action then shows why it did not update.
+- **If your uncommitted changes clash with the new head**, the update goes through and the action says so afterwards: git leaves the changes in `git stash` and the conflict in the files.
+- **If a rebase of your own is under way** in the worktree, Update does nothing and says so.
+- **The remote** of the pull request is the one whose URL has the same host and `owner/repo`, else the same `owner/repo` alone, which covers an SSH host alias such as `git@work:acme/app`. `origin` wins among several. With no such remote, the pull request is fetched from its `https` address and its branch follows nothing.
 - The branch remembers its pull request in its git config (`branch.<name>.rex-pr` and `rex-pr-head`). Clean Up Branch removes these along with the branch.
 - In a repository with several remotes, `gh` may ask you to run `gh repo set-default` first. The action shows that message.
 
@@ -140,7 +143,8 @@ Pick a project, then a branch. The main checkout's branch is not listed, because
 ## Errors and limits
 
 - When git refuses a step, the action fails with git's message, which the app shows as the action's error. Nothing further changes.
-- Each step on a remote host must answer within 10 seconds. A slower step fails the action, though git may still finish it. If a clean-up times out, the worktree may be gone while its session is still open; close it by hand.
+- A worktree whose folder was deleted by hand is still on git's list. Opening its branch again runs `git worktree prune` first, which drops every such entry of the repository.
+- Each step on a remote host must answer within 10 seconds. There, `git fetch` and `gh` are stopped after 8 seconds between them, and the action fails saying so, with nothing made. Any other slower step fails the action, though git may still finish it. If a clean-up times out, the worktree may be gone while its session is still open; close it by hand.
 - Commands run through `rex.exec` with argument lists, never a shell, so paths with spaces or quotes are safe.
 
 ## Tests

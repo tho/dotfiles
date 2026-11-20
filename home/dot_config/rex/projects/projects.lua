@@ -271,17 +271,60 @@ local function reason(message)
   return text:sub(first + 1)
 end
 
--- git runs git in dir and returns what it printed, or nil and git's message.
+-- A backend op that another server asked for has 10 seconds to answer, and
+-- the caller gives up after that while the op carries on. So in such an op
+-- the commands that use the network, git fetch and gh, together get
+-- NET_SECONDS, and one that is not done by then is stopped and says so.
+-- net_limit is set while such an op runs: by is the time they must end by,
+-- or nil where this script has no clock.
+local NET_SECONDS = 8
+local net_limit = nil
+
+-- net_timeout returns the seconds a network command may still take, or nil
+-- when nothing limits it.
+local function net_timeout()
+  if net_limit == nil then return nil end
+  -- Without a clock, two commands in a row must still fit.
+  if net_limit.by == nil then return NET_SECONDS / 2 end
+  return math.max(1, net_limit.by - os.time())
+end
+
+-- timed_out is what a command stopped by net_timeout answers.
+local function timed_out(what)
+  return what .. " did not finish in the time a step on another host has (" ..
+    NET_SECONDS .. " seconds), and was stopped"
+end
+
+-- git_in runs git in dir, for at most timeout seconds when one is given,
+-- and returns what it printed, or nil and git's message.
 -- Arguments go as a list, never through a shell, so no quoting is needed.
-local function git(dir, ...)
-  local r, err = rex.exec({ "git", "-C", dir, ... })
+local function git_in(timeout, dir, ...)
+  local r, err = rex.exec({ "git", "-C", dir, ... }, timeout and { timeout = timeout } or nil)
   if r == nil then return nil, tostring(err or "git did not run") end
+  if r.timed_out then return nil, timed_out("git " .. tostring((...))) end
   if not r.ok then
     local message = trim(r.stderr)
     if message == "" then message = "git exited with status " .. tostring(r.code) end
     return nil, reason(message)
   end
   return r.stdout
+end
+
+-- git runs a git command that stays on this machine.
+local function git(dir, ...) return git_in(nil, dir, ...) end
+
+-- git_net runs one that uses the network, such as fetch.
+local function git_net(dir, ...) return git_in(net_timeout(), dir, ...) end
+
+-- exists says whether path, a file or a folder, is there.
+local function exists(path)
+  if is_windows then
+    local native = path:gsub("/", "\\")
+    local out = rex.exec({ "cmd", "/c", "if", "exist", native, "echo", "yes" })
+    return out ~= nil and out.ok and out.stdout:find("yes", 1, true) ~= nil
+  end
+  local r = rex.exec({ "test", "-e", path })
+  return r ~= nil and r.ok
 end
 
 -- is_repo_root says whether dir is the top folder of a repository. It asks for
@@ -487,17 +530,30 @@ local function containing(paths, cwd)
   local trees = worktrees(cwd)
   local main = trees and trees[1] and trees[1].path or nil
   -- The terminal and the list may spell a folder through a symbolic link.
-  -- Only a project named like the main checkout is worth asking about.
   local real_cwd = real(cwd)
-  local best = nil
+  local repo, best = nil, nil
   for _, p in ipairs(paths) do
-    if main ~= nil and (p == main or (basename(p) == basename(main) and real(p) == main)) then
-      return p
-    end
+    if main ~= nil and repo == nil and p == main then repo = p end
     local function holds(dir) return dir == p or dir:sub(1, #p + 1) == p .. "/" end
     if (holds(cwd) or holds(real_cwd)) and (best == nil or #p > #best) then best = p end
   end
-  return best
+  -- A project listed through a link is not spelled as git spells the main
+  -- checkout. Asking how each is really spelled costs a command a project,
+  -- so it is done only when no project is the main checkout by name.
+  if main ~= nil and repo == nil then
+    for _, p in ipairs(paths) do
+      if real(p) == main then repo = p; break end
+    end
+  end
+  if repo == nil then return best end
+  -- A listed folder inside the checkout that holds cwd is deeper than the
+  -- repository's project. In a worktree, which lies outside the main
+  -- checkout, lengths compare with the worktree's own top folder.
+  if best ~= nil and best ~= repo then
+    local top = toplevel(cwd)
+    if top ~= nil and #best > #top then return best end
+  end
+  return repo
 end
 
 -- project_rows returns the rows of the project picker: the added projects
@@ -726,9 +782,10 @@ end
 
 -- default_remote_base returns the remote branch of the default base, as
 -- { name = "origin/main", remote = "origin", branch = "main" }, or nil when
--- it has none. That is the branch the local one follows, else the branch of
--- that name on origin, else on the first remote that has it. Only one that
--- was fetched before counts, so that the row names something.
+-- it has none. That is the branch the local one follows, else the base
+-- itself when it is written as a remote branch, else the branch of that
+-- name on origin, else on the first remote that has it. Only one that was
+-- fetched before counts, so that the row names something.
 local function default_remote_base(project)
   local base = default_base(project)
   local remote, branch = nil, nil
@@ -742,6 +799,11 @@ local function default_remote_base(project)
   end
   if remote == nil then
     for _, r in ipairs(remote_branches(project)) do
+      -- A base setting may name the remote branch itself: origin/main.
+      if r.name == base then
+        remote, branch = r.name:sub(1, #r.name - #r.branch - 1), r.branch
+        break
+      end
       if r.branch == base then
         local name = r.name:sub(1, #r.name - #base - 1)
         if remote == nil or name == "origin" then remote = name end
@@ -788,6 +850,14 @@ local function add_worktree(project, branch, base, track)
   -- A branch name may hold slashes; a folder name may not.
   local folder = branch:gsub("[/\\:]", "-")
   local dir = worktrees_dir() .. "/" .. basename(project) .. "/" .. folder
+  -- A worktree whose folder was deleted by hand is still on git's list, and
+  -- git then refuses its branch and its folder. Pruning drops such entries.
+  for _, tree in ipairs(worktrees(project) or {}) do
+    if tree.prunable and (tree.branch == branch or tree.path == dir) then
+      git(project, "worktree", "prune")
+      break
+    end
+  end
   local args = { "worktree", "add" }
   if base ~= nil then
     if track ~= nil then args[#args + 1] = track end
@@ -1024,7 +1094,7 @@ function open_checkout(a)
       -- base is taken as it is here, unpushed commits and all.
       local fetched = default_remote_base(project)
       if fetched ~= nil and base == fetched.name then
-        local _, err = git(project, "fetch", "--quiet", fetched.remote, fetched.branch)
+        local _, err = git_net(project, "fetch", "--quiet", fetched.remote, fetched.branch)
         if err ~= nil then return { why = err } end
       end
       -- A new branch does not follow the remote branch it starts from,
@@ -1134,7 +1204,8 @@ end
 -- gh runs the GitHub CLI in project and returns what it printed as JSON,
 -- decoded, or nil and why.
 local function gh(project, ...)
-  local r, err = rex.exec({ "gh", ... }, { cwd = project })
+  local r, err = rex.exec({ "gh", ... }, { cwd = project, timeout = net_timeout() })
+  if r ~= nil and r.timed_out then return nil, timed_out("gh") end
   if r == nil or r.code == 127 then
     return nil, "gh did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
       "). Review Pull Request needs the GitHub CLI on the server's PATH."
@@ -1150,10 +1221,11 @@ local function gh(project, ...)
 end
 
 -- pr_number reads a pull request from what was typed or chosen: 123, #123,
--- or a link that ends in /pull/123.
+-- or a link to it or to a page of it, such as /pull/123/files.
 local function pr_number(text)
   text = trim(tostring(text or ""))
-  return tonumber(text:match("^#?(%d+)$") or text:match("/pull/(%d+)/?[^/]*$"))
+  return tonumber(text:match("^#?(%d+)$") or text:match("/pull/(%d+)$")
+    or text:match("/pull/(%d+)[/?#]"))
 end
 
 -- repo_of reads a repository URL as { host, path = "owner/repo" }, both in
@@ -1168,6 +1240,9 @@ local function repo_of(url)
     if host then host = host:gsub(":%d+$", "") end
   else
     host, path = url:match("^[^@/]+@([^:/]+):(.+)$")
+    -- host:owner/repo, with no user. One letter before the colon is a
+    -- Windows drive.
+    if host == nil then host, path = url:match("^([^:/@][^:/@]+):(.+)$") end
     if host == nil then path = url end
   end
   local owner_repo = path and path:match("([^/]+/[^/]+)$")
@@ -1175,18 +1250,26 @@ local function repo_of(url)
   return { host = host and host:lower(), path = owner_repo:lower() }
 end
 
--- pr_remote returns the remote that is the repository at url, or nil.
+-- pr_remote returns the remote that is the repository at url, or nil. A
+-- remote with the same host and owner/repo is it. Failing that, one with
+-- the same owner/repo is: an SSH host alias (git@work:acme/app) names the
+-- host in a way only ssh can read. Of several, origin wins.
 local function pr_remote(project, url)
   local want = repo_of(url)
   if want == nil then return nil end
+  local exact, alike = nil, nil
   local names = git(project, "remote") or ""
   for name in names:gmatch("[^\r\n]+") do
     local have = repo_of(git(project, "remote", "get-url", name) or "")
-    if have and have.path == want.path and (have.host == nil or have.host == want.host) then
-      return name
+    if have and have.path == want.path then
+      if have.host == nil or have.host == want.host then
+        if exact == nil or name == "origin" then exact = name end
+      elseif alike == nil or name == "origin" then
+        alike = name
+      end
     end
   end
-  return nil
+  return exact or alike
 end
 
 -- pr_branches maps each pull request number to the branch Review made for it.
@@ -1214,7 +1297,9 @@ function backend.pulls(a)
   local list, err = gh(project, "pr", "list", "--state", "open", "--limit", "500",
     "--json", "number,title,headRefName,author,isDraft")
   if list == nil then return { why = err } end
-  if #list == 0 then return { why = basename(project) .. " has no open pull request" } end
+  -- With none open the list is empty, and a number or a link can still be
+  -- typed: a closed pull request can be reviewed too.
+  if #list == 0 then return { rows = {} } end
   -- Asked of you, teams included. Without an answer, none is first.
   local asked = {}
   local mine = gh(project, "pr", "list", "--state", "open", "--limit", "500",
@@ -1279,11 +1364,26 @@ function review_checkout(a)
   -- its address. A pull request from the same repository also brings its
   -- remote branch up to date, for the new branch to follow.
   local repo_url = tostring(pr.url):match("^(.*)/pull/%d+") or ""
+  -- gh was asked by number, so a link to another repository would open
+  -- this one's pull request of that number.
+  local linked = repo_of(tostring(a.pr):match("^(.*)/pull/%d+") or "")
+  local found = repo_of(repo_url)
+  if linked ~= nil and found ~= nil and (linked.path ~= found.path
+      or (linked.host ~= nil and found.host ~= nil and linked.host ~= found.host)) then
+    return { why = "that link is to a pull request of " .. linked.path .. ", and " ..
+      title .. " is " .. found.path }
+  end
   local remote = pr_remote(project, repo_url)
   local same = not pr.isCrossRepository and remote ~= nil
-  local fetch = { "fetch", "--quiet", remote or (repo_url .. ".git"), "refs/pull/" .. n .. "/head" }
-  if same then fetch[#fetch + 1] = pr.headRefName end
-  local _, ferr = git(project, unpack(fetch))
+  local from, ref = remote or (repo_url .. ".git"), "refs/pull/" .. n .. "/head"
+  local _, ferr
+  if same then
+    _, ferr = git_net(project, "fetch", "--quiet", from, ref, pr.headRefName)
+    -- The branch of a merged or closed pull request may be deleted, and
+    -- git then fetches nothing at all. The pull request itself stays.
+    if ferr ~= nil then same = false end
+  end
+  if not same then _, ferr = git_net(project, "fetch", "--quiet", from, ref) end
   if ferr ~= nil then return { why = ferr } end
   local new = pr.headRefOid
   if git(project, "cat-file", "-e", tostring(new) .. "^{commit}") == nil then
@@ -1333,6 +1433,11 @@ function review_checkout(a)
     git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
     return r
   end
+  -- Brought up to it by other means, such as git pull in the worktree.
+  if git(dir, "merge-base", "--is-ancestor", new, "HEAD") ~= nil then
+    git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
+    return r
+  end
 
   local function count(range)
     return tonumber(trim(git(dir, "rev-list", "--count", range) or "0")) or 0
@@ -1363,15 +1468,36 @@ end
 -- go on top, and uncommitted changes are put back. That moves a checkout
 -- with no commits of its own straight to a.new, and leaves out the old
 -- commits of a pull request that was force-pushed. A rebase that stops is
--- undone, so the checkout is as it was.
+-- undone, so the checkout is as it was. A rebase that was under way there
+-- already is the person's own, and is left alone.
 function backend.sync(a)
+  local pr = "#" .. tostring(a.pr)
+  for _, state in ipairs({ "rebase-merge", "rebase-apply" }) do
+    local path = trim(git(a.dir, "rev-parse", "--git-path", state) or "")
+    -- Git gives the path from a.dir unless it lies elsewhere.
+    if path ~= "" and not path:find("^/") and not path:find("^%a:[/\\]") then
+      path = a.dir .. "/" .. path
+    end
+    if path ~= "" and exists(path) then
+      return { why = pr .. " was not updated, because a rebase is under way in " ..
+        short(a.dir) .. ". Finish or abort it, then review again." }
+    end
+  end
+  local function stash() return trim(git(a.dir, "rev-parse", "--quiet", "--verify", "refs/stash") or "") end
+  local stashed = stash()
   local _, err = git(a.dir, "rebase", "--quiet", "--autostash", "--onto", a.new, a.old)
   if err ~= nil then
     git(a.dir, "rebase", "--abort")
-    return { why = "#" .. tostring(a.pr) .. " was not updated, because the rebase stopped; "
+    return { why = pr .. " was not updated, because the rebase stopped; "
       .. "the worktree is as it was. " .. err }
   end
   git(a.project, "config", "branch." .. a.branch .. ".rex-pr-head", a.new)
+  -- Git reports success when the uncommitted changes clash with the new
+  -- head: it leaves them in the stash and the clash in the files.
+  if stash() ~= stashed then
+    return { why = pr .. " was updated, but your uncommitted changes clash with it. " ..
+      "They are safe in git stash, and the files show the conflict." }
+  end
   return {}
 end
 
@@ -1382,13 +1508,20 @@ rex.action{
   title = "Projects: Backend",
   description = "Used by the Projects actions to read folders and run git where the projects are",
   category = "Internal",
-  args = { op = "string?", args = "object?" },
+  args = { op = "string?", args = "object?", relayed = "boolean?" },
   run = function(_, args)
     -- Run from the palette, it has no op and does nothing.
     if args == nil or args.op == nil then return end
     local op = backend[args.op]
     if op == nil then error("projects_backend: unknown op " .. tostring(args.op), 0) end
-    return op(args.args or {})
+    -- Asked for by another server, which waits only so long: see net_limit.
+    if args.relayed then
+      net_limit = { by = os ~= nil and os.time ~= nil and (os.time() + NET_SECONDS) or nil }
+    end
+    local ok, result = pcall(op, args.args or {})
+    net_limit = nil
+    if not ok then error(result, 0) end
+    return result
   end,
 }
 
@@ -1428,7 +1561,7 @@ local function connect(ctx)
   return function(op, args)
     local r, err = server.call("client.action", {
       action = "projects_backend",
-      args = { op = op, args = args or {} },
+      args = { op = op, args = args or {}, relayed = true },
     })
     if r == nil then
       err = tostring(err)
@@ -1895,6 +2028,7 @@ M._internal = {
   parent_of = parent_of, is_folder = is_folder, reason = reason, refuse = refuse,
   run = run, clean_up = clean_up, add_run = add_run, remove_run = remove_run,
   review_run = review_run, pr_number = pr_number, repo_of = repo_of,
+  pr_remote = pr_remote,
   backend = backend, config = config,
   reset = function() state = nil end,
 }
