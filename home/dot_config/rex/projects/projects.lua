@@ -473,11 +473,35 @@ local function project_row(path)
   return { id = path, title = basename(path), subtitle = short(path), icon = "folder" }
 end
 
+-- containing returns the project of paths that holds the folder cwd, or nil.
+-- A worktree belongs to the project of its main checkout, which is the first
+-- checkout git lists. A plain folder goes by its path, and the deepest
+-- project that holds cwd wins.
+local function containing(paths, cwd)
+  if cwd == nil or cwd == "" then return nil end
+  cwd = slashes(cwd)
+  local trees = worktrees(cwd)
+  local main = trees and trees[1] and trees[1].path or nil
+  -- The terminal and the list may spell a folder through a symbolic link.
+  -- Only a project named like the main checkout is worth asking about.
+  local real_cwd = real(cwd)
+  local best = nil
+  for _, p in ipairs(paths) do
+    if main ~= nil and (p == main or (basename(p) == basename(main) and real(p) == main)) then
+      return p
+    end
+    local function holds(dir) return dir == p or dir:sub(1, #p + 1) == p .. "/" end
+    if (holds(cwd) or holds(real_cwd)) and (best == nil or #p > #best) then best = p end
+  end
+  return best
+end
+
 -- project_rows returns the rows of the project picker: the added projects
--- and the scanned ones, then the row that adds a project. With project_order
--- "recent" the most recently used go first and the rest by name; with
--- "name" all go by name.
-local function project_rows()
+-- and the scanned ones, then the row that adds a project. The project that
+-- holds cwd, the folder of the terminal the action was run from, goes
+-- first. Then, with project_order "recent", the most recently used go first
+-- and the rest by name; with "name" all go by name.
+local function project_rows(cwd)
   local s = load_state()
   local seen, paths = {}, {}
   for _, p in ipairs(s.projects) do
@@ -487,6 +511,8 @@ local function project_rows()
     if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
   end
   local rank = {}
+  local focused = containing(paths, cwd)
+  if focused ~= nil then rank[focused] = 0 end
   if config.project_order ~= "name" then
     for i, p in ipairs(s.recent) do
       if rank[p] == nil then rank[p] = i end
@@ -780,9 +806,10 @@ local function start_dir()
   return dir
 end
 
--- projects returns the rows of the project picker.
-function backend.projects()
-  return { rows = project_rows() }
+-- projects returns the rows of the project picker. a.cwd is the folder of
+-- the terminal the action was run from, whose project goes first.
+function backend.projects(a)
+  return { rows = project_rows(a.cwd) }
 end
 
 -- browse returns one page of the Add project browser: the folder dir, or the
@@ -1141,14 +1168,15 @@ local function add_project(call, text)
 end
 
 -- choose_project asks for a project, which may be one added on the spot. A
--- typed path opens the Add project browser there. It returns the folder, or
--- nil when the person gave up.
-local function choose_project(ctx, call, title)
+-- typed path opens the Add project browser there. cwd is the folder of the
+-- terminal the action was run from, whose project is listed first. It
+-- returns the folder, or nil when the person gave up.
+local function choose_project(ctx, call, title, cwd)
   local project, why = rex.ui.pick{
     title = ctx.server and (title .. " on " .. ctx.server) or title,
     placeholder = "Project or path",
     allow_other = true,
-    items = call("projects").rows,
+    items = call("projects", { cwd = cwd }).rows,
   }
   if type(project) == "table" then
     project, why = add_project(call, project.text)
@@ -1260,8 +1288,12 @@ local function run(ctx, mode)
   local call, server = connect(ctx)
   local worktree = mode == "worktree"
 
+  -- The folder of the terminal the action was run from: its project is
+  -- listed first, and its session may become the checkout's.
+  local cwd = terminal_dir(ctx, server)
+
   -- 1. The project.
-  local project = choose_project(ctx, call, worktree and "Open worktree" or "Switch branch")
+  local project = choose_project(ctx, call, worktree and "Open worktree" or "Switch branch", cwd)
   if project == nil then return end
 
   -- 2. The branch: a row, or a typed name. A plain folder has none.
@@ -1284,7 +1316,7 @@ local function run(ctx, mode)
     mode = mode,
     name = name,
     from = ctx.session_id,
-    cwd = terminal_dir(ctx, server),
+    cwd = cwd,
   }
   local r = call("open", args)
 
@@ -1314,7 +1346,7 @@ end
 local function clean_up(ctx)
   ctx = ctx or {}
   local call, server = connect(ctx)
-  local project = choose_project(ctx, call, "Clean up branch")
+  local project = choose_project(ctx, call, "Clean up branch", terminal_dir(ctx, server))
   if project == nil then return end
 
   local list = call("branches", { project = project, mode = "cleanup" })

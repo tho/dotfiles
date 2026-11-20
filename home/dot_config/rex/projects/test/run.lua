@@ -1159,6 +1159,56 @@ test("the project picker lists the last opened project first, the rest by name",
   I.backend.forget{ project = scratch }
 end)
 
+test("the project the action ran from is listed first, then the order of use", function()
+  local inner = tmp .. "/code/inner"
+  os.execute("mkdir -p " .. sh(plain .. "/sub") .. " " .. sh(inner))
+  I.backend.add{ path = inner }
+  I.load_state().recent = { plain, inner }
+  local function order(cwd) return ids(I.project_rows(cwd)) end
+
+  local list = order(nil)
+  assert(list[1] == plain and list[2] == inner, "without a terminal, the order of use")
+  list = order(repo)
+  assert(list[1] == repo and list[2] == plain and list[3] == inner, "the main checkout, then the order of use")
+  list = order(repo .. "/src")
+  assert(list[1] == repo, "a folder inside the checkout")
+  list = order(wt .. "/mru-wt")
+  assert(list[1] == repo, "a worktree belongs to its project")
+  list = order(plain .. "/sub")
+  assert(list[1] == plain and list[2] == inner, "a plain folder goes by its path")
+  list = order(tmp .. "/code")
+  assert(list[1] == plain and list[2] == inner, "a folder in no project changes nothing")
+
+  -- With project_order "name" it still goes first, and the rest by name.
+  P.setup{ project_order = "name" }
+  local rows = I.project_rows(wt .. "/mru-wt")
+  assert(rows[1].id == repo, "first under name order too")
+  for i = 3, #rows - 1 do
+    assert(rows[i - 1].title:lower() <= rows[i].title:lower(), "the rest by name: " .. rows[i].title)
+  end
+  P.setup{ project_order = "recent" }
+
+  -- Through the action: the terminal's folder decides, and any project can
+  -- still be chosen.
+  local mine = open_session(nil, "here", wt .. "/mru-wt")
+  mine.attached = true
+  answers = { "plain" }
+  I.run({ session_id = mine.session_id, block_id = mine.block_id }, "here")
+  assert(asked[1].items[1].id == repo, "the focused project first: " .. asked[1].items[1].id)
+  assert(selected().cwd == plain, "another project was chosen")
+  -- On another host, the host reads the folder.
+  again()
+  relays, local_execs = 0, 0
+  local theirs = open_session("studio", "there", repo .. "/src")
+  theirs.attached = true
+  answers = { nil }
+  I.clean_up({ server = "studio", session_id = theirs.session_id, block_id = theirs.block_id })
+  assert(asked[1].items[1].id == repo and local_execs == 0)
+  close(nil, mine.session_id)
+  close("studio", theirs.session_id)
+  I.backend.forget{ project = inner }
+end)
+
 test("git's progress lines are not the reason", function()
   assert(I.reason("Preparing worktree (checking out 'main')\nfatal: 'main' is already used") == "fatal: 'main' is already used")
   assert(I.reason("error: one\nfatal: two") == "error: one\nfatal: two")

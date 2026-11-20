@@ -73,7 +73,7 @@ rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")
 
 ## Picking a branch
 
-Switch Branch and Open Worktree both show the project picker, then one list of branches. Choose a row or type a name. The project picker lists the project you last switched, opened or went to in either action first, then the others in order of last use, then projects never opened, by name. With `project_order = "name"` it lists them all by name.
+Switch Branch and Open Worktree both show the project picker, then one list of branches. Choose a row or type a name. The project picker lists first the project that holds the folder of the terminal you ran the action from, counting a worktree as part of its project. Then it lists the project you last switched, opened or went to in either action, then the others in order of last use, then projects never opened, by name. With `project_order = "name"` the rest are listed by name. Clean Up Branch uses the same order.
 
 | You pick | Switch Branch | Open Worktree |
 |---|---|---|
