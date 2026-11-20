@@ -6,11 +6,12 @@ A [Rex](https://www.superlogical.com/rex) Lua script for git projects. Pick a pr
 |---|---|---|
 | Switch Branch in Project… | `⌥⌘N` | `git switch` in the project's main checkout, then open its session |
 | Open Worktree in Project… | `⌃⌥⌘N` | Open the branch in its own worktree, with its own session |
+| Review Pull Request… | none | Open a pull request in its own worktree, with its own session |
 | Clean Up Branch in Project… | none | Delete a branch, its worktree and that worktree's session |
 | Add Project to List… | none | Browse to a folder and add it |
 | Remove Project from List… | none | Forget a project; its folder is untouched |
 
-All five are in the palette's **Projects** section. **Projects: Backend** in the **Internal** section is used by the script itself and does nothing when you run it.
+All six are in the palette's **Projects** section. **Projects: Backend** in the **Internal** section is used by the script itself and does nothing when you run it.
 
 ## Install
 
@@ -68,6 +69,7 @@ rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")
 |---|---|
 | Switch Branch in Project… | `switch_project_branch` |
 | Open Worktree in Project… | `open_project_worktree` |
+| Review Pull Request… | `review_pull_request` |
 | Clean Up Branch in Project… | `clean_up_project_branch` |
 | Add Project to List… | `add_project` |
 | Remove Project from List… | `remove_project` |
@@ -112,6 +114,19 @@ Each checkout has one session: `my-app` for the main checkout, `my-app · feat/x
 3. A new session.
 
 Sessions are tracked by id, so renaming one is safe. Switch Branch never opens a second session for a project.
+
+## Reviewing a pull request
+
+**Review Pull Request…** needs the [GitHub CLI](https://cli.github.com) on the host that has the project, logged in and on the server's `PATH`. Pick a project, then a pull request, or type its number (`123`, `#123`) or paste its link.
+
+- **The list** shows open pull requests, newest first, with those whose review is asked of you (or your team) first. Each row reads `#123 Title` and `branch · @author · draft · review requested`. A folder icon means it already has a worktree.
+- **A new worktree** gets a branch named after the pull request's branch, following it on the remote, so a fix can be pushed. A pull request from a fork gets `pr/<number>` instead and follows nothing. A branch of that name that already exists and was not made by this action, such as your own, is opened as it is. The session is called `my-app · #123`.
+- **Opening it again** fetches the pull request. If it has moved on, a dialog asks first:
+  - **Update** (first, so Return takes it): your commits in the worktree, if any, are rebased onto the new head, and uncommitted changes are stashed and put back. This works after a force push too: only the commits you made since the last update are moved.
+  - **Keep as is**, or Escape: nothing changes, and the next time asks again.
+- **If the rebase stops**, for example on a conflict, it is undone and the worktree is as it was. You still land in the session, and the action then shows why it did not update.
+- The branch remembers its pull request in its git config (`branch.<name>.rex-pr` and `rex-pr-head`). Clean Up Branch removes these along with the branch.
+- In a repository with several remotes, `gh` may ask you to run `gh repo set-default` first. The action shows that message.
 
 ## Cleaning up a branch
 

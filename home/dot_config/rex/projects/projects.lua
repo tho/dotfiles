@@ -12,7 +12,9 @@
 -- A name that matches no branch makes a new one, after a second list asks
 -- what it starts from. Each checkout has one session, and the script
 -- remembers which, so choosing a checkout again goes back to its session
--- instead of opening another. Clean Up Branch in Project… deletes a finished
+-- instead of opening another. Review Pull Request… opens a GitHub pull
+-- request in its own worktree and offers to update it when it moved on.
+-- Clean Up Branch in Project… deletes a finished
 -- branch, with its worktree and that worktree's session.
 --
 -- The projects are the ones on the machine of the focused session. For a
@@ -711,8 +713,8 @@ end
 local function default_base(project)
   if config.base then return config.base end
   local remotes = {}
-  local out = git(project, "remote")
-  for line in (out or ""):gmatch("[^\r\n]+") do
+  local out = git(project, "remote") or ""
+  for line in out:gmatch("[^\r\n]+") do
     if line == "origin" then table.insert(remotes, 1, line) else remotes[#remotes + 1] = line end
   end
   for _, remote in ipairs(remotes) do
@@ -1120,6 +1122,259 @@ function backend.forget(a)
   return {}
 end
 
+---------------------------------------------------------------------------
+-- Pull requests
+---------------------------------------------------------------------------
+
+-- A branch that Review Pull Request made carries two settings in the
+-- repository's config: branch.<name>.rex-pr, the number of its pull request,
+-- and branch.<name>.rex-pr-head, the commit of the pull request it was last
+-- brought up to. Git drops both when it deletes the branch.
+
+-- gh runs the GitHub CLI in project and returns what it printed as JSON,
+-- decoded, or nil and why.
+local function gh(project, ...)
+  local r, err = rex.exec({ "gh", ... }, { cwd = project })
+  if r == nil or r.code == 127 then
+    return nil, "gh did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
+      "). Review Pull Request needs the GitHub CLI on the server's PATH."
+  end
+  if not r.ok then
+    local message = trim(r.stderr)
+    if message == "" then message = "gh exited with status " .. tostring(r.code) end
+    return nil, message
+  end
+  local ok, decoded = pcall(rex.json.decode, r.stdout)
+  if not ok or type(decoded) ~= "table" then return nil, "gh did not answer with JSON" end
+  return decoded
+end
+
+-- pr_number reads a pull request from what was typed or chosen: 123, #123,
+-- or a link that ends in /pull/123.
+local function pr_number(text)
+  text = trim(tostring(text or ""))
+  return tonumber(text:match("^#?(%d+)$") or text:match("/pull/(%d+)/?[^/]*$"))
+end
+
+-- repo_of reads a repository URL as { host, path = "owner/repo" }, both in
+-- lower case. host is nil for a path on disk.
+local function repo_of(url)
+  url = trim(url):gsub("/+$", ""):gsub("%.git$", "")
+  local host, path
+  local rest = url:match("^%a[%w+.-]*://(.+)$")
+  if rest then
+    rest = rest:gsub("^[^/@]*@", "")
+    host, path = rest:match("^([^/]+)/(.+)$")
+    if host then host = host:gsub(":%d+$", "") end
+  else
+    host, path = url:match("^[^@/]+@([^:/]+):(.+)$")
+    if host == nil then path = url end
+  end
+  local owner_repo = path and path:match("([^/]+/[^/]+)$")
+  if owner_repo == nil then return nil end
+  return { host = host and host:lower(), path = owner_repo:lower() }
+end
+
+-- pr_remote returns the remote that is the repository at url, or nil.
+local function pr_remote(project, url)
+  local want = repo_of(url)
+  if want == nil then return nil end
+  local names = git(project, "remote") or ""
+  for name in names:gmatch("[^\r\n]+") do
+    local have = repo_of(git(project, "remote", "get-url", name) or "")
+    if have and have.path == want.path and (have.host == nil or have.host == want.host) then
+      return name
+    end
+  end
+  return nil
+end
+
+-- pr_branches maps each pull request number to the branch Review made for it.
+local function pr_branches(project)
+  local map = {}
+  local out = git(project, "config", "--get-regexp", "^branch\\..*\\.rex-pr$") or ""
+  for line in out:gmatch("[^\r\n]+") do
+    local branch, number = line:match("^branch%.(.+)%.rex%-pr (%d+)$")
+    if branch then map[tonumber(number)] = branch end
+  end
+  return map
+end
+
+-- plural writes a count with its noun.
+local function plural(n, noun)
+  return n .. " " .. noun .. (n == 1 and "" or "s")
+end
+
+-- pulls returns the rows of the pull request list of a.project: those whose
+-- review is asked of you first, then the rest, each newest first.
+function backend.pulls(a)
+  local project = a.project
+  local c, unreadable = checkouts(project)
+  if c == nil then return { why = unreadable } end
+  local list, err = gh(project, "pr", "list", "--state", "open", "--limit", "500",
+    "--json", "number,title,headRefName,author,isDraft")
+  if list == nil then return { why = err } end
+  if #list == 0 then return { why = basename(project) .. " has no open pull request" } end
+  -- Asked of you, teams included. Without an answer, none is first.
+  local asked = {}
+  local mine = gh(project, "pr", "list", "--state", "open", "--limit", "500",
+    "--search", "review-requested:@me", "--json", "number")
+  for _, p in ipairs(mine or {}) do asked[p.number] = true end
+  local held = pr_branches(project)
+  local first, rest = {}, {}
+  for _, p in ipairs(list) do
+    local bits = { p.headRefName }
+    if type(p.author) == "table" and p.author.login then bits[#bits + 1] = "@" .. p.author.login end
+    if p.isDraft then bits[#bits + 1] = "draft" end
+    if asked[p.number] then bits[#bits + 1] = "review requested" end
+    local branch = held[p.number]
+    local tree = branch and c.taken[branch]
+    local row = {
+      id = "#" .. p.number,
+      title = "#" .. p.number .. " " .. tostring(p.title),
+      subtitle = table.concat(bits, " · "),
+      -- A pull request with a worktree already looks like one.
+      icon = (tree and not tree.prunable) and "folder" or "branch",
+    }
+    if asked[p.number] then first[#first + 1] = row else rest[#rest + 1] = row end
+  end
+  local rows = {}
+  for _, group in ipairs({ first, rest }) do
+    for _, row in ipairs(group) do
+      if #rows < MAX_ROWS then rows[#rows + 1] = row end
+    end
+  end
+  return { rows = rows }
+end
+
+-- review makes the worktree of the pull request a.pr ready and says where it
+-- is, as open does. A pull request from the same repository gets a branch
+-- of its own name, which follows the remote branch; one from a fork gets
+-- pr/<number>, which follows nothing. A branch of that name that Review did
+-- not make, such as the author's own, is opened as it is.
+--
+-- When the pull request moved on since its worktree was last brought up to
+-- it, the answer also holds update: what to show in the dialog that asks
+-- whether to, and what sync needs to do it. Nothing changes before that.
+local review_checkout
+function backend.review(a)
+  local r = review_checkout(a)
+  if r.dir ~= nil then mark_used(a.project) end
+  return r
+end
+
+function review_checkout(a)
+  local project = a.project
+  local title = basename(project)
+  local n = pr_number(a.pr)
+  if n == nil then return { why = "not a pull request: " .. tostring(a.pr) } end
+  local c, unreadable = checkouts(project)
+  if c == nil then return { why = unreadable } end
+  local pr, err = gh(project, "pr", "view", tostring(n),
+    "--json", "number,url,headRefName,headRefOid,isCrossRepository")
+  if pr == nil then return { why = err } end
+  local label = title .. " · #" .. n
+
+  -- Fetch the pull request from its repository: the remote that is it, else
+  -- its address. A pull request from the same repository also brings its
+  -- remote branch up to date, for the new branch to follow.
+  local repo_url = tostring(pr.url):match("^(.*)/pull/%d+") or ""
+  local remote = pr_remote(project, repo_url)
+  local same = not pr.isCrossRepository and remote ~= nil
+  local fetch = { "fetch", "--quiet", remote or (repo_url .. ".git"), "refs/pull/" .. n .. "/head" }
+  if same then fetch[#fetch + 1] = pr.headRefName end
+  local _, ferr = git(project, unpack(fetch))
+  if ferr ~= nil then return { why = ferr } end
+  local new = pr.headRefOid
+  if git(project, "cat-file", "-e", tostring(new) .. "^{commit}") == nil then
+    return { why = "#" .. n .. " was fetched, but its head " .. tostring(new) .. " did not arrive" }
+  end
+
+  local branch = pr_branches(project)[n]
+  if branch == nil or not has_ref(project, "refs/heads/" .. branch) then
+    branch = pr.isCrossRepository and ("pr/" .. n) or pr.headRefName
+    if not has_ref(project, "refs/heads/" .. branch) then
+      local dir, werr = add_worktree(project, branch, new, "--no-track")
+      if dir == nil then return { why = werr } end
+      git(project, "config", "branch." .. branch .. ".rex-pr", tostring(n))
+      git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
+      -- Following the remote branch lets a fix be pushed, and lets clean-up
+      -- see the branch as merged.
+      if same and has_ref(project, "refs/remotes/" .. remote .. "/" .. pr.headRefName) then
+        git(project, "branch", "--quiet", "--set-upstream-to=" .. remote .. "/" .. pr.headRefName, branch)
+      end
+      return landing(dir, label, a, true)
+    end
+    -- Not made by Review: open it, and leave it as it is.
+    if branch == c.current then return landing(project, title, a, true) end
+    local tree = c.taken[branch]
+    if tree ~= nil and not tree.prunable then return landing(tree.path, label, a, true) end
+    local dir, werr = add_worktree(project, branch)
+    if dir == nil then return { why = werr } end
+    return landing(dir, label, a, true)
+  end
+
+  -- Review made this branch before. Find or make its checkout.
+  local dir
+  local tree = c.taken[branch]
+  if branch == c.current then
+    dir, label = project, title
+  elseif tree ~= nil and not tree.prunable then
+    dir = tree.path
+  else
+    local werr
+    dir, werr = add_worktree(project, branch)
+    if dir == nil then return { why = werr } end
+  end
+  local r = landing(dir, label, a, true)
+  local old = trim(git(project, "config", "--get", "branch." .. branch .. ".rex-pr-head") or "")
+  if old == new or git(project, "cat-file", "-e", old .. "^{commit}") == nil then
+    -- Up to date, or with no record of where it was: nothing to offer.
+    git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
+    return r
+  end
+
+  local function count(range)
+    return tonumber(trim(git(dir, "rev-list", "--count", range) or "0")) or 0
+  end
+  local rewritten = git(project, "merge-base", "--is-ancestor", old, new) == nil
+  local own = count(old .. "..HEAD")
+  local dirty = trim(git(dir, "status", "--porcelain", "--untracked-files=normal") or "") ~= ""
+  local how
+  if own > 0 then
+    how = "Rebase your " .. plural(own, "commit") .. " onto them"
+  else
+    how = (rewritten and "Move to " or "Fast-forward to ") .. new:sub(1, 7)
+  end
+  if dirty then how = how .. ", keeping your uncommitted changes" end
+  local head = trim(git(dir, "rev-parse", "--short", "HEAD") or "")
+  r.update = {
+    title = rewritten and ("#" .. n .. " was force-pushed")
+      or ("#" .. n .. " has " .. plural(count(old .. ".." .. new), "new commit")),
+    how = how,
+    keep = "Stay at " .. head,
+    project = project, dir = dir, branch = branch, old = old, new = new, pr = n,
+  }
+  return r
+end
+
+-- sync brings the checkout a.dir of a pull request up to its head a.new:
+-- the commits made there since a.old, the head it was last brought up to,
+-- go on top, and uncommitted changes are put back. That moves a checkout
+-- with no commits of its own straight to a.new, and leaves out the old
+-- commits of a pull request that was force-pushed. A rebase that stops is
+-- undone, so the checkout is as it was.
+function backend.sync(a)
+  local _, err = git(a.dir, "rebase", "--quiet", "--autostash", "--onto", a.new, a.old)
+  if err ~= nil then
+    git(a.dir, "rebase", "--abort")
+    return { why = "#" .. tostring(a.pr) .. " was not updated, because the rebase stopped; "
+      .. "the worktree is as it was. " .. err }
+  end
+  git(a.project, "config", "branch." .. a.branch .. ".rex-pr-head", a.new)
+  return {}
+end
+
 -- The app cannot hide an action, so this one sits in a category of its own,
 -- away from the ones a person runs.
 rex.action{
@@ -1484,6 +1739,49 @@ local function remove_run(ctx)
   call("forget", { project = project })
 end
 
+-- review_run is the body of Review Pull Request…: it opens a pull request
+-- in a worktree, and offers to bring one opened before up to date.
+local function review_run(ctx)
+  ctx = ctx or {}
+  local call, server = connect(ctx)
+  local cwd = terminal_dir(ctx, server)
+  local project = choose_project(ctx, call, "Review pull request", cwd)
+  if project == nil then return end
+
+  local list = call("pulls", { project = project })
+  if list.why ~= nil then refuse(list.why) end
+  local picked, why = rex.ui.pick{
+    title = "Review pull request in " .. basename(project),
+    placeholder = "Pull request, number or link",
+    allow_other = true,
+    items = list.rows or {},
+  }
+  if picked == nil then return stop(why) end
+  picked = typed_or_picked(picked)
+  if picked == "" then return end
+
+  local r = call("review", { project = project, pr = picked, from = ctx.session_id, cwd = cwd })
+  if r.why ~= nil then refuse(r.why) end
+  if r.dir == nil then return end
+
+  -- The pull request moved on. Update is first, so Return takes it; giving
+  -- no answer keeps the worktree as it is.
+  local failed
+  if r.update ~= nil then
+    local answer = rex.ui.pick{
+      title = r.update.title,
+      items = {
+        { id = "update", title = "Update", subtitle = r.update.how },
+        { id = "keep", title = "Keep as is", subtitle = r.update.keep },
+      },
+    }
+    if answer == "update" then failed = call("sync", r.update).why end
+  end
+  -- Go to the session either way, and say afterwards when the update failed.
+  session_for(ctx, call, server, r)
+  if failed ~= nil then refuse(failed) end
+end
+
 rex.action{
   name = "switch_project_branch",
   title = "Switch Branch in Project…",
@@ -1518,6 +1816,15 @@ rex.action{
   category = "Projects",
   keywords = "folder repository project list",
   run = add_run,
+}
+
+rex.action{
+  name = "review_pull_request",
+  title = "Review Pull Request…",
+  description = "Choose a project and one of its open pull requests, and go to the session of its worktree, making both when needed",
+  category = "Projects",
+  keywords = "pull request pr review github worktree branch",
+  run = review_run,
 }
 
 rex.action{
@@ -1587,6 +1894,7 @@ M._internal = {
   valid_branch_name = valid_branch_name, subfolders = subfolders,
   parent_of = parent_of, is_folder = is_folder, reason = reason, refuse = refuse,
   run = run, clean_up = clean_up, add_run = add_run, remove_run = remove_run,
+  review_run = review_run, pr_number = pr_number, repo_of = repo_of,
   backend = backend, config = config,
   reset = function() state = nil end,
 }

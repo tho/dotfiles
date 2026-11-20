@@ -169,11 +169,37 @@ local function api(host)
   end
 end
 
+-- A stand-in for the GitHub CLI. prs are the open pull requests, newest
+-- first, with the fields gh gives; review_asked holds the numbers whose
+-- review is asked of you; gh_missing makes gh not run.
+local prs, review_asked, gh_missing, gh_runs = {}, {}, false, 0
+local function gh_stub(argv)
+  gh_runs = gh_runs + 1
+  if gh_missing then return { ok = false, code = 127, stdout = "", stderr = "gh: command not found" } end
+  local function answer(v) return { ok = true, code = 0, stdout = json.encode(v), stderr = "" } end
+  if argv[2] == "pr" and argv[3] == "list" then
+    local searching = false
+    for _, a in ipairs(argv) do if a == "--search" then searching = true end end
+    local out = {}
+    for _, p in ipairs(prs) do
+      if not searching or review_asked[p.number] then out[#out + 1] = p end
+    end
+    return answer(out)
+  elseif argv[2] == "pr" and argv[3] == "view" then
+    for _, p in ipairs(prs) do
+      if tostring(p.number) == argv[4] then return answer(p) end
+    end
+    return { ok = false, code = 1, stdout = "", stderr = "GraphQL: Could not resolve to a PullRequest with the number of " .. argv[4] .. "." }
+  end
+  error("gh stand-in: no command " .. table.concat(argv, " "))
+end
+
 rex = {
   json = json,
   log = function(level, msg) io.stderr:write("[" .. level .. "] " .. msg .. "\n") end,
   exec = function(argv, opts)
     if not in_relay then local_execs = local_execs + 1 end
+    if argv[1] == "gh" then return gh_stub(argv) end
     local parts = {}
     for _, a in ipairs(argv) do parts[#parts + 1] = sh(a) end
     local cmd = table.concat(parts, " ")
@@ -377,14 +403,14 @@ local function remembered(dir) return I.load_state().sessions[dir] end
 -- The palette and the keys
 ---------------------------------------------------------------------------
 
-test("the Projects section holds the five entries, and the backend sits elsewhere", function()
+test("the Projects section holds the six entries, and the backend sits elsewhere", function()
   local titles = {}
   for _, spec in pairs(actions) do
     if spec.category == "Projects" then titles[#titles + 1] = spec.title end
   end
   table.sort(titles)
   local want = { "Add Project to List…", "Clean Up Branch in Project…", "Open Worktree in Project…",
-    "Remove Project from List…", "Switch Branch in Project…" }
+    "Remove Project from List…", "Review Pull Request…", "Switch Branch in Project…" }
   assert(table.concat(titles, " | ") == table.concat(want, " | "), table.concat(titles, " | "))
   assert(actions.projects_backend.category == "Internal")
 end)
@@ -1079,6 +1105,204 @@ test("a list never has two rows with one id, or more than 2,000 rows", function(
   assert(not at["origin/b2100"])
   local r = I.backend.open{ project = big, mode = "here", name = "origin/b2100" }
   assert(r.dir == big and branch_of(big) == "b2100", tostring(r.why))
+end)
+
+---------------------------------------------------------------------------
+-- Review Pull Request
+---------------------------------------------------------------------------
+
+-- The pull requests live in up as refs/pull/<n>/head, as on GitHub. #9 is a
+-- branch of up, review-me; #8 comes from the fork's branch fork-fix. gh
+-- names up as https://github.com/remotes/up, which matches the remote by
+-- its last two folders.
+local function publish(n, ref)
+  git(up, "update-ref", "refs/pull/" .. n .. "/head", ref)
+  for _, p in ipairs(prs) do
+    if p.number == n then p.headRefOid = git(up, "rev-parse", ref) end
+  end
+end
+local function pull(n, title, head, cross, author)
+  return { number = n, title = title, headRefName = head, isCrossRepository = cross,
+    isDraft = false, author = { login = author }, url = "https://github.com/remotes/up/pull/" .. n }
+end
+local review_dir = wt .. "/review-me"
+
+test("review: the list puts the reviews asked of you first, then the rest", function()
+  git(up, "switch", "-q", "-c", "review-me")
+  commit(up, "r", "one\n", "review one")
+  git(up, "switch", "-q", "main")
+  git(fork, "switch", "-q", "-c", "fork-fix")
+  commit(fork, "k", "fork\n", "fork fix")
+  git(up, "fetch", "-q", fork, "fork-fix:refs/pull/8/head")
+  prs = { pull(9, "Review me", "review-me", false, "ana"), pull(8, "Fix from a fork", "fork-fix", true, "bo") }
+  prs[2].isDraft = true
+  publish(9, "review-me")
+  prs[2].headRefOid = git(up, "rev-parse", "refs/pull/8/head")
+  review_asked = { [8] = true }
+
+  answers = { "my-app", nil }
+  I.review_run({})
+  assert(asked[1].title == "Review pull request", asked[1].title)
+  local list = asked[2]
+  assert(list.title == "Review pull request in my-app" and list.allow_other)
+  assert(list.items[1].id == "#8" and list.items[2].id == "#9", "asked of you first")
+  assert(list.items[1].title == "#8 Fix from a fork", list.items[1].title)
+  assert(list.items[1].subtitle == "fork-fix · @bo · draft · review requested", list.items[1].subtitle)
+  assert(list.items[2].subtitle == "review-me · @ana" and list.items[2].icon == "branch")
+end)
+
+test("review: a pull request of the repository gets its branch, a worktree and a session", function()
+  answers = { "my-app", "#9" }
+  I.review_run({})
+  local s = selected()
+  assert(s.cwd == review_dir and s.label == "my-app · #9", s.label)
+  assert(branch_of(review_dir) == "review-me")
+  assert(git(review_dir, "rev-parse", "HEAD") == git(up, "rev-parse", "review-me"))
+  assert(git(repo, "rev-parse", "--abbrev-ref", "review-me@{upstream}") == "origin/review-me", "it follows the remote branch")
+  assert(git(repo, "config", "--get", "branch.review-me.rex-pr") == "9")
+  -- Again: the same session, nothing asked, and the row shows the worktree.
+  again()
+  answers = { "my-app", "#9" }
+  I.review_run({})
+  assert(#asked == 2 and selected() == s and created() == 0)
+  local _, at = ids(asked[2].items)
+  assert(asked[2].items[at["#9"]].icon == "folder")
+end)
+
+test("review: a pull request from a fork is pr/<number>, and follows nothing", function()
+  answers = { "my-app", { text = "https://github.com/remotes/up/pull/8" } }
+  I.review_run({})
+  local s = selected()
+  assert(s.cwd == wt .. "/pr-8" and s.label == "my-app · #8")
+  assert(branch_of(wt .. "/pr-8") == "pr/8")
+  assert(git(wt .. "/pr-8", "rev-parse", "HEAD") == git(fork, "rev-parse", "fork-fix"))
+  assert(select(2, try(repo, "config", "--get", "branch.pr/8.remote")) ~= 0)
+end)
+
+test("review: new commits ask first, Update fast-forwards, Keep leaves it", function()
+  git(up, "switch", "-q", "review-me")
+  commit(up, "r", "two\n", "review two")
+  git(up, "switch", "-q", "main")
+  publish(9, "review-me")
+  local before = git(review_dir, "rev-parse", "HEAD")
+
+  answers = { "my-app", "#9", "Keep as is" }
+  I.review_run({})
+  local dialog = asked[3]
+  assert(dialog.title == "#9 has 1 new commit", dialog.title)
+  assert(dialog.items[1].title == "Update" and dialog.items[1].subtitle:find("^Fast%-forward to "))
+  assert(dialog.items[2].subtitle == "Stay at " .. before:sub(1, 7), dialog.items[2].subtitle)
+  assert(git(review_dir, "rev-parse", "HEAD") == before and selected().cwd == review_dir)
+
+  -- No answer keeps it too, and the next time asks again.
+  again()
+  answers = { "my-app", "#9", nil }
+  I.review_run({})
+  assert(#asked == 3 and git(review_dir, "rev-parse", "HEAD") == before and selected().cwd == review_dir)
+
+  again()
+  answers = { "my-app", "#9", "Update" }
+  I.review_run({})
+  assert(git(review_dir, "rev-parse", "HEAD") == git(up, "rev-parse", "review-me"))
+  again()
+  answers = { "my-app", "#9" }
+  I.review_run({})
+  assert(#asked == 2, "up to date: nothing to ask")
+end)
+
+test("review: your commits and changes go on top, also after a force push", function()
+  commit(review_dir, "mine", "try\n", "trying something")
+  write(review_dir .. "/scratch", "wip\n")
+  git(review_dir, "add", "scratch")
+  -- The author rewrites the pull request.
+  git(up, "switch", "-q", "review-me")
+  git(up, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--amend", "-m", "review two, amended")
+  git(up, "switch", "-q", "main")
+  publish(9, "review-me")
+
+  answers = { "my-app", "#9", "Update" }
+  I.review_run({})
+  assert(asked[3].title == "#9 was force-pushed", asked[3].title)
+  assert(asked[3].items[1].subtitle == "Rebase your 1 commit onto them, keeping your uncommitted changes",
+    asked[3].items[1].subtitle)
+  assert(git(review_dir, "rev-parse", "HEAD^") == git(up, "rev-parse", "review-me"), "the new head, then your commit")
+  assert(git(review_dir, "log", "-1", "--format=%s") == "trying something")
+  assert(git(review_dir, "status", "--porcelain") == "A  scratch", "the change is back")
+  git(review_dir, "reset", "-q", "--hard", "HEAD^")
+end)
+
+test("review: a rebase that stops is undone, and the session is still shown", function()
+  commit(review_dir, "r", "mine\n", "my take on r")
+  git(up, "switch", "-q", "review-me")
+  commit(up, "r", "theirs\n", "their take on r")
+  git(up, "switch", "-q", "main")
+  publish(9, "review-me")
+  local before = git(review_dir, "rev-parse", "HEAD")
+
+  answers = { "my-app", "#9", "Update" }
+  local message = refused(I.review_run, {})
+  assert(message:find("^#9 was not updated"), message)
+  assert(git(review_dir, "rev-parse", "HEAD") == before and git(review_dir, "status", "--porcelain") == "")
+  assert(not exists(git(review_dir, "rev-parse", "--git-path", "rebase-merge")), "no rebase is left going")
+  assert(selected().cwd == review_dir, "the session was shown before the error")
+  -- Keep it at the pull request, without the commit that clashed.
+  git(review_dir, "reset", "-q", "--hard", "HEAD^")
+  again()
+  answers = { "my-app", "#9", "Update" }
+  I.review_run({})
+  assert(git(review_dir, "rev-parse", "HEAD") == git(up, "rev-parse", "review-me"))
+end)
+
+test("review: a branch Review did not make is opened as it is", function()
+  -- shared is a branch of the repository already, so #10 opens it.
+  table.insert(prs, 1, pull(10, "Shared work", "shared", false, "cy"))
+  publish(10, "shared")
+  answers = { "my-app", { text = "10" } }
+  I.review_run({})
+  assert(select(2, try(repo, "config", "--get", "branch.shared.rex-pr")) ~= 0, "not marked")
+  assert(#asked == 2)
+  table.remove(prs, 1)
+end)
+
+test("review: what cannot be reviewed says why", function()
+  answers = { "my-app", { text = "not-a-number" } }
+  assert(refused(I.review_run, {}) == "not a pull request: not-a-number")
+  answers = { "my-app", { text = "77" } }
+  assert(refused(I.review_run, {}):find("Could not resolve", 1, true))
+  answers = { "plain" }
+  assert(refused(I.review_run, {}):find("^fatal: not a git repository"))
+  local saved = prs; prs = {}
+  answers = { "my-app" }
+  assert(refused(I.review_run, {}) == "my-app has no open pull request")
+  prs = saved
+  gh_missing = true
+  answers = { "my-app" }
+  local message = refused(I.review_run, {})
+  gh_missing = false
+  assert(message:find("needs the GitHub CLI", 1, true), message)
+  assert(I.pr_number("#12") == 12 and I.pr_number("https://github.com/o/r/pull/12/files") == 12)
+  local r = I.repo_of("git@GitHub.com:Acme/App.git")
+  assert(r.host == "github.com" and r.path == "acme/app")
+  r = I.repo_of("ssh://git@github.com:22/acme/app")
+  assert(r.host == "github.com" and r.path == "acme/app")
+  assert(I.repo_of("https://github.com/acme/app/").path == "acme/app")
+end)
+
+test("review: on another host gh and git run there", function()
+  relays, local_execs = 0, 0
+  answers = { "my-app", "#8" }
+  I.review_run({ server = "studio" })
+  assert(local_execs == 0 and relays >= 3)
+  assert(asked[1].title == "Review pull request on studio")
+end)
+
+test("review: clean-up removes a reviewed branch with its worktree and its marks", function()
+  for _, name in ipairs({ "review-me", "pr/8" }) do
+    answers = { "my-app", name, "Force delete" }
+    I.clean_up({})
+    assert(not has_branch(repo, name), name)
+    assert(select(2, try(repo, "config", "--get", "branch." .. name .. ".rex-pr")) ~= 0, "the marks go with it")
+  end
 end)
 
 ---------------------------------------------------------------------------
