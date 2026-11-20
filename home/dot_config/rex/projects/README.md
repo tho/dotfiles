@@ -5,7 +5,7 @@ A [Rex](https://www.superlogical.com/rex) Lua script for git projects. Pick a pr
 | Action | Key | What it does |
 |---|---|---|
 | Switch Branch in Project… | `⌥⌘N` | `git switch` in the project's main checkout, then open its session |
-| Open Worktree in Project… | `⇧⌥⌘N` | Open the branch in its own worktree, with its own session |
+| Open Worktree in Project… | `⌃⌥⌘N` | Open the branch in its own worktree, with its own session |
 | Clean Up Branch in Project… | none | Delete a branch, its worktree and that worktree's session |
 | Add Project to List… | none | Browse to a folder and add it |
 | Remove Project from List… | none | Forget a project; its folder is untouched |
@@ -40,7 +40,7 @@ All settings are optional.
 ```lua
 require("projects").setup{
   key           = "alt+cmd+n",        -- Switch Branch in Project…; false binds no key
-  worktree_key  = "shift+alt+cmd+n",  -- Open Worktree in Project…; false binds no key
+  worktree_key  = "ctrl+alt+cmd+n",   -- Open Worktree in Project…; false binds no key
   base          = "main",             -- default base of a new branch
   shell         = "fish",             -- shell of a new session; default is the account's shell
   worktrees     = "~/.rex/worktrees", -- new worktrees go in <dir>/<project>/<branch>
@@ -60,7 +60,7 @@ require("projects").setup{
 `setup` binds only the two keys above. To bind any other action, call `rex.bind` with its action name in `init.lua`:
 
 ```lua
-rex.bind("ctrl+alt+cmd+n", "clean_up_project_branch")
+rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")
 ```
 
 | Action | Name |

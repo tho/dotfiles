@@ -5,7 +5,7 @@
 --
 --   Switch Branch in Project…  (alt+cmd+n) works in the project's own folder.
 --     It switches the branch there and goes to the project's session.
---   Open Worktree in Project…  (shift+alt+cmd+n) works in a worktree, a
+--   Open Worktree in Project…  (ctrl+alt+cmd+n) works in a worktree, a
 --     second checkout of the repository in its own folder. It makes the
 --     worktree when the branch has none, and goes to the worktree's session.
 --
@@ -27,7 +27,7 @@
 --
 --     require("projects").setup{
 --       key           = "alt+cmd+n",        -- Switch Branch; false binds nothing
---       worktree_key  = "shift+alt+cmd+n",  -- Open Worktree; false binds nothing
+--       worktree_key  = "ctrl+alt+cmd+n",   -- Open Worktree; false binds nothing
 --       base          = "main",             -- what a new branch starts from
 --       shell         = "fish",             -- the shell of a new session
 --       worktrees     = "~/.rex/worktrees", -- where new worktrees are made
@@ -57,7 +57,7 @@ end
 -- The settings. A call to M.setup replaces the ones it names.
 local config = {
   key = "alt+cmd+n", -- runs Switch Branch in Project…
-  worktree_key = "shift+alt+cmd+n", -- runs Open Worktree in Project…
+  worktree_key = "ctrl+alt+cmd+n", -- runs Open Worktree in Project…
   base = "main", -- what a new branch starts from unless another is chosen
   shell = nil, -- nil means the account's default shell
   worktrees = nil, -- nil means <home>/.rex/worktrees

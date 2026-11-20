@@ -391,18 +391,18 @@ end)
 
 test("each mode has its key, and the key runs that mode", function()
   assert(bound("alt+cmd+n") == "switch_project_branch", "here mode on alt+cmd+n")
-  assert(bound("shift+alt+cmd+n") == "open_project_worktree", "worktree mode on shift+alt+cmd+n")
+  assert(bound("ctrl+alt+cmd+n") == "open_project_worktree", "worktree mode on ctrl+alt+cmd+n")
   actions[bound("alt+cmd+n")].run({})
-  actions[bound("shift+alt+cmd+n")].run({})
+  actions[bound("ctrl+alt+cmd+n")].run({})
   assert(asked[1].title == "Switch branch" and asked[2].title == "Open worktree")
 end)
 
 test("setup moves or removes either key and leaves the other", function()
   P.setup{ key = "ctrl+alt+p" }
   assert(bound("alt+cmd+n") == "" and bound("ctrl+alt+p") == "switch_project_branch", "key moves")
-  assert(bound("shift+alt+cmd+n") == "open_project_worktree", "the other key stays")
+  assert(bound("ctrl+alt+cmd+n") == "open_project_worktree", "the other key stays")
   P.setup{ worktree_key = "ctrl+alt+w" }
-  assert(bound("shift+alt+cmd+n") == "" and bound("ctrl+alt+w") == "open_project_worktree", "worktree key moves")
+  assert(bound("ctrl+alt+cmd+n") == "" and bound("ctrl+alt+w") == "open_project_worktree", "worktree key moves")
   assert(bound("ctrl+alt+p") == "switch_project_branch")
   P.setup{ worktree_key = false }
   assert(bound("ctrl+alt+w") == "" and bound("ctrl+alt+p") == "switch_project_branch", "one key removed")
@@ -412,9 +412,9 @@ test("setup moves or removes either key and leaves the other", function()
   rex.bind("ctrl+alt+p", "something_else")
   P.setup{ key = "ctrl+alt+p" }
   assert(bound("ctrl+alt+p") == "something_else,switch_project_branch")
-  P.setup{ key = "alt+cmd+n", worktree_key = "shift+alt+cmd+n" }
+  P.setup{ key = "alt+cmd+n", worktree_key = "ctrl+alt+cmd+n" }
   assert(bound("ctrl+alt+p") == "something_else", "only our binding left the key")
-  assert(bound("alt+cmd+n") == "switch_project_branch" and bound("shift+alt+cmd+n") == "open_project_worktree")
+  assert(bound("alt+cmd+n") == "switch_project_branch" and bound("ctrl+alt+cmd+n") == "open_project_worktree")
 end)
 
 ---------------------------------------------------------------------------
