@@ -600,9 +600,10 @@ test("here: a new name asks for a base, and a remote base is not tracked", funct
   assert(bases.title == "Start feat-login from", "spaces become dashes: " .. bases.title)
   assert(bases.allow_other, "a base can be typed")
   local list, at = ids(bases.items)
-  assert(list[1] == "main" and bases.items[1].subtitle == "default", "the default base is first")
+  assert(list[1] == "origin/main" and bases.items[1].subtitle == "default · fetched first",
+    "the default base is first, as its remote branch: " .. list[1])
   assert(list[2] == "shared", "then the branch the main checkout is on")
-  assert(at["feature-x"] and at["origin/main"] and at["upstream/shared"], "then every other branch")
+  assert(at["feature-x"] and at["main"] and at["upstream/shared"], "then every other branch")
   assert(branch_of(repo) == "feat-login")
   assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/pr-1"), "it starts at the base")
   assert(select(2, try(repo, "config", "--get", "branch.feat-login.remote")) ~= 0, "--no-track")
@@ -613,7 +614,7 @@ test("here: Return on the base list starts from the default, and a base can be t
   answers = { "my-app", { text = "from-default" }, 1 }
   I.run({}, "here")
   assert(branch_of(repo) == "from-default")
-  assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "main"))
+  assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/main"))
   -- A remote branch is one however it is written.
   answers = { "my-app", { text = "from-long" }, { text = "remotes/origin/pr-1" } }
   I.run({}, "here")
@@ -668,8 +669,91 @@ test("the default base is a setting, and is left out where it names nothing", fu
   P.setup{ base = "develop" }
   r = I.backend.open{ project = repo, mode = "here", name = "x1" }
   assert(r.bases[1].id == "from-typed", "first is the current branch: " .. r.bases[1].id)
-  P.setup{ base = "main" }
+  P.setup{ base = false }
   assert(not has_branch(repo, "x1"), "asking for the bases makes nothing")
+end)
+
+test("the default base is fetched first, in both modes, and no other base is", function()
+  -- origin's main moves on, and local main has a commit that is not pushed.
+  git(repo, "switch", "-q", "main")
+  commit(up, "g", "new upstream\n", "upstream moves")
+  commit(repo, "h", "local only\n", "not pushed")
+  local upstream_main, local_main = git(up, "rev-parse", "main"), git(repo, "rev-parse", "main")
+  assert(git(repo, "rev-parse", "origin/main") ~= upstream_main, "not fetched yet")
+
+  answers = { "my-app", { text = "fresh-here" }, 1 }
+  I.run({}, "here")
+  assert(branch_of(repo) == "fresh-here")
+  assert(git(repo, "rev-parse", "HEAD") == upstream_main, "starts from origin/main as it is now")
+  assert(select(2, try(repo, "config", "--get", "branch.fresh-here.remote")) ~= 0, "--no-track")
+  assert(git(repo, "rev-parse", "main") == local_main, "local main is left alone")
+
+  commit(up, "g", "newer upstream\n", "upstream moves again")
+  upstream_main = git(up, "rev-parse", "main")
+  answers = { "my-app", { text = "fresh-wt" }, "origin/main" }
+  I.run({}, "worktree")
+  assert(git(wt .. "/fresh-wt", "rev-parse", "HEAD") == upstream_main, "a worktree fetches too")
+
+  -- Local main, chosen on purpose, is taken as it is, and nothing is fetched.
+  commit(up, "g", "newest upstream\n", "upstream moves once more")
+  local before = git(repo, "rev-parse", "origin/main")
+  git(repo, "switch", "-q", "fresh-here")
+  answers = { "my-app", { text = "from-local" }, "main" }
+  I.run({}, "worktree")
+  assert(git(wt .. "/from-local", "rev-parse", "HEAD") == local_main, "local main, unpushed commit and all")
+  assert(git(repo, "rev-parse", "origin/main") == before, "nothing was fetched")
+
+  -- A fetch that fails stops the action with git's message.
+  git(repo, "remote", "set-url", "origin", tmp .. "/nowhere")
+  answers = { "my-app", { text = "offline" }, 1 }
+  local message = refused(I.run, {}, "here")
+  git(repo, "remote", "set-url", "origin", up)
+  assert(message:find("^fatal:"), message)
+  assert(not has_branch(repo, "offline") and branch_of(repo) == "fresh-here", "nothing changed")
+
+  -- A default with no remote branch is listed as it is.
+  P.setup{ base = "feature-x" }
+  local r = I.backend.open{ project = repo, mode = "here", name = "x2" }
+  assert(r.bases[1].id == "feature-x" and r.bases[1].subtitle == "default")
+  P.setup{ base = false }
+  git(repo, "switch", "-q", "main")
+  -- Leave main where origin has it, so that later tests start level.
+  git(repo, "fetch", "-q", "origin")
+  git(repo, "reset", "-q", "--hard", "origin/main")
+  for _, name in ipairs({ "fresh-wt", "from-local" }) do
+    git(repo, "worktree", "remove", wt .. "/" .. name)
+    git(repo, "branch", "-q", "-D", name)
+  end
+  git(repo, "branch", "-q", "-D", "fresh-here")
+end)
+
+test("unset, the default base is the remote's default branch", function()
+  -- A remote whose default branch is trunk, and no main anywhere.
+  local up2, clone = tmp .. "/remotes/trunk", tmp .. "/code/trunk-app"
+  os.execute("mkdir -p " .. sh(up2))
+  git(up2, "init", "-q", "-b", "trunk")
+  commit(up2, "f", "0\n", "init")
+  git(tmp, "clone", "-q", up2, clone)
+  local r = I.backend.open{ project = clone, mode = "here", name = "t1" }
+  assert(r.bases[1].id == "origin/trunk" and r.bases[1].subtitle == "default · fetched first",
+    "origin's HEAD names the default: " .. r.bases[1].id)
+  -- The setting wins over what the remote says.
+  git(clone, "branch", "other")
+  P.setup{ base = "other" }
+  r = I.backend.open{ project = clone, mode = "here", name = "t1" }
+  assert(r.bases[1].id == "other" and r.bases[1].subtitle == "default", r.bases[1].id)
+  P.setup{ base = false }
+  -- With nothing recorded it is main, which this repository lacks, so the
+  -- first row is the current branch.
+  git(clone, "remote", "set-head", "origin", "-d")
+  r = I.backend.open{ project = clone, mode = "here", name = "t1" }
+  assert(r.bases[1].id == "trunk" and r.bases[1].subtitle == "current branch", r.bases[1].id)
+  -- Another remote's HEAD counts when origin has none.
+  git(clone, "remote", "add", "mirror", up2)
+  git(clone, "fetch", "-q", "mirror")
+  git(clone, "remote", "set-head", "mirror", "trunk")
+  r = I.backend.open{ project = clone, mode = "here", name = "t1" }
+  assert(r.bases[1].id == "origin/trunk", "trunk, fetched from the remote local trunk follows: " .. r.bases[1].id)
 end)
 
 test("here: a name git does not take is refused with git's words, before any base", function()
@@ -701,7 +785,7 @@ test("worktree: a new name plus a base makes the branch, the worktree and its se
   answers = { "my-app", { text = "feat/x" }, 1 }
   I.run({}, "worktree")
   assert(asked[2].title == "Open worktree in my-app" and asked[2].allow_other)
-  assert(asked[3].title == "Start feat/x from" and asked[3].items[1].id == "main")
+  assert(asked[3].title == "Start feat/x from" and asked[3].items[1].id == "origin/main")
   local s = selected()
   assert(s.cwd == wt .. "/feat-x", "the session opens in the worktree: " .. s.cwd)
   assert(s.label == "my-app · feat/x", s.label)
@@ -1011,7 +1095,7 @@ test("another host: every git and folder step runs there, and so do the session 
   assert(local_execs == 0, "commands run on the app's own server: " .. local_execs)
   assert(relays >= 5, "ops went through the other server: " .. relays)
   assert(asked[1].title == "Open worktree on studio")
-  assert(asked[3].title == "Start feat/remote from" and asked[3].items[1].id == "main")
+  assert(asked[3].title == "Start feat/remote from" and asked[3].items[1].id == "origin/main")
   -- The app is not asked to show a session on another host; see session_for.
   local s = assert(session("studio", remembered(wt .. "/feat-remote")), "remembered on the host")
   assert(s.cwd == wt .. "/feat-remote" and s.label == "my-app · feat/remote")

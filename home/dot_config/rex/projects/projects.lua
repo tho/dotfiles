@@ -28,7 +28,8 @@
 --     require("projects").setup{
 --       key           = "alt+cmd+n",        -- Switch Branch; false binds nothing
 --       worktree_key  = "ctrl+alt+cmd+n",   -- Open Worktree; false binds nothing
---       base          = "main",             -- what a new branch starts from
+--       base          = "main",             -- what a new branch starts from;
+--                                           -- unset, the remote's default branch
 --       shell         = "fish",             -- the shell of a new session
 --       worktrees     = "~/.rex/worktrees", -- where new worktrees are made
 --       roots         = { "~/src" },        -- folders whose repositories are
@@ -58,7 +59,8 @@ end
 local config = {
   key = "alt+cmd+n", -- runs Switch Branch in Project…
   worktree_key = "ctrl+alt+cmd+n", -- runs Open Worktree in Project…
-  base = "main", -- what a new branch starts from unless another is chosen
+  base = nil, -- what a new branch starts from unless another is chosen; nil
+  -- means the remote's default branch, else "main"
   shell = nil, -- nil means the account's default shell
   worktrees = nil, -- nil means <home>/.rex/worktrees
   roots = {},
@@ -689,16 +691,85 @@ local function branch_rows(project, mode, c)
   return rows
 end
 
+-- remote_head returns the branch that git recorded as the default branch of
+-- remote, such as "main", or nil. git clone records it in
+-- refs/remotes/<remote>/HEAD; a remote added by hand has none until
+-- git remote set-head runs.
+local function remote_head(project, remote)
+  local out = git(project, "symbolic-ref", "--quiet", "refs/remotes/" .. remote .. "/HEAD")
+  if out == nil then return nil end
+  local prefix = "refs/remotes/" .. remote .. "/"
+  out = trim(out)
+  if out:sub(1, #prefix) ~= prefix or #out == #prefix then return nil end
+  return out:sub(#prefix + 1)
+end
+
+-- default_base returns the name of what a new branch starts from by
+-- default: the base setting, else the default branch of origin, else of the
+-- first other remote that has one recorded, else "main". It reads only what
+-- is on disk, so it costs no network call.
+local function default_base(project)
+  if config.base then return config.base end
+  local remotes = {}
+  local out = git(project, "remote")
+  for line in (out or ""):gmatch("[^\r\n]+") do
+    if line == "origin" then table.insert(remotes, 1, line) else remotes[#remotes + 1] = line end
+  end
+  for _, remote in ipairs(remotes) do
+    local head = remote_head(project, remote)
+    if head ~= nil then return head end
+  end
+  return "main"
+end
+
+-- default_remote_base returns the remote branch of the default base, as
+-- { name = "origin/main", remote = "origin", branch = "main" }, or nil when
+-- it has none. That is the branch the local one follows, else the branch of
+-- that name on origin, else on the first remote that has it. Only one that
+-- was fetched before counts, so that the row names something.
+local function default_remote_base(project)
+  local base = default_base(project)
+  local remote, branch = nil, nil
+  if has_ref(project, "refs/heads/" .. base) then
+    local r = trim(git(project, "config", "--get", "branch." .. base .. ".remote") or "")
+    local m = trim(git(project, "config", "--get", "branch." .. base .. ".merge") or "")
+    -- A remote of "." is the repository itself.
+    if r ~= "" and r ~= "." and m:find("^refs/heads/") then
+      remote, branch = r, m:sub(#"refs/heads/" + 1)
+    end
+  end
+  if remote == nil then
+    for _, r in ipairs(remote_branches(project)) do
+      if r.branch == base then
+        local name = r.name:sub(1, #r.name - #base - 1)
+        if remote == nil or name == "origin" then remote = name end
+        branch = base
+      end
+    end
+  end
+  if remote == nil or not has_ref(project, "refs/remotes/" .. remote .. "/" .. branch) then return nil end
+  return { name = remote .. "/" .. branch, remote = remote, branch = branch }
+end
+
 -- base_rows returns the rows that say what a new branch starts from: the
 -- default base, the main checkout's branch, then every other branch, the
--- remote ones included.
+-- remote ones included. A default base with a remote branch is listed as
+-- that remote branch, which is fetched before the new branch starts there;
+-- the local branch is listed with the others.
 local function base_rows(project, c)
   local rows, add = row_list()
-  -- Leave the default out where it names nothing, such as "main" in a
-  -- repository whose first branch is "master", so that Return on the first
-  -- row always works. The default may be any commit, so rev-parse reads it.
-  if git(project, "rev-parse", "--verify", "--quiet", config.base .. "^{commit}") ~= nil then
-    add(config.base, "default")
+  local fetched = default_remote_base(project)
+  if fetched ~= nil then
+    add(fetched.name, "default · fetched first")
+  else
+    -- Leave the default out where it names nothing, such as "main" in a
+    -- repository with no remote whose first branch is "master", so that
+    -- Return on the first row always works. The default may be any commit,
+    -- so rev-parse reads it.
+    local base = default_base(project)
+    if git(project, "rev-parse", "--verify", "--quiet", base .. "^{commit}") ~= nil then
+      add(base, "default")
+    end
   end
   if c.current then add(c.current, "current branch") else add("HEAD", "detached") end
   for _, name in ipairs(local_branches(project)) do add(name) end
@@ -947,6 +1018,13 @@ function open_checkout(a)
       if base == "" then return { name = name, bases = base_rows(project, c) } end
       -- Git would read a base that starts with a dash as an option.
       if base:sub(1, 1) == "-" then return { why = "not a branch or a commit: " .. base } end
+      -- The default base starts from what its remote has now. Every other
+      -- base is taken as it is here, unpushed commits and all.
+      local fetched = default_remote_base(project)
+      if fetched ~= nil and base == fetched.name then
+        local _, err = git(project, "fetch", "--quiet", fetched.remote, fetched.branch)
+        if err ~= nil then return { why = err } end
+      end
       -- A new branch does not follow the remote branch it starts from,
       -- however that branch was written: origin/x, remotes/origin/x.
       local full = git(project, "rev-parse", "--symbolic-full-name", base)
@@ -1480,7 +1558,8 @@ function M.setup(opts)
   opts = opts or {}
   if opts.worktrees ~= nil then config.worktrees = opts.worktrees end
   if opts.roots ~= nil then config.roots = opts.roots end
-  if opts.base ~= nil then config.base = opts.base end
+  -- false goes back to the remote's default branch.
+  if opts.base ~= nil then config.base = opts.base or nil end
   for _, key in ipairs({ "project_order", "branch_order" }) do
     local v = opts[key]
     if v == "recent" or v == "name" then

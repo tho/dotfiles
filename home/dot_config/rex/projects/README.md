@@ -41,7 +41,7 @@ All settings are optional.
 require("projects").setup{
   key           = "alt+cmd+n",        -- Switch Branch in Project…; false binds no key
   worktree_key  = "ctrl+alt+cmd+n",   -- Open Worktree in Project…; false binds no key
-  base          = "main",             -- default base of a new branch
+  base          = "main",             -- default base of a new branch; unset, the remote's default branch
   shell         = "fish",             -- shell of a new session; default is the account's shell
   worktrees     = "~/.rex/worktrees", -- new worktrees go in <dir>/<project>/<branch>
   roots         = { "~/src" },        -- repositories in these folders are listed without adding them
@@ -52,6 +52,7 @@ require("projects").setup{
 
 - `REX_WORKTREES` and `REX_PROJECTS` set the worktree folder and one scan root when `setup` doesn't.
 - `shell` is a name or a path, such as `fish` or `/bin/zsh`. Set it to match the app's Startup Command (Settings > Terminal > Shell): that setting only applies to terminals the app opens itself, such as new tabs, and a script cannot read it. Like `base`, it is read on the host that has the project.
+- Without `base`, each repository's default branch is the one git recorded for `origin` when it was cloned (`refs/remotes/origin/HEAD`), else for another remote, else `main`. Nothing is fetched to find it. After the default branch is renamed on the server, run `git remote set-head origin --auto` to update it. `base = false` in a later `setup` goes back to this.
 - `base` is read on the host that has the project. If nothing there has that name, the base list starts with the main checkout's branch.
 - State (the project list, the order of last use and each checkout's session id) is kept in `projects.json` in your [config folder](https://www.superlogical.com/rex/docs/customize/config#file-location).
 
@@ -83,7 +84,8 @@ Switch Branch and Open Worktree both show the project picker, then one list of b
 | A name that matches nothing | Creates the branch, then as a local branch | Same |
 
 - **New branches** always ask for a base. The list has the default base first, then the main checkout's branch, then every other branch. You can also type one, such as `origin/main`. A branch started from a remote branch does not track it (`--no-track`).
-- **Remote branches** are listed as `<remote>/<branch>` unless a local branch has the same name. Nothing is fetched, so the list shows what you fetched last.
+- **The default base is fetched.** When the default base has a remote branch (the one the local branch tracks, else `origin/<base>`), the first row is that remote branch, such as `origin/main`, marked `default · fetched first`. Choosing it fetches that one branch and starts the new branch from it. If the fetch fails, the action stops with git's message. Every other base, local `main` included, is used as it is, unpushed commits and all. Local `main` itself is never moved.
+- **Remote branches** are listed as `<remote>/<branch>` unless a local branch has the same name. Apart from the default base, nothing is fetched, so the list shows what you fetched last.
 - **Hidden rows:** Switch Branch does not list branches held by a worktree, and Open Worktree does not list the main checkout's branch. Typing such a name shows git's refusal.
 - Spaces in a typed name become dashes.
 - A folder that is not a repository has no branch list. Both actions go straight to its session.
