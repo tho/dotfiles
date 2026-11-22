@@ -5,11 +5,11 @@
 -- Pickers and backend. The actions (see "The actions") run in the app's own
 -- server, the one on the Mac, because the app lists and binds only that
 -- server's actions. They do the asking: rex.ui.pick lists, and the session
--- calls. Everything that reads folders, runs git, wt or gh, or touches the
+-- calls. Everything that reads folders, runs git or wt, or touches the
 -- saved state is an op of the backend table, run where the projects are.
 -- Ops never ask the person anything. Each answers a table of plain values,
 -- or { why = message } when the request cannot be done, carrying the
--- tool's own words where git, wt or gh refused, and the action fails with
+-- tool's own words where git or wt refused, and the action fails with
 -- it (fail).
 --
 -- The relay. connect picks where ops run: here, as a plain call, or, for a
@@ -30,8 +30,9 @@
 -- hook, takes it on its own host. Records are hints that git, wt or a person
 -- can outdate at any time, so each is checked before use.
 --
--- git, wt and gh run through rex.exec with argument lists, with PATH and a
--- few other variables from the login shell (login_env). The script is
+-- git and wt run through rex.exec with argument lists, with PATH and a
+-- few other variables from the login shell (login_env), gh's among them for
+-- the gh that wt runs for a pull request. The script is
 -- written for Lua 5.1, as Rex embeds it; test/run.lua runs it against a
 -- stand-in for Rex, and test/host.lua against a real server.
 
@@ -342,7 +343,7 @@ end
 
 -- A backend op that another server asked for has 10 seconds to answer, and
 -- the caller gives up after that while the op carries on. So in such an op
--- the commands that use the network, git fetch and gh, together get
+-- the commands that use the network, git fetch and wt, together get
 -- NET_SECONDS, and one that is not done by then is stopped and says so.
 -- net_limit is set while such an op runs: by is the time they must end by,
 -- or nil where this script has no clock.
@@ -371,8 +372,8 @@ local LOGIN_VARS = {
 local LOGIN_SECONDS = 5
 local login_cache = nil
 
--- The Rex server's PATH can lack Homebrew on a Mac, so git, wt and gh are
--- found through the login shell.
+-- The Rex server's PATH can lack Homebrew on a Mac, so git, wt and the gh
+-- that wt runs are found through the login shell.
 local function login_env()
   if login_cache ~= nil then return login_cache end
   login_cache = false
@@ -502,7 +503,7 @@ end
 -- wt_hooked runs a wt command whose hooks run, as wt_in does. Hooks run as
 -- in a terminal, network and all, so in an op another server asked for the
 -- command gets the network's time limit. wt finds the default branch off
--- the network first, as Review Pull Request does.
+-- the network first, so that the time goes to the command itself.
 local function wt_hooked(project, ...)
   if net_limit ~= nil then wt_in(project, false, "config", "state", "default-branch") end
   return wt_in(project, true, ...)
@@ -537,17 +538,11 @@ local function wt_why(project, r)
     "in a terminal in " .. short(project) .. ", then try again"
 end
 
--- wt runs wt and returns its JSON answer, decoded, or nil and wt's message,
--- and true as well when it was stopped for taking too long. how is "hooks"
--- for a command whose hooks run (see wt_hooked), else whether it uses the
--- network (see wt_in).
-local function wt(project, how, ...)
-  local r, err, stopped
-  if how == "hooks" then
-    r, err, stopped = wt_hooked(project, ...)
-  else
-    r, err, stopped = wt_in(project, how, ...)
-  end
+-- wt runs a wt command whose hooks run (see wt_hooked) and returns its JSON
+-- answer, decoded, or nil and wt's message, and true as well when it was
+-- stopped for taking too long.
+local function wt(project, ...)
+  local r, err, stopped = wt_hooked(project, ...)
   if r == nil then return nil, err, stopped end
   if not r.ok then return nil, wt_why(project, r) end
   local decoded = decode(r.stdout)
@@ -703,8 +698,7 @@ end
 --   local     a local branch
 --   remote    a remote branch such as origin/x, with branch = "x"
 --   shortcut  wt's ^ (the default branch) or - (wt's previous branch)
---   pr        a pull request, pr:N or a link to one, with pr = what Review
---             takes for it
+--   pr        a pull request, pr:N or a link to one, with pr = its number
 --   new       a name git takes for a new branch
 -- or nil and why it names no branch. A bare number is a branch name.
 local function typed_name(project, c, text)
@@ -712,9 +706,9 @@ local function typed_name(project, c, text)
   if name == "" then return nil, "no branch was named" end
   if name == "^" or name == "-" then return { kind = "shortcut", name = name } end
   local n = name:match("^pr:(%d+)$")
-  if n ~= nil then return { kind = "pr", name = name, pr = "#" .. n } end
+  if n ~= nil then return { kind = "pr", name = name, pr = tonumber(n) } end
   if name:find("^https?://") and pr_number(name) ~= nil then
-    return { kind = "pr", name = name, pr = name }
+    return { kind = "pr", name = name, pr = pr_number(name) }
   end
   if name == (c.current or "HEAD") then return { kind = "current", name = name } end
   if has_ref(project, "refs/heads/" .. name) then return { kind = "local", name = name } end
@@ -1121,25 +1115,17 @@ end
 
 -- switch_worktree runs wt switch in project, with args naming what to
 -- switch to: a branch, a remote branch such as origin/x, --create and
--- --base for a new branch, or pr:<number>. wt goes to the branch's worktree,
--- or makes one, and makes the local branch when there is none. how is
--- "hooks" for the user's own branches: their hooks run, and wt's approval of
--- a project's hooks decides, as in a terminal. Else no hook runs, since the
--- hooks of a pull request come from whoever wrote it, and how is "network"
--- when wt fetches, as it does for a pull request, or "local".
+-- --base for a new branch, wt's ^ or -, or pr:<number>. wt goes to the
+-- branch's worktree, or makes one, and makes the local branch when there is
+-- none. Hooks run as in a terminal, and wt's approval of a project's hooks
+-- decides.
 --
 -- It returns { dir, branch }: the checkout's folder as git spells it, and
 -- its branch. Else it returns nil and wt's message, and true as well when wt
 -- was stopped for taking too long.
-local function switch_worktree(project, how, ...)
-  local r, err, stopped
-  if how == "hooks" then
-    r, err, stopped = wt(project, "hooks", "switch", "--no-cd", "--format=json",
-      "--config-set", worktree_path(), ...)
-  else
-    r, err, stopped = wt(project, how == "network", "switch", "--no-cd", "--no-hooks", "--format=json",
-      "--config-set", worktree_path(), ...)
-  end
+local function switch_worktree(project, ...)
+  local r, err, stopped = wt(project, "switch", "--no-cd", "--format=json",
+    "--config-set", worktree_path(), ...)
   if r == nil then return nil, err, stopped end
   local co = { dir = tostring(r.path or ""), branch = r.branch }
   -- wt may spell the folder differently from git (a symlink such as /tmp),
@@ -1149,12 +1135,6 @@ local function switch_worktree(project, how, ...)
     if co.branch ~= nil and tree.branch == co.branch then co.dir = tree.path; break end
   end
   return co
-end
-
--- pr_mark says whether branch was opened for a pull request: Review Pull
--- Request marks it with branch.<name>.rex-pr.
-local function pr_mark(project, branch)
-  return git_text(project, "config", "--get", "branch." .. branch .. ".rex-pr") ~= ""
 end
 
 -- switch_branch checks branch out in the project's own folder. Without
@@ -1207,7 +1187,7 @@ end
 -- session. It may when its terminal is inside the checkout and it is not
 -- already the session of another checkout. It also answers the project's
 -- name, the branch checked out in dir (nil for a plain folder or a detached
--- HEAD) and pr, the number of the pull request reviewed, for the label and
+-- HEAD) and pr, the number of the pull request opened, for the label and
 -- layout settings.
 local function landing(dir, label, a, repo, pr)
   local sessions = load_state().sessions
@@ -1388,7 +1368,7 @@ end
 -- request, and what does.
 local function elsewhere(t)
   if t.kind == "pr" then
-    return t.name .. " is a pull request, which Switch Branch does not open: use Review Pull Request"
+    return t.name .. " is a pull request, which Switch Branch does not open: use Open Worktree"
   end
   local what = t.name == "^" and "the default branch" or "the previous branch"
   return t.name .. " is wt's shortcut for " .. what ..
@@ -1418,40 +1398,79 @@ local function switch_checkout(a)
   return landing(project, title, a, true)
 end
 
-local review_checkout
+-- repo_of reads where a repository's address points: its host, in lower
+-- case and without a port, or nil for a folder, and the owner/repo it ends
+-- in, in lower case, or nil. It reads https://host[:port]/o/r(.git),
+-- ssh://[user@]host[:port]/o/r and [user@]host:o/r.
+local function repo_of(url)
+  url = trim(url):gsub("/+$", ""):gsub("%.git$", "")
+  local host, path = url:match("^%a[%w+.-]*://([^/]*)/(.+)$")
+  if host == nil then host, path = url:match("^([^/:]+):(.+)$") end
+  if host == nil then return nil, nil end
+  host = host:gsub("^.*@", ""):gsub(":%d*$", "")
+  if host == "" then return nil, nil end
+  local owner_repo = path:match("([^/]+/[^/]+)$")
+  return host:lower(), owner_repo and owner_repo:lower() or nil
+end
+
+-- wrong_link says why typed, a link to a pull request, is not one of
+-- project's, or returns nil for a link that is. wt reads only the number of
+-- a link and opens that pull request of the project's own remote, so the
+-- link's host and owner/repo must be a remote's. A remote whose host has no
+-- dot is an ssh host alias, which hides the real host: owner/repo decides.
+-- Remotes are read as written, before any insteadOf.
+local function wrong_link(project, typed)
+  local host, linked = repo_of(tostring(typed):match("^(.*)/pull/%d+") or "")
+  if host == nil or linked == nil then return "not a link to a pull request: " .. tostring(typed) end
+  local out = git(project, "config", "--get-regexp", "^remote\\..*\\.url$") or ""
+  for url in out:gmatch("remote%.[^\r\n]-%.url ([^\r\n]+)") do
+    local h, r = repo_of(url)
+    if h ~= nil and r == linked and (h == host or not h:find(".", 1, true)) then return nil end
+  end
+  return "that link is to a pull request of " .. host .. "/" .. linked ..
+    ", which is no remote of " .. basename(project)
+end
 
 local function worktree_checkout(a)
   local c, t = prepare(a)
   if c == nil then return t end
   local project, title = a.project, basename(a.project)
-  if t.kind == "pr" then return review_checkout(a, t.pr) end
   if t.kind == "current" then return landing(project, title, a, true) end
   local tree = t.kind == "local" and c.taken[t.name] or nil
   if tree ~= nil and not tree.prunable then
     return landing(tree.path, title .. " · " .. t.name, a, true)
   end
-  -- Hooks run for the user's own branches, not for a pull request's, by its
-  -- mark, nor for wt's shortcuts.
   local branch = t.kind == "remote" and t.branch or t.name
-  local how = (t.kind ~= "shortcut" and not pr_mark(project, branch)) and "hooks" or "local"
   local co, err, stopped
-  if t.kind == "new" then
+  if t.kind == "pr" then
+    if t.name:find("^https?://") then
+      local wrong = wrong_link(project, t.name)
+      if wrong ~= nil then return { why = wrong } end
+    end
+    -- wt names the branch after the pull request's, and for one from a fork
+    -- sets it to push there. A checkout that was there already stays at the
+    -- commit it is at.
+    branch = "pr:" .. t.pr
+    co, err, stopped = switch_worktree(project, branch)
+  elseif t.kind == "new" then
     local base, why = new_base(project, a.base)
     if base == nil then return { why = why } end
-    co, err, stopped = switch_worktree(project, how, "--create", t.name, "--base", base)
+    co, err, stopped = switch_worktree(project, "--create", t.name, "--base", base)
   else
     -- A remote branch goes by its own name, origin/x, and wt makes x. wt
     -- reads ^ and - itself.
-    co, err, stopped = switch_worktree(project, how, t.name)
+    co, err, stopped = switch_worktree(project, t.name)
   end
-  if co == nil and stopped and how == "hooks" then
+  if co == nil and stopped then
     err = err .. ". A wt hook may have held it: open " .. branch .. " again to go to the worktree wt made"
   end
   if co == nil then return { why = err } end
+  local label, pr = title .. " · " .. (co.branch or t.name), nil
+  if t.kind == "pr" then label, pr = title .. " · #" .. t.pr, t.pr end
   -- A name wt answers with the main checkout, such as ^ or origin/main, is
   -- the main checkout.
-  if co.dir == c.top then return landing(project, title, a, true) end
-  return landing(co.dir, title .. " · " .. (co.branch or t.name), a, true)
+  if co.dir == c.top then return landing(project, title, a, true, pr) end
+  return landing(co.dir, label, a, true, pr)
 end
 
 -- switch_here switches the project's own folder to the branch a.name and
@@ -1479,9 +1498,9 @@ end
 -- local branch, a remote one ("origin/x", which becomes a local branch "x"
 -- that tracks it), or a new branch, which starts from a.base, which name
 -- offers rows for. wt reads its shortcuts ^ (the default branch) and - (its
--- previous branch) itself, and a pull request, pr:N or a link, opens as
--- Review Pull Request opens it. a.from is the session the action was run from and
--- a.cwd the folder of its terminal.
+-- previous branch) itself, and a pull request, pr:N, or a link to one of the
+-- project's remotes, opens with wt switch pr:N. a.from is the session the
+-- action was run from and a.cwd the folder of its terminal.
 --
 -- It answers one of
 --   { dir, label, session, adopt, ... }  where to work; see landing
@@ -1549,8 +1568,7 @@ local kept = {
 -- pruned.
 -- With a.force, wt remove -D deletes the branch whatever it holds.
 --
--- The hooks of the user's own branches run; a branch marked for a pull
--- request runs none.
+-- wt's hooks run, as in a terminal.
 --
 -- It answers
 --   { why }              the worktree, when there was one, is still there,
@@ -1567,19 +1585,12 @@ function backend.cleanup(a)
   local c, unreadable = checkouts(project)
   if c == nil then return { why = unreadable } end
   local tree = c.taken[branch]
-  local marked = pr_mark(project, branch)
   -- --delete-branch wins over a [remove] delete-branch = false in wt's
   -- config.
   local args = { "remove", "--foreground", "--format=json", "--delete-branch" }
-  if marked then table.insert(args, 3, "--no-hooks") end
   if a.force then args[#args + 1] = "-D" end
   args[#args + 1] = branch
-  local r, err
-  if marked then
-    r, err = wt_in(project, false, unpack(args))
-  else
-    r, err = wt_hooked(project, unpack(args))
-  end
+  local r, err = wt_hooked(project, unpack(args))
   -- wt exits 1 when git fails to delete the branch, yet answers what it
   -- removed. A refusal answers nothing.
   local list, outcome, why = nil, nil, err
@@ -1660,154 +1671,6 @@ function backend.forget(a)
   s.sessions[a.project] = nil
   save_state()
   return {}
-end
-
----------------------------------------------------------------------------
--- Pull requests
----------------------------------------------------------------------------
-
--- wt switch pr:<number> makes or finds the checkout of a pull request. Each
--- branch Review Pull Request opens then carries a setting in the
--- repository's config: branch.<name>.rex-pr, the number of its pull request.
--- Git drops it when it deletes the branch.
-
--- gh runs the GitHub CLI in project and returns what it printed as JSON,
--- decoded, or nil and why.
-local function gh(project, ...)
-  local r, err = rex.exec({ "gh", ... }, tool_opts({ cwd = project, timeout = net_timeout() }))
-  if r ~= nil and r.timed_out then return nil, timed_out("gh") end
-  if r == nil or r.code == 127 then
-    return nil, "gh did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
-      "). Review Pull Request needs the GitHub CLI on PATH (the login shell's)."
-  end
-  if not r.ok then return nil, or_status(trim(r.stderr), "gh", r) end
-  local decoded = decode(r.stdout)
-  if decoded == nil then return nil, "gh did not answer with JSON" end
-  return decoded
-end
-
--- owner_repo reads the owner/repo that a repository's address ends in, in
--- lower case, or nil: https://github.com/Acme/App.git, git@work:acme/app and
--- acme/app itself all read acme/app.
-local function owner_repo(url)
-  url = trim(url):gsub("/+$", ""):gsub("%.git$", "")
-  local path = url:match("([^/:]+/[^/:]+)$")
-  return path and path:lower() or nil
-end
-
--- wrong_link says why typed, a link to a pull request, is not one of
--- project's, or returns nil for a link that is, and for a number. wt reads
--- only the number of a link and looks for it in the repository gh is set
--- to (gh repo set-default), else in a remote's. So the link's repository
--- must be that one, else one of the remotes.
-local function wrong_link(project, typed)
-  local linked = owner_repo(tostring(typed):match("^(.*)/pull/%d+") or "")
-  if linked == nil then return nil end
-  local title = basename(project)
-  -- set-default --view reads git config, not the network.
-  local r = rex.exec({ "gh", "repo", "set-default", "--view" },
-    tool_opts({ cwd = project, timeout = net_timeout() }))
-  local default = r ~= nil and r.ok and owner_repo(r.stdout) or nil
-  if default ~= nil then
-    if default == linked then return nil end
-    return "that link is to a pull request of " .. linked .. ", and gh looks in " .. default ..
-      " for those of " .. title .. " (gh repo set-default)"
-  end
-  local names = git(project, "remote") or ""
-  for name in names:gmatch("[^\r\n]+") do
-    if owner_repo(git(project, "remote", "get-url", name) or "") == linked then return nil end
-  end
-  return "that link is to a pull request of " .. linked .. ", which is no remote of " .. title
-end
-
--- pr_branches maps each pull request number to the branch Review made for it.
-local function pr_branches(project)
-  local map = {}
-  local out = git(project, "config", "--get-regexp", "^branch\\..*\\.rex-pr$") or ""
-  for line in out:gmatch("[^\r\n]+") do
-    local branch, number = line:match("^branch%.(.+)%.rex%-pr (%d+)$")
-    if branch then map[tonumber(number)] = branch end
-  end
-  return map
-end
-
--- pulls returns the rows of the pull request list of a.project: those whose
--- review is asked of you first, then the rest, each newest first.
-function backend.pulls(a)
-  local project = a.project
-  local c, unreadable = checkouts(project)
-  if c == nil then return { why = unreadable } end
-  local list, err = gh(project, "pr", "list", "--state", "open", "--limit", "500",
-    "--json", "number,title,headRefName,author,isDraft")
-  if list == nil then return { why = err } end
-  -- With none open the list is empty, and a number or a link can still be
-  -- typed: a closed pull request can be reviewed too.
-  if #list == 0 then return { rows = {} } end
-  -- Asked of you, teams included. Without an answer, none is first.
-  local asked = {}
-  local mine = gh(project, "pr", "list", "--state", "open", "--limit", "500",
-    "--search", "review-requested:@me", "--json", "number")
-  for _, p in ipairs(mine or {}) do asked[p.number] = true end
-  local held = pr_branches(project)
-  local first, rest = {}, {}
-  for _, p in ipairs(list) do
-    local bits = { p.headRefName }
-    if type(p.author) == "table" and p.author.login then bits[#bits + 1] = "@" .. p.author.login end
-    if p.isDraft then bits[#bits + 1] = "draft" end
-    if asked[p.number] then bits[#bits + 1] = "review requested" end
-    local branch = held[p.number]
-    local tree = branch and c.taken[branch]
-    local row = {
-      id = "#" .. p.number,
-      title = "#" .. p.number .. " " .. tostring(p.title),
-      subtitle = table.concat(bits, " · "),
-      -- A pull request with a worktree already looks like one.
-      icon = (tree and not tree.prunable) and "folder" or "branch",
-    }
-    if asked[p.number] then first[#first + 1] = row else rest[#rest + 1] = row end
-  end
-  local rows = {}
-  for _, group in ipairs({ first, rest }) do
-    for _, row in ipairs(group) do
-      if #rows < MAX_ROWS then rows[#rows + 1] = row end
-    end
-  end
-  return { rows = rows }
-end
-
--- review_checkout makes the checkout of the pull request typed, a number or
--- a link, in a.project ready with wt switch pr:<number> and says where it
--- is, as the open ops do, or answers { why }.
--- wt names the branch after the pull request's branch, and for one from a
--- fork sets it to push there; a branch of that name that is there already
--- is opened as it is. A pull request of the main checkout's branch opens in
--- the main checkout. A checkout that was there already stays at the commit
--- it is at: bringing it up to the pull request is git's to do.
-function review_checkout(a, typed)
-  local project = a.project
-  local title = basename(project)
-  local n = pr_number(typed)
-  if n == nil then return { why = "not a pull request: " .. tostring(typed) } end
-  local c, unreadable = checkouts(project)
-  if c == nil then return { why = unreadable } end
-  local wrong = wrong_link(project, typed)
-  if wrong ~= nil then return { why = wrong } end
-  -- On another host, have wt find the default branch off the network
-  -- first: the switch below may use the network, and so may wt to find it.
-  if net_limit ~= nil then wt_in(project, false, "config", "state", "default-branch") end
-  local co, err = switch_worktree(project, "network", "pr:" .. n)
-  if co == nil then return { why = err } end
-  if co.branch ~= nil then
-    git(project, "config", "branch." .. co.branch .. ".rex-pr", tostring(n))
-  end
-  if co.dir == c.top then return landing(project, title, a, true, n) end
-  return landing(co.dir, title .. " · #" .. n, a, true, n)
-end
-
-function backend.review(a)
-  local r = review_checkout(a, a.pr)
-  if r.why == nil then mark_used(a.project) end
-  return r
 end
 
 -- The app cannot hide an action, so this one sits in a category of its own,
@@ -2260,33 +2123,6 @@ local function remove_run(ctx)
   call("forget", { project = project })
 end
 
--- review_run is the body of Review Pull Request…: it opens a pull request
--- in a worktree and goes to its session.
-local function review_run(ctx)
-  ctx = ctx or {}
-  local call, server = connect(ctx)
-  local cwd = terminal_dir(ctx, server)
-  local project = choose_project(ctx, call, "Review pull request", cwd)
-  if project == nil then return end
-
-  local list = call("pulls", { project = project })
-  if list.why ~= nil then return fail(list.why) end
-  local picked, why = rex.ui.pick{
-    title = "Review pull request in " .. basename(project),
-    placeholder = "Pull request, number or link",
-    allow_other = true,
-    items = list.rows or {},
-  }
-  if picked == nil then return fail(why) end
-  picked = typed_or_picked(picked)
-  if picked == "" then return end
-
-  local r = call("review", { project = project, pr = picked, from = ctx.session_id, cwd = cwd })
-  if r.why ~= nil then return fail(r.why) end
-
-  session_for(ctx, call, server, r)
-end
-
 rex.action{
   name = "switch_project_branch",
   title = "Switch Branch in Project…",
@@ -2321,15 +2157,6 @@ rex.action{
   category = "Projects",
   keywords = "folder repository project list",
   run = add_run,
-}
-
-rex.action{
-  name = "review_pull_request",
-  title = "Review Pull Request…",
-  description = "Choose a project and one of its open pull requests, and go to the session of its worktree, making both when needed",
-  category = "Projects",
-  keywords = "pull request pr review github worktree branch",
-  run = review_run,
 }
 
 -- close_run closes the session rex-projects made for the checkout at
@@ -2462,7 +2289,7 @@ M._internal = {
   wt_reason = wt_reason, toml = toml,
   switch_run = switch_run, worktree_run = worktree_run,
   clean_up = clean_up, add_run = add_run, remove_run = remove_run,
-  review_run = review_run, pr_number = pr_number, owner_repo = owner_repo,
+  pr_number = pr_number, repo_of = repo_of,
   backend = backend, config = config,
   tool_opts = tool_opts,
   reset = function() state = nil end,

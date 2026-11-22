@@ -6,7 +6,6 @@ A [Rex](https://www.superlogical.com/rex) Lua script for git projects. Pick a pr
 |---|---|---|---|
 | Switch Branch in Project… | `⌥⌘N` | `switch_project_branch` | `git switch` in the main checkout, then open its session |
 | Open Worktree in Project… | `⌃⌥⌘N` | `open_project_worktree` | Open the branch in its own worktree and session |
-| Review Pull Request… | | `review_pull_request` | Open a pull request in its own worktree and session |
 | Clean Up Branch in Project… | | `clean_up_project_branch` | Delete a branch, its worktree and the session made for it |
 | Add Project to List… | | `add_project` | Browse to a folder and add it |
 | Remove Project from List… | | `remove_project` | Take a project off the list; its folder is untouched. One found under `roots` stays hidden until added again or its root is no longer set. Missing ones are marked and listed last |
@@ -20,7 +19,6 @@ Requires, on every host whose projects you want:
 - Git 2.43+
 - [worktrunk](https://worktrunk.dev) (`wt`) v0.82.0; its user config applies
 - Rex server at control API revision 17+
-- [gh](https://cli.github.com), logged in, for Review Pull Request
 
 Tools are found on the login shell's `PATH` (`$SHELL -l -c env`), so set `PATH` in a profile file.
 
@@ -91,11 +89,13 @@ One session per checkout: `my-app` for the main checkout, `my-app · feat/x` for
 
 ## Pull requests
 
-Review Pull Request lists open PRs from `gh pr list` (review requests first), or takes a number or link. The checkout is `wt switch pr:<number>`: same-repo branches track the remote, fork branches push to the fork. Reopening goes to the existing worktree; update it with git yourself.
+Open Worktree takes `pr:N` and runs `wt switch pr:N`, which uses [gh](https://cli.github.com) to find the PR on the project's own remote: same-repo branches track the remote, fork branches push to the fork. The session is labelled `my-app · #N`. Reopening goes to the existing worktree; update it with git yourself.
+
+A PR link (`https://host/owner/repo/pull/N`, or any page of it) is taken only when its host and owner/repo match one of the project's remotes, and is then opened as `pr:N`. A remote behind an ssh host alias (`git@work:owner/repo`) matches on owner/repo alone. A bare number is a branch name.
 
 ## Hooks and clean up
 
-wt hooks run for your own branches. PR branches, `^` and `-` run with `--no-hooks`. An unapproved project hook fails the action; run `wt config approvals add` in the project.
+wt hooks run for every branch Open Worktree opens and Clean Up removes, PRs and `^`/`-` included, as `wt switch` and `wt remove` run them in a terminal. An unapproved project hook fails the action and nothing changes; run `wt config approvals add` in the project.
 
 Clean Up runs `wt remove --foreground --delete-branch <branch>` (never `--force`). wt refuses dirty worktrees. If the branch has unmerged changes you choose **Keep** or **Force delete**. The session is closed once git no longer lists the worktree.
 
@@ -108,7 +108,7 @@ rex = "rex do close_project_session path={{ worktree_path }}"
 
 ## Limits
 
-- On a remote host each step must answer within 10 seconds; network calls (`git fetch`, `gh`, hook-running `wt`) share 8 of them. Other remote `wt` calls run with `GIT_ALLOW_PROTOCOL=none`, so wt guesses the default branch locally; run `wt config state default-branch clear` to reset it.
+- On a remote host each step must answer within 10 seconds; network calls (`git fetch`, and `wt switch` and `wt remove`, which run hooks and, for `pr:N`, gh) share 8 of them. Other remote `wt` calls run with `GIT_ALLOW_PROTOCOL=none`, so wt guesses the default branch locally; run `wt config state default-branch clear` to reset it.
 - A worktree deleted by hand stays stale until `git worktree prune` or Clean Up.
 
 ## Tests

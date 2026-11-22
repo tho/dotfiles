@@ -194,39 +194,9 @@ local function api(host)
   end
 end
 
--- A stand-in for the GitHub CLI. prs are the open pull requests, newest
--- first, with the fields gh gives; review_asked holds the numbers whose
--- review is asked of you; gh_missing makes gh not run, and gh_search_fails
--- makes only the search for those reviews fail. gh_default is the
--- repository of gh repo set-default, or nil. gh_cwd is the folder gh was
--- last run in.
---
--- This one answers projects.lua. wt runs gh itself, and gets the script
--- that serve_prs writes, which reads the pull requests from files.
-local prs, review_asked, gh_missing, gh_search_fails, gh_default, gh_cwd = {}, {}, false, false, nil, nil
-local function gh_stub(argv, opts)
-  gh_cwd = opts and opts.cwd
-  if gh_missing then return { ok = false, code = 127, stdout = "", stderr = "gh: command not found" } end
-  local function answer(v) return { ok = true, code = 0, stdout = json.encode(v), stderr = "" } end
-  if argv[2] == "repo" and argv[3] == "set-default" and argv[4] == "--view" then
-    if gh_default == nil then
-      return { ok = false, code = 1, stdout = "", stderr = "no default repository has been set" }
-    end
-    return { ok = true, code = 0, stdout = gh_default .. "\n", stderr = "" }
-  elseif argv[2] == "pr" and argv[3] == "list" then
-    local searching = false
-    for _, a in ipairs(argv) do if a == "--search" then searching = true end end
-    if searching and gh_search_fails then
-      return { ok = false, code = 1, stdout = "", stderr = "HTTP 422: search is not available" }
-    end
-    local out = {}
-    for _, p in ipairs(prs) do
-      if not searching or review_asked[p.number] then out[#out + 1] = p end
-    end
-    return answer(out)
-  end
-  error("gh stand-in: no command " .. table.concat(argv, " "))
-end
+-- prs are the pull requests of up, as gh pr list gives them, for the gh
+-- that wt runs: see serve_prs.
+local prs = {}
 
 -- timeouts holds the time limit of each command run with one, as
 -- { argv = ..., seconds = ..., relayed = boolean }. stalls, when set, says
@@ -271,7 +241,7 @@ run_exec = function(argv, opts)
     end
   end
   if opts and opts.env then envs[#envs + 1] = { argv = argv, env = opts.env, relayed = in_relay } end
-  if argv[1] == "gh" then return gh_stub(argv, opts) end
+  assert(argv[1] ~= "gh", "projects.lua ran gh: " .. table.concat(argv, " "))
   if argv[1] == "wt" then serve_prs() end
   -- env sets each variable, then runs the command; false removes one.
   local parts = { "env" }
@@ -378,9 +348,8 @@ local tmp = os.tmpname(); os.remove(tmp); os.execute("mkdir -p " .. sh(tmp))
 tmp = capture("cd " .. sh(tmp) .. " && pwd -P"):gsub("%s+$", "")
 
 -- The gh that wt runs. It answers the calls wt makes for wt switch pr:<n>:
--- the pull request from gh/pulls-<n>.json, or GitHub's 404; the repository
--- of gh repo set-default from gh/default; https as the git protocol. It
--- logs each call in gh/log.
+-- the pull request from gh/pulls-<n>.json, or GitHub's 404; https as the
+-- git protocol. It logs each call in gh/log.
 local gh_dir = tmp .. "/gh"
 os.execute("mkdir -p " .. sh(tmp .. "/bin") .. " " .. sh(gh_dir) .. " " .. sh(tmp .. "/xdg"))
 local function write_file(path, text)
@@ -391,7 +360,6 @@ dir=]] .. sh(gh_dir) .. [[
 
 printf '%s\n' "$*" >> "$dir/log"
 case "$1 $2 $3" in
-  "repo set-default --view") [ -f "$dir/default" ] && exec cat "$dir/default"; exit 1 ;;
   "config get git_protocol") echo https; exit 0 ;;
 esac
 case "$1 $2" in
@@ -414,11 +382,10 @@ local function owner_name(url)
 end
 
 -- serve_prs writes each pull request of prs as GitHub's API gives it, for
--- the gh that wt runs, and the repository of gh repo set-default. A pull
--- request with isCrossRepository comes from contrib/fork.
+-- the gh that wt runs. A pull request with isCrossRepository comes from
+-- contrib/fork.
 serve_prs = function()
-  os.execute("rm -f " .. sh(gh_dir) .. "/pulls-*.json " .. sh(gh_dir .. "/default"))
-  if gh_default ~= nil then write_file(gh_dir .. "/default", gh_default .. "\n") end
+  os.execute("rm -f " .. sh(gh_dir) .. "/pulls-*.json")
   for _, p in ipairs(prs) do
     local owner, name = owner_name(p.url)
     local base = { name = name, owner = { login = owner } }
@@ -598,6 +565,13 @@ end
 local function record(dir) return I.load_state().sessions[dir] end
 local function remembered(dir) return record(dir) and record(dir).session end
 
+-- close_kept closes the session remembered for dir, when it is on the app's
+-- own server.
+local function close_kept(dir)
+  local id = remembered(dir)
+  if id ~= nil and session(nil, id) ~= nil then close(nil, id) end
+end
+
 -- with_hooks gives wt the user config toml while f runs, then removes it:
 -- every wt call reads it. logging_hooks is one whose pre-switch, pre-start
 -- and pre-remove hooks write "switch <branch>", "start <branch>" and
@@ -642,14 +616,14 @@ end
 -- The palette and the keys
 ---------------------------------------------------------------------------
 
-test("the Projects section holds the six entries, and the backend sits elsewhere", function()
+test("the Projects section holds the five entries, and the backend sits elsewhere", function()
   local titles = {}
   for _, spec in pairs(actions) do
     if spec.category == "Projects" then titles[#titles + 1] = spec.title end
   end
   table.sort(titles)
   local want = { "Add Project to List…", "Clean Up Branch in Project…", "Open Worktree in Project…",
-    "Remove Project from List…", "Review Pull Request…", "Switch Branch in Project…" }
+    "Remove Project from List…", "Switch Branch in Project…" }
   assert(table.concat(titles, " | ") == table.concat(want, " | "), table.concat(titles, " | "))
   assert(actions.projects_backend.category == "Internal")
 end)
@@ -1467,20 +1441,25 @@ test("worktree: - opens wt's previous branch, and without one says wt's words", 
   assert(#queued == 0 and created() == 0)
 end)
 
-test("worktree: ^ and - run no hooks", function()
-  git(repo, "config", "worktrunk.history", "feature-x")
+test("worktree: ^ and - run hooks, as in a terminal", function()
+  local dir = wt .. "/feature-x"
+  close_kept(dir)
+  I.backend.forget_record{ path = dir }
+  try(repo, "worktree", "remove", dir)
   with_hooks(logging_hooks, function()
-    for _, typed in ipairs({ "^", "-" }) do
+    for _, case in ipairs({ { typed = "^", hook = "switch main" }, { typed = "-", hook = "start feature-x" } }) do
+      git(repo, "config", "worktrunk.history", "feature-x")
       again()
       local from = #wt_argv
-      answers = { "my-app", { text = typed } }
+      answers = { "my-app", { text = case.typed } }
       I.worktree_run({})
       local runs = wt_runs(from, "switch")
-      assert(#runs == 1 and holds(runs[1], "--no-hooks"), typed .. ": " .. table.concat(runs[1] or {}, " "))
+      assert(#runs == 1 and not holds(runs[1], "--no-hooks"), case.typed .. ": " .. table.concat(runs[1] or {}, " "))
+      assert(ran(case.hook), case.typed .. ": the hook ran: " .. tostring(read(hook_log)))
     end
-    assert(read(hook_log) == nil, "no hook ran")
   end)
   git(repo, "config", "--unset", "worktrunk.history")
+  assert(exists(dir), "wt made the worktree of -")
 end)
 
 test("here: wt's shortcuts and pull requests are refused with what takes them", function()
@@ -1490,9 +1469,9 @@ test("here: wt's shortcuts and pull requests are refused with what takes them", 
       "type the branch's name, or use Open Worktree",
     ["-"] = "- is wt's shortcut for the previous branch, which Switch Branch does not take: " ..
       "type the branch's name, or use Open Worktree",
-    ["pr:9"] = "pr:9 is a pull request, which Switch Branch does not open: use Review Pull Request",
+    ["pr:9"] = "pr:9 is a pull request, which Switch Branch does not open: use Open Worktree",
     ["https://github.com/remotes/up/pull/8"] = "https://github.com/remotes/up/pull/8 is a pull request, " ..
-      "which Switch Branch does not open: use Review Pull Request",
+      "which Switch Branch does not open: use Open Worktree",
   }
   for typed, why in pairs(want) do
     again()
@@ -2060,9 +2039,10 @@ local function opened(name)
   return dir, remembered(dir)
 end
 
-test("clean-up: your own branch's hooks run, and a pull request's mark runs none", function()
+test("clean-up: hooks run whatever the branch's config holds, and so does opening it", function()
   local dir = opened("rm-own")
   git(repo, "branch", "rm-marked")
+  -- An old rex-pr line is left as it is, and nothing reads it.
   git(repo, "config", "branch.rm-marked.rex-pr", "5")
   with_hooks(logging_hooks, function()
     local from = #wt_argv
@@ -2074,21 +2054,20 @@ test("clean-up: your own branch's hooks run, and a pull request's mark runs none
     assert(ran("remove rm-own"), "the user's pre-remove hook ran: " .. tostring(read(hook_log)))
     assert(not exists(dir) and not has_branch(repo, "rm-own"))
 
-    -- A marked branch typed by name opens and goes with no hook.
     again()
     from = #wt_argv
     answers = { "my-app", { text = "rm-marked" } }
     I.worktree_run({})
     runs = wt_runs(from, "switch")
-    assert(#runs == 1 and holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
-    assert(not ran("start rm-marked"), "no pre-start hook")
+    assert(#runs == 1 and not holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
+    assert(ran("start rm-marked"), "the pre-start hook ran")
     again()
     from = #wt_argv
     answers = { "my-app", "rm-marked" }
     I.clean_up({})
     runs = wt_runs(from, "remove")
-    assert(#runs == 1 and holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
-    assert(not ran("remove rm-marked"), "no pre-remove hook")
+    assert(#runs == 1 and not holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
+    assert(ran("remove rm-marked"), "the pre-remove hook ran")
     assert(not exists(wt .. "/rm-marked") and not has_branch(repo, "rm-marked"))
   end)
 end)
@@ -2213,8 +2192,6 @@ test("a cancelled list ends any action quietly, and a failed one says why", func
     { "Clean Up: branch", I.clean_up, { "my-app" } },
     { "Add Project", I.add_run, {} },
     { "Remove Project", I.remove_run, {} },
-    { "Review: project", I.review_run, {} },
-    { "Review: pull request", I.review_run, { "my-app" } },
   }
   local before = git(repo, "for-each-ref", "--format=%(refname)")
   for _, step in ipairs(steps) do
@@ -2274,7 +2251,7 @@ test("a list never has two rows with one id, or more than 2,000 rows", function(
 end)
 
 ---------------------------------------------------------------------------
--- Review Pull Request
+-- Pull requests in Open Worktree
 ---------------------------------------------------------------------------
 
 -- The pull requests live in up as refs/pull/<n>/head, as on GitHub. #9 is a
@@ -2292,7 +2269,15 @@ local function pull(n, title, head, cross, author)
 end
 local review_dir = wt .. "/review-me"
 
-test("review: the list puts the reviews asked of you first, then the rest", function()
+-- open_pr types typed into Open Worktree in my-app and returns the session
+-- shown.
+local function open_pr(typed, ctx)
+  answers = { "my-app", { text = typed } }
+  I.worktree_run(ctx or {})
+  return selected()
+end
+
+test("worktree: pr:N with a project hook not approved fails with wt's words, and nothing changes", function()
   git(up, "switch", "-q", "-c", "review-me")
   commit(up, "r", "one\n", "review one")
   git(up, "switch", "-q", "main")
@@ -2300,181 +2285,206 @@ test("review: the list puts the reviews asked of you first, then the rest", func
   commit(fork, "k", "fork\n", "fork fix")
   git(up, "fetch", "-q", fork, "fork-fix:refs/pull/8/head")
   prs = { pull(9, "Review me", "review-me", false, "ana"), pull(8, "Fix from a fork", "fork-fix", true, "bo") }
-  prs[2].isDraft = true
   publish(9, "review-me")
   prs[2].headRefOid = git(up, "rev-parse", "refs/pull/8/head")
-  review_asked = { [8] = true }
 
-  answers = { "my-app", nil }
-  I.review_run({})
-  assert(asked[1].title == "Review pull request", asked[1].title)
-  local list = asked[2]
-  assert(list.title == "Review pull request in my-app" and list.allow_other)
-  assert(list.items[1].id == "#8" and list.items[2].id == "#9", "asked of you first")
-  assert(list.items[1].title == "#8 Fix from a fork", list.items[1].title)
-  assert(list.items[1].subtitle == "fork-fix · @bo · draft · review requested", list.items[1].subtitle)
-  assert(list.items[2].subtitle == "review-me · @ana" and list.items[2].icon == "branch")
-  assert(gh_cwd == repo, "gh runs in the project: " .. tostring(gh_cwd))
-
-  -- When only the search for those reviews fails, the list is as gh gave it.
-  gh_search_fails = true
-  local rows = I.backend.pulls{ project = repo }.rows
-  gh_search_fails = false
-  assert(#rows == 2 and rows[1].id == "#9" and rows[2].id == "#8", "gh's order")
-  for _, row in ipairs(rows) do
-    assert(not row.subtitle:find("review requested", 1, true), row.subtitle)
-  end
+  os.execute("mkdir -p " .. sh(repo .. "/.config"))
+  write(repo .. "/.config/wt.toml", '[pre-start]\nmark = "touch hook-ran"\n')
+  answers = { "my-app", { text = "pr:9" } }
+  local message = refused(I.worktree_run, {})
+  os.execute("rm -rf " .. sh(repo .. "/.config"))
+  local tail = "pre-start mark: touch hook-ran. wt cannot ask for approval without a terminal: " ..
+    "run wt config approvals add in a terminal in " .. I.short(repo) .. ", then try again"
+  assert(message:sub(-#tail) == tail, message)
+  assert(created() == 0 and #queued == 0 and not has_branch(repo, "review-me") and not exists(review_dir),
+    "nothing made")
 end)
 
-test("review: a pull request of the repository gets its branch, a worktree and a session", function()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  local s = selected()
-  assert(s.cwd == review_dir and s.label == "my-app · #9", s.label)
+test("worktree: pr:N opens the pull request's worktree with the project's hooks, labelled by its number", function()
+  local s
+  with_hooks(logging_hooks, function()
+    local from = #wt_argv
+    s = open_pr("pr:9")
+    local runs = wt_runs(from, "switch")
+    assert(#runs == 1 and runs[1][#runs[1]] == "pr:9" and not holds(runs[1], "--no-hooks"),
+      table.concat(runs[1] or {}, " "))
+    assert(ran("start review-me"), "the hook ran: " .. tostring(read(hook_log)))
+  end)
+  assert(#asked == 2, "no base")
+  assert(s.cwd == review_dir and s.label == "my-app · #9", s.cwd .. " · " .. s.label)
   assert(branch_of(review_dir) == "review-me")
   assert(git(review_dir, "rev-parse", "HEAD") == git(up, "rev-parse", "review-me"))
   assert(git(repo, "rev-parse", "--abbrev-ref", "review-me@{upstream}") == "origin/review-me", "it follows the remote branch")
-  assert(git(repo, "config", "--get", "branch.review-me.rex-pr") == "9")
-  -- Again: the same session, nothing asked, and the row shows the worktree.
+  assert(select(2, try(repo, "config", "--get", "branch.review-me.rex-pr")) ~= 0, "no mark")
+  -- Again: the same session, and nothing made.
   again()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(#asked == 2 and selected() == s and created() == 0)
-  local _, at = ids(asked[2].items)
-  assert(asked[2].items[at["#9"]].icon == "folder")
+  assert(open_pr("pr:9") == s and created() == 0 and #asked == 2)
 end)
 
-test("review: a pull request from a fork gets its branch's name, and pushes to the fork", function()
-  answers = { "my-app", { text = "https://github.com/remotes/up/pull/8" } }
-  I.review_run({})
-  local s = selected()
+test("worktree: a pull request from a fork gets its branch's name, and pushes to the fork", function()
+  local from = #wt_argv
+  local s = open_pr("https://github.com/remotes/up/pull/8")
   local dir = wt .. "/fork-fix"
   assert(s.cwd == dir and s.label == "my-app · #8", s.cwd .. " · " .. s.label)
+  local runs = wt_runs(from, "switch")
+  assert(#runs == 1 and runs[1][#runs[1]] == "pr:8", "the link goes to wt as pr:8")
   assert(branch_of(dir) == "fork-fix")
   assert(git(dir, "rev-parse", "HEAD") == git(fork, "rev-parse", "fork-fix"))
   assert(git(repo, "config", "--get", "branch.fork-fix.merge") == "refs/pull/8/head", "it follows the pull request")
   assert(git(repo, "config", "--get", "branch.fork-fix.pushRemote") == "https://github.com/contrib/fork.git",
     "and pushes to the fork")
-  assert(git(repo, "config", "--get", "branch.fork-fix.rex-pr") == "8")
 end)
 
-test("review: a link to another repository's pull request is refused", function()
-  answers = { "my-app", { text = "https://github.com/other/thing/pull/9" } }
-  local message = refused(I.review_run, {})
-  assert(message == "that link is to a pull request of other/thing, which is no remote of my-app", message)
-  assert(#queued == 0)
-  -- A link to the remote's goes, in any case and to any page of it.
-  local r = I.backend.review{ project = repo, pr = "https://github.com/Remotes/Up/pull/9/files" }
-  assert(r.dir == review_dir, tostring(r.why))
-  -- With gh set to a repository, wt looks there, so the link must be to it.
-  gh_default = "remotes/fork"
-  r = I.backend.review{ project = repo, pr = "https://github.com/remotes/up/pull/9" }
-  gh_default = nil
-  assert(r.why == "that link is to a pull request of remotes/up, and gh looks in remotes/fork " ..
-    "for those of my-app (gh repo set-default)", tostring(r.why))
-  assert(I.owner_repo("git@gh-work:Acme/App.git") == "acme/app" and I.owner_repo("acme/app\n") == "acme/app")
-  assert(I.owner_repo("ssh://git@github.com:22/acme/app/") == "acme/app")
-  assert(I.owner_repo("https://github.com/acme/app") == "acme/app" and I.owner_repo("app") == nil)
+test("worktree: a link to one of the project's remotes opens as pr:N, any other is refused before wt", function()
+  for _, link in ipairs({ "https://github.com/remotes/up/pull/9/files", "https://GitHub.com/Remotes/Up/pull/9" }) do
+    again()
+    local from = #wt_argv
+    assert(open_pr(link).cwd == review_dir, link)
+    local runs = wt_runs(from, "switch")
+    assert(#runs == 1 and runs[1][#runs[1]] == "pr:9", link .. ": " .. table.concat(runs[1] or {}, " "))
+  end
+  for link, why in pairs({
+    ["https://github.example.com/remotes/up/pull/9"] =
+      "that link is to a pull request of github.example.com/remotes/up, which is no remote of my-app",
+    ["https://github.com/other/thing/pull/9"] =
+      "that link is to a pull request of github.com/other/thing, which is no remote of my-app",
+  }) do
+    again()
+    local from = #wt_argv
+    answers = { "my-app", { text = link } }
+    local message = refused(I.worktree_run, {})
+    assert(message == why, message)
+    assert(#wt_argv == from, link .. ": wt did not run")
+    assert(#queued == 0 and created() == 0)
+  end
 end)
 
-test("review: a pull request whose repository is no remote is refused with wt's words", function()
-  local p = pull(5, "From elsewhere", "elsewhere-fix", false, "di")
-  p.url = "https://github.com/elsewhere/proj/pull/5"
-  table.insert(prs, 1, p)
-  local r = I.backend.review{ project = repo, pr = "5" }
-  table.remove(prs, 1)
-  assert(r.dir == nil and r.why:find("elsewhere/proj", 1, true), tostring(r.why))
-  assert(not has_branch(repo, "elsewhere-fix") and not exists(wt .. "/elsewhere-fix"), "nothing was made")
+test("worktree: a link matches a remote by host and owner/repo, and an ssh alias by owner/repo", function()
+  local acme = tmp .. "/code/acme"
+  os.execute("mkdir -p " .. sh(acme))
+  git(acme, "init", "-q", "-b", "main")
+  commit(acme, "f", "x\n", "init")
+  local switched
+  intercept = function(argv)
+    if argv[4] ~= "switch" then return nil end
+    switched = argv[#argv]
+    return { ok = false, code = 1, stdout = "", stderr = "stopped by the test" }
+  end
+  local function open(remotes, link)
+    for _, name in ipairs({ "origin", "other" }) do try(acme, "remote", "remove", name) end
+    for name, url in pairs(remotes) do git(acme, "remote", "add", name, url) end
+    switched = nil
+    return I.backend.open_worktree{ project = acme, name = link }
+  end
+  local ok, err = pcall(function()
+    local link = "https://github.example.com/acme/app/pull/5"
+    for _, case in ipairs({
+      { "https://github.example.com/acme/app.git", link },
+      { "git@github.example.com:acme/app.git", link },
+      { "git@github.example.com:acme/app.git", link .. "/files" },
+      { "ssh://git@github.example.com:2222/acme/app/", link },
+      { "https://github.example.com:8443/acme/app", link },
+      { "git@work:acme/app.git", link },
+      { "https://github.example.com/acme/app.git", "https://GitHub.example.com/Acme/App/pull/5" },
+    }) do
+      local r = open({ origin = case[1] }, case[2])
+      assert(switched == "pr:5" and r.dir == nil, case[1] .. " " .. case[2] .. ": " .. tostring(switched))
+    end
+    -- Any one remote will do.
+    open({ origin = "https://github.com/x/y.git", other = "git@github.example.com:acme/app.git" }, link)
+    assert(switched == "pr:5", "the second remote")
+    local r = open({ origin = "https://github.example.com/acme/app.git" }, "https://github.com/acme/app/pull/5")
+    assert(switched == nil and r.why == "that link is to a pull request of github.com/acme/app, " ..
+      "which is no remote of acme", tostring(r.why))
+    -- A folder is no host, not an ssh alias.
+    r = open({ origin = "file:///srv/git/acme/app.git" }, link)
+    assert(switched == nil and r.why == "that link is to a pull request of github.example.com/acme/app, " ..
+      "which is no remote of acme", tostring(r.why))
+    r = open({ origin = "git@github.example.com:acme/app.git" }, "https://github.example.com/other/thing/pull/5")
+    assert(switched == nil and r.why == "that link is to a pull request of github.example.com/other/thing, " ..
+      "which is no remote of acme", tostring(r.why))
+    -- A remote is read as written: insteadOf does not make it another.
+    open({ origin = "https://github.example.com/acme/app.git" }, link)
+    git(acme, "config", "url.https://elsewhere.example.com/.insteadOf", "https://github.example.com/")
+    open({ origin = "https://github.example.com/acme/app.git" }, link)
+    assert(switched == "pr:5", "insteadOf is not applied")
+  end)
+  intercept = nil
+  os.execute("rm -rf " .. sh(acme))
+  if not ok then error(err, 0) end
+  local host, path = I.repo_of("git@gh-work:Acme/App.git")
+  assert(host == "gh-work" and path == "acme/app")
+  host, path = I.repo_of("ssh://git@github.com:22/acme/app/")
+  assert(host == "github.com" and path == "acme/app")
+  assert(I.repo_of("/some/folder/app.git") == nil and I.repo_of("app") == nil)
+  assert(I.repo_of("file:///srv/git/acme/app.git") == nil)
 end)
 
-test("review: a pull request whose branch was deleted is refused with wt's words", function()
-  -- #11 was merged and its branch deleted: only the pull request is left.
-  local p = pull(11, "Merged and gone", "gone-branch", false, "ed")
-  table.insert(prs, 1, p)
-  publish(11, "pr-1")
-  local r = I.backend.review{ project = repo, pr = "#11" }
-  table.remove(prs, 1)
-  assert(r.dir == nil and r.why:find("gone-branch", 1, true), tostring(r.why))
-  assert(not has_branch(repo, "gone-branch") and not exists(wt .. "/gone-branch"), "nothing was made")
-  git(up, "update-ref", "-d", "refs/pull/11/head")
-end)
-
-test("review: a pull request that moved on is opened as it is, and nothing is asked", function()
+test("worktree: a pull request that moved on is opened as it is, and nothing is asked", function()
   git(up, "switch", "-q", "review-me")
   commit(up, "r", "two\n", "review two")
   git(up, "switch", "-q", "main")
   publish(9, "review-me")
   local before = git(review_dir, "rev-parse", "HEAD")
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(#asked == 2 and selected().cwd == review_dir)
+  assert(open_pr("pr:9").cwd == review_dir and #asked == 2)
   assert(git(review_dir, "rev-parse", "HEAD") == before, "bringing it up to date is git's to do")
 end)
 
-test("review: a worktree that is gone is made again, and the main checkout's branch opens there", function()
+test("worktree: a pull request's worktree that is gone is made again, and the main checkout's opens there", function()
   local id = remembered(review_dir)
   -- Removed with git.
   git(repo, "worktree", "remove", review_dir)
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(selected().cwd == review_dir and selected().session_id == id and created() == 0)
+  local s = open_pr("pr:9")
+  assert(s.cwd == review_dir and s.session_id == id and created() == 0)
   assert(branch_of(review_dir) == "review-me")
   -- Deleted by hand, so that git still lists it: wt says to prune it.
   os.execute("rm -rf " .. sh(review_dir))
   again()
-  answers = { "my-app", "#9" }
-  local message = refused(I.review_run, {})
+  answers = { "my-app", { text = "pr:9" } }
+  local message = refused(I.worktree_run, {})
   assert(message:find("^Worktree for review%-me is stale") and message:find("git worktree prune", 1, true), message)
   assert(#queued == 0)
   git(repo, "worktree", "prune")
   again()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(branch_of(review_dir) == "review-me" and selected().session_id == id)
+  assert(open_pr("pr:9").session_id == id and branch_of(review_dir) == "review-me")
   -- In the main checkout it is the project's own session.
   local was = branch_of(repo)
   git(repo, "worktree", "remove", review_dir)
   git(repo, "switch", "-q", "review-me")
   again()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(selected().cwd == repo and selected().label == "my-app", selected().label)
+  s = open_pr("pr:9")
+  assert(s.cwd == repo and s.label == "my-app", s.label)
   git(repo, "switch", "-q", was)
   again()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(selected().cwd == review_dir)
+  assert(open_pr("pr:9").cwd == review_dir)
 end)
 
-test("review: run from a session, its project is first and a session in the worktree is adopted", function()
-  local old = remembered(review_dir)
-  close(nil, old)
+test("worktree: a pull request run from a session in its worktree adopts it", function()
+  close_kept(review_dir)
   I.load_state().sessions[review_dir] = nil
   I.save_state()
   local mine = open_session(nil, "somewhere", review_dir)
   mine.attached = true
   I.load_state().recent = { plain, repo }
-  answers = { "my-app", "#9" }
-  I.review_run({ session_id = mine.session_id, block_id = mine.block_id })
+  local s = open_pr("pr:9", { session_id = mine.session_id, block_id = mine.block_id })
   assert(asked[1].items[1].id == repo, "the focused project first: " .. asked[1].items[1].id)
-  assert(created() == 0 and selected() == mine, "the session there is the worktree's")
+  assert(created() == 0 and s == mine, "the session there is the worktree's")
   assert(mine.label == "my-app · #9" and remembered(review_dir) == mine.session_id, mine.label)
+  assert(I.load_state().recent[1] == repo, "the project is first on the recent list")
 end)
 
-test("review: a branch that is there already is opened as it is", function()
+test("worktree: a pull request whose branch is there already opens it as it is", function()
   -- shared is a branch of the repository already, so #10 opens it.
   table.insert(prs, 1, pull(10, "Shared work", "shared", false, "cy"))
   publish(10, "shared")
   local tip, shared_dir = git(repo, "rev-parse", "shared"), wt .. "/shared"
-  assert(git(up, "rev-parse", "shared") ~= nil and branch_of(repo) ~= "shared" and not exists(shared_dir))
+  assert(branch_of(repo) ~= "shared" and not exists(shared_dir))
   local function open_it()
     again()
-    answers = { "my-app", { text = "10" } }
-    I.review_run({})
-    assert(git(repo, "config", "--get", "branch.shared.rex-pr") == "10", "marked as #10's")
+    local s = open_pr("pr:10")
     assert(#asked == 2, "nothing more is asked")
     assert(git(repo, "rev-parse", "shared") == tip, "the branch stays where it was")
-    return selected()
+    return s
   end
   -- Held by no checkout: a worktree for it.
   local s = open_it()
@@ -2492,26 +2502,28 @@ test("review: a branch that is there already is opened as it is", function()
   table.remove(prs, 1)
 end)
 
-test("review: what cannot be reviewed says why", function()
-  answers = { "my-app", { text = "not-a-number" } }
-  assert(refused(I.review_run, {}) == "not a pull request: not-a-number")
-  answers = { "my-app", { text = "77" } }
-  local message = refused(I.review_run, {})
+test("worktree: a pull request wt cannot open is refused with wt's words, and nothing is made", function()
+  answers = { "my-app", { text = "pr:77" } }
+  local message = refused(I.worktree_run, {})
   assert(message:find("^PR #77 not found on remotes/up"), message)
-  answers = { "plain" }
-  assert(refused(I.review_run, {}):find("^fatal: not a git repository"))
-  -- With none open the list is empty, and a number can still be typed.
-  local saved = prs; prs = {}
-  again()
-  answers = { "my-app", { text = "77" } }
-  assert(refused(I.review_run, {}):find("^PR #77 not found"))
-  assert(#asked == 2 and #asked[2].items == 0 and asked[2].allow_other)
-  prs = saved
-  gh_missing = true
-  answers = { "my-app" }
-  message = refused(I.review_run, {})
-  gh_missing = false
-  assert(message:find("needs the GitHub CLI", 1, true), message)
+  -- #5 is of a repository that is no remote.
+  local p = pull(5, "From elsewhere", "elsewhere-fix", false, "di")
+  p.url = "https://github.com/elsewhere/proj/pull/5"
+  table.insert(prs, 1, p)
+  local r = I.backend.open_worktree{ project = repo, name = "pr:5" }
+  table.remove(prs, 1)
+  assert(r.dir == nil and r.why:find("elsewhere/proj", 1, true), tostring(r.why))
+  assert(not has_branch(repo, "elsewhere-fix") and not exists(wt .. "/elsewhere-fix"), "nothing was made")
+  -- #11 was merged and its branch deleted: only the pull request is left.
+  table.insert(prs, 1, pull(11, "Merged and gone", "gone-branch", false, "ed"))
+  publish(11, "pr-1")
+  r = I.backend.open_worktree{ project = repo, name = "pr:11" }
+  table.remove(prs, 1)
+  assert(r.dir == nil and r.why:find("gone-branch", 1, true), tostring(r.why))
+  assert(not has_branch(repo, "gone-branch") and not exists(wt .. "/gone-branch"), "nothing was made")
+  git(up, "update-ref", "-d", "refs/pull/11/head")
+  assert(#queued == 0 and created() == 0)
+
   assert(I.pr_number("#12") == 12 and I.pr_number("https://github.com/o/r/pull/12/files") == 12)
   for _, link in ipairs({ "https://github.com/o/r/pull/12", "https://github.com/o/r/pull/12/",
     "https://github.com/o/r/pull/12/commits/0a1b2c3", "https://github.com/o/r/pull/12#issuecomment-1",
@@ -2521,30 +2533,21 @@ test("review: what cannot be reviewed says why", function()
   assert(I.pr_number("https://github.com/o/r/pulls") == nil and I.pr_number("12a") == nil)
 end)
 
-test("review: on another host gh, wt and git run there", function()
+test("worktree: on another host a pull request opens there, with the network's time limit", function()
   relays, local_execs = 0, 0
-  answers = { "my-app", "#8" }
-  I.review_run({ server = "studio" })
-  assert(local_execs == 0 and relays >= 3)
-  assert(asked[1].title == "Review pull request on studio")
-end)
-
-test("review: on another host the network has a time limit, and says when it passed", function()
   timeouts, envs = {}, {}
-  answers = { "my-app", "#8" }
-  I.review_run({})
-  assert(#timeouts == 0 and #envs == 0, "none on the app's own server")
-  answers = { "my-app", "#8" }
-  I.review_run({ server = "studio" })
-  -- What uses the network: gh and wt switch pr:<n>.
-  local limited = {}
+  answers = { "my-app", { text = "pr:8" } }
+  I.worktree_run({ server = "studio" })
+  assert(local_execs == 0 and relays >= 2, "ran there")
+  assert(asked[1].title == "Open worktree on studio", asked[1].title)
+  -- What uses the network: wt switch pr:<n>, which runs gh and git fetch.
+  local limited = false
   for _, t in ipairs(timeouts) do
     assert(t.relayed and t.seconds >= 1 and t.seconds <= 8, tostring(t.seconds))
-    local what = t.argv[1] == "wt" and t.argv[#t.argv] or t.argv[1]
-    limited[what] = true
-    assert(what == "gh" or what == "pr:8", "nothing else is: " .. table.concat(t.argv, " "))
+    assert(t.argv[1] == "wt" and t.argv[#t.argv] == "pr:8", "nothing else is: " .. table.concat(t.argv, " "))
+    limited = true
   end
-  assert(limited.gh and limited["pr:8"], "gh and wt are limited")
+  assert(limited, "wt is limited")
   -- Every other wt command is kept off the network.
   local off = 0
   for _, e in ipairs(envs) do
@@ -2554,74 +2557,12 @@ test("review: on another host the network has a time limit, and says when it pas
   assert(off >= 1, "wt found the default branch off the network")
 
   stalls = function(argv) return argv[1] == "wt" and argv[#argv] == "pr:8" end
-  answers = { "my-app", "#8" }
-  local message = refused(I.review_run, { server = "studio" })
+  answers = { "my-app", { text = "pr:8" } }
+  local message = refused(I.worktree_run, { server = "studio" })
   stalls = nil
-  assert(message:find("^wt switch did not finish in the time"), message)
-  stalls = function(argv) return argv[1] == "gh" end
-  answers = { "my-app" }
-  message = refused(I.review_run, { server = "studio" })
-  stalls = nil
-  assert(message:find("^gh did not finish in the time"), message)
+  assert(message:find("^wt switch did not finish in the time") and
+    message:find("open pr:8 again to go to the worktree wt made", 1, true), message)
 end)
-
-test("worktree: pr:N and a link open the pull request as Review does", function()
-  local fork_dir = wt .. "/fork-fix"
-  for _, case in ipairs({
-    { typed = "pr:9", dir = review_dir, branch = "review-me", n = "9" },
-    { typed = "https://github.com/remotes/up/pull/8", dir = fork_dir, branch = "fork-fix", n = "8" },
-  }) do
-    try(repo, "config", "--unset", "branch." .. case.branch .. ".rex-pr")
-    again()
-    answers = { "my-app", { text = case.typed } }
-    I.worktree_run({})
-    assert(#asked == 2, case.typed .. ": no base")
-    local s = selected()
-    assert(s.cwd == case.dir and s.label == "my-app · #" .. case.n, case.typed .. ": " .. s.cwd .. " · " .. s.label)
-    assert(branch_of(case.dir) == case.branch)
-    assert(git(repo, "config", "--get", "branch." .. case.branch .. ".rex-pr") == case.n, case.typed .. ": marked")
-  end
-  again()
-  answers = { "my-app", { text = "https://github.com/other/thing/pull/9" } }
-  local message = refused(I.worktree_run, {})
-  assert(message == "that link is to a pull request of other/thing, which is no remote of my-app", message)
-  assert(#queued == 0 and created() == 0)
-  -- Review itself still takes no pr:N.
-  again()
-  answers = { "my-app", { text = "pr:9" } }
-  assert(refused(I.review_run, {}) == "not a pull request: pr:9")
-end)
-
-test("review: its project goes first on the recent list", function()
-  I.load_state().recent = { plain, repo }
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(I.load_state().recent[1] == repo, "the project reviewed in is first")
-end)
-
-test("review: a pull request opens with no hooks, picked, typed or as a link", function()
-  with_hooks(logging_hooks, function()
-    local from = #wt_argv
-    answers = { "my-app", "#9" }
-    I.review_run({})
-    for _, typed in ipairs({ "pr:9", "https://github.com/remotes/up/pull/8" }) do
-      again()
-      answers = { "my-app", { text = typed } }
-      I.worktree_run({})
-    end
-    local runs = wt_runs(from, "switch")
-    assert(#runs == 3, "three wt switch: " .. #runs)
-    for _, argv in ipairs(runs) do assert(holds(argv, "--no-hooks"), table.concat(argv, " ")) end
-    assert(read(hook_log) == nil, "no hook ran")
-  end)
-end)
-
--- close_kept closes the session remembered for dir, when it is on the app's
--- own server.
-local function close_kept(dir)
-  local id = remembered(dir)
-  if id ~= nil and session(nil, id) ~= nil then close(nil, id) end
-end
 
 -- seen_by runs f with the label and layout settings recording the table
 -- each one gets, and answering label and layout, or for nil what
@@ -2642,21 +2583,15 @@ local function seen_by(label, layout, f)
   return seen
 end
 
-test("shaping: a pull request reviewed or opened as a worktree tells its number", function()
+test("shaping: a pull request opened as a worktree tells its number", function()
   close_kept(review_dir)
   close_kept(wt .. "/fork-fix")
-  local seen = seen_by("reviewing", nil, function()
-    answers = { "my-app", "#9" }
-    I.review_run({})
-  end)
+  local seen = seen_by("reviewing", nil, function() open_pr("pr:9") end)
   assert(seen.label.pr == 9 and seen.label.branch == "review-me" and seen.label.dir == review_dir,
     tostring(seen.label.pr) .. " " .. tostring(seen.label.branch))
   assert(seen.label.label == "my-app · #9" and selected().label == "reviewing")
   again()
-  seen = seen_by(nil, nil, function()
-    answers = { "my-app", { text = "https://github.com/remotes/up/pull/8" } }
-    I.worktree_run({})
-  end)
+  seen = seen_by(nil, nil, function() open_pr("https://github.com/remotes/up/pull/8") end)
   assert(seen.label.pr == 8 and seen.label.branch == "fork-fix" and seen.label.project == "my-app",
     tostring(seen.label.pr) .. " " .. tostring(seen.label.branch))
   assert(selected().label == "my-app · #8")
@@ -2666,27 +2601,39 @@ test("shaping: a pull request reviewed or opened as a worktree tells its number"
   git(repo, "worktree", "remove", review_dir)
   git(repo, "switch", "-q", "review-me")
   again()
-  seen = seen_by(nil, nil, function()
-    answers = { "my-app", "#9" }
-    I.review_run({})
-  end)
+  seen = seen_by(nil, nil, function() open_pr("pr:9") end)
   git(repo, "switch", "-q", was)
   assert(seen.label.pr == 9 and seen.label.dir == repo and seen.label.branch == "review-me",
     tostring(seen.label.pr) .. " " .. tostring(seen.label.dir))
   assert(seen.label.label == "my-app" and selected().cwd == repo)
   again()
-  answers = { "my-app", "#9" }
-  I.review_run({})
-  assert(selected().cwd == review_dir, "the worktree is made again")
+  assert(open_pr("pr:9").cwd == review_dir, "the worktree is made again")
 end)
 
-test("review: clean-up removes a reviewed branch with its worktree and its marks", function()
-  for _, name in ipairs({ "review-me", "fork-fix" }) do
-    answers = { "my-app", name, "Force delete" }
-    I.clean_up({})
-    assert(not has_branch(repo, name), name)
-    assert(select(2, try(repo, "config", "--get", "branch." .. name .. ".rex-pr")) ~= 0, "the marks go with it")
+test("clean-up: a pull request's branch goes with its worktree, and its hooks run", function()
+  with_hooks(logging_hooks, function()
+    for _, name in ipairs({ "review-me", "fork-fix" }) do
+      again()
+      local from = #wt_argv
+      answers = { "my-app", name, "Force delete" }
+      I.clean_up({})
+      assert(not has_branch(repo, name), name)
+      for _, argv in ipairs(wt_runs(from, "remove")) do
+        assert(not holds(argv, "--no-hooks"), table.concat(argv, " "))
+      end
+      assert(ran("remove " .. name), name .. ": the pre-remove hook ran")
+    end
+  end)
+end)
+
+test("Review Pull Request and the code only it used are gone", function()
+  local source = assert(read("projects.lua"))
+  for _, word in ipairs({ "review_pull_request", "backend.pulls", "backend.review", "review_run", "gh(",
+    "pr_branches", "set-default", "pr_mark", "--no-hooks", "switch_worktree(project, how" }) do
+    assert(not source:find(word, 1, true), "projects.lua still holds " .. word)
   end
+  assert(not source:find("rex%-pr[^o]"), "projects.lua still holds rex-pr")
+  assert(actions.review_pull_request == nil and I.backend.pulls == nil and I.backend.review == nil)
 end)
 
 ---------------------------------------------------------------------------
@@ -3515,23 +3462,23 @@ test("login shell: bash, zsh and fish find a command on the login PATH", functio
   end
 end)
 
-test("login shell: git, wt and gh get the login variables, wt keeps its own", function()
+test("login shell: git and wt get the login variables, wt keeps its own", function()
   with_shell(shells .. "/zsh", function()
     I.backend.add{ path = repo }
     envs, timeouts = {}, {}
-    answers = { "my-app", "#8" }
-    I.review_run({ server = "studio" })
+    answers = { "my-app", { text = "pr:8" } }
+    I.worktree_run({ server = "studio" })
     local seen = {}
     local kept_off_network = false
     for _, e in ipairs(envs) do
       local tool = e.argv[1]
-      assert(tool == "git" or tool == "wt" or tool == "gh", "only git, wt and gh: " .. tool)
+      assert(tool == "git" or tool == "wt", "only git and wt: " .. tool)
       seen[tool] = true
       assert(e.env.PATH:find(login_bin, 1, true) and e.env.GH_TOKEN == "login-secret", table.concat(e.argv, " "))
       assert(e.env.UNLISTED == nil)
       if tool == "wt" and e.relayed and e.env.GIT_ALLOW_PROTOCOL == "none" then kept_off_network = true end
     end
-    assert(seen.git and seen.wt and seen.gh, "git, wt and gh all ran")
+    assert(seen.git and seen.wt, "git and wt both ran")
     assert(kept_off_network, "wt's GIT_ALLOW_PROTOCOL survives in a relayed op")
     local lookups = 0
     for _, t in ipairs(timeouts) do
