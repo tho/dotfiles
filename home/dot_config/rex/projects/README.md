@@ -9,7 +9,7 @@ A [Rex](https://www.superlogical.com/rex) Lua script for git projects. Pick a pr
 | Review Pull Request… | | `review_pull_request` | Open a pull request in its own worktree and session |
 | Clean Up Branch in Project… | | `clean_up_project_branch` | Delete a branch, its worktree and the session made for it |
 | Add Project to List… | | `add_project` | Browse to a folder and add it |
-| Remove Project from List… | | `remove_project` | Forget a project; its folder is untouched |
+| Remove Project from List… | | `remove_project` | Take a project off the list; its folder is untouched. One found under `roots` stays hidden until added again |
 
 Bind any of them with `rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")`.
 

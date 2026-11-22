@@ -188,8 +188,10 @@ end
 ---------------------------------------------------------------------------
 
 -- state is { projects = { path, ... }, sessions = { [folder] = record },
--- recent = { path, ... } }. recent holds the projects that were opened, the
--- last one first.
+-- recent = { path, ... }, hidden = { path, ... } }. recent holds the projects
+-- that were opened, the last one first. hidden holds the projects a root
+-- finds that Remove Project took off the list; a path in projects is shown
+-- whatever hidden says.
 --
 -- sessions holds a record { session = id, created = boolean } for a
 -- checkout, by its folder: a project's own folder, or the folder of one of
@@ -240,7 +242,7 @@ end
 -- file is an empty state: a corrupt list must never stop a session starting.
 local function load_state()
   if state ~= nil then return state end
-  state = { projects = {}, sessions = {}, recent = {} }
+  state = { projects = {}, sessions = {}, recent = {}, hidden = {} }
   local path = state_path()
   if io == nil or io.open == nil or path == nil then return state end
   local file = io.open(path, "r")
@@ -252,6 +254,7 @@ local function load_state()
     -- Read each member by hand: another version of this file may hold more.
     state.projects = strings(decoded.projects)
     state.recent = strings(decoded.recent)
+    state.hidden = strings(decoded.hidden)
     if type(decoded.sessions) == "table" then
       for k, v in pairs(decoded.sessions) do
         if type(k) == "string" and type(v) == "table" and type(v.session) == "string"
@@ -295,7 +298,8 @@ local function save_state()
   local file, err = io.open(tmp, "w")
   local ok = file ~= nil
   if ok then
-    ok, err = file:write(rex.json.encode({ projects = state.projects, sessions = state.sessions, recent = state.recent }))
+    ok, err = file:write(rex.json.encode({ projects = state.projects, sessions = state.sessions,
+      recent = state.recent, hidden = state.hidden }))
     local closed, close_err = file:close()
     if ok and not closed then ok, err = false, close_err end
     if ok then ok, err = replace(tmp, path) end
@@ -803,19 +807,29 @@ local function containing(paths, cwd)
   return repo
 end
 
--- project_rows returns the rows of the project picker: the added projects
--- and the scanned ones, then the row that adds a project. The project that
--- holds cwd, the folder of the terminal the action was run from, goes
--- first. Then, with project_order "recent", the most recently used go first
--- and the rest by name; with "name" all go by name.
-local function project_rows(cwd)
+-- listed returns the paths of the listed projects: the added ones, then the
+-- scanned ones that Remove Project has not hidden.
+local function listed()
   local s = load_state()
   local seen, paths = {}, {}
+  for _, p in ipairs(s.hidden) do seen[p] = true end
+  for _, p in ipairs(s.projects) do seen[p] = nil end
   for _, list in ipairs({ s.projects, scan() }) do
     for _, p in ipairs(list) do
       if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
     end
   end
+  return paths
+end
+
+-- project_rows returns the rows of the project picker: the listed projects,
+-- then the row that adds a project. The project that
+-- holds cwd, the folder of the terminal the action was run from, goes
+-- first. Then, with project_order "recent", the most recently used go first
+-- and the rest by name; with "name" all go by name.
+local function project_rows(cwd)
+  local s = load_state()
+  local paths = listed()
   local rank = {}
   local focused = containing(paths, cwd)
   if focused ~= nil then rank[focused] = 0 end
@@ -870,13 +884,23 @@ local function parent_of(dir)
   return parent
 end
 
--- save_project adds path to the list, once, and returns it.
+-- save_project shows path again if Remove Project hid it, else adds it to
+-- the list once, and returns it. A project a root finds needs no entry.
 local function save_project(path)
   local s = load_state()
-  for _, p in ipairs(s.projects) do
-    if p == path then return path end
+  for i, p in ipairs(s.hidden) do
+    if p == path then table.remove(s.hidden, i); break end
   end
-  s.projects[#s.projects + 1] = path
+  local saved = false
+  for _, p in ipairs(s.projects) do
+    if p == path then saved = true; break end
+  end
+  if not saved then
+    for _, p in ipairs(scan()) do
+      if p == path then saved = true; break end
+    end
+  end
+  if not saved then s.projects[#s.projects + 1] = path end
   save_state()
   return path
 end
@@ -1570,16 +1594,25 @@ function backend.cleanup(a)
     reason = "wt kept " .. branch .. ": " .. (kept[outcome] or tostring(outcome)), force = false } }
 end
 
--- saved returns the rows of the projects on the list, for Remove Project.
+-- saved returns the rows of the listed projects, for Remove Project.
 function backend.saved()
   local rows = {}
-  for _, p in ipairs(load_state().projects) do rows[#rows + 1] = project_row(p) end
+  for _, p in ipairs(listed()) do rows[#rows + 1] = project_row(p) end
   return { rows = rows }
 end
 
--- forget takes project off the list.
+-- forget takes project off the list. A project a root finds is hidden
+-- instead, until it is added again.
 function backend.forget(a)
   local s = load_state()
+  local hide = false
+  for _, p in ipairs(scan()) do
+    if p == a.project then hide = true; break end
+  end
+  for _, p in ipairs(s.hidden) do
+    if p == a.project then hide = false; break end
+  end
+  if hide then s.hidden[#s.hidden + 1] = a.project end
   for i, p in ipairs(s.projects) do
     if p == a.project then table.remove(s.projects, i); break end
   end
@@ -2253,7 +2286,7 @@ end
 rex.action{
   name = "remove_project",
   title = "Remove Project from List…",
-  description = "Forget a project that was added to the list; its folder stays",
+  description = "Take a project off the list; its folder stays, and one a root finds stays hidden until added again",
   category = "Projects",
   keywords = "forget delete project list",
   run = remove_run,

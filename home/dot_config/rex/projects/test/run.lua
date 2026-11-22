@@ -3158,6 +3158,46 @@ test("the project the action ran from is listed first, then the order of use", f
   I.backend.forget{ project = inner }
 end)
 
+test("Remove Project hides a project a root finds, until it is added again", function()
+  local root = tmp .. "/root"
+  local found = root .. "/found"
+  os.execute("mkdir -p " .. sh(found))
+  git(found, "init", "-q", "-b", "main")
+  local roots = I.config.roots
+  P.setup{ roots = { root } }
+  local function listed(rows) return select(2, ids(rows))[found] ~= nil end
+  assert(listed(I.project_rows()) and listed(I.backend.saved().rows), "a root's project is listed in both")
+
+  answers = { "found" }
+  I.remove_run({})
+  assert(asked[1].title == "Remove project")
+  assert(not listed(I.project_rows()) and not listed(I.backend.saved().rows), "hidden from both")
+  I.reset()
+  assert(not listed(I.project_rows()), "the hide is read back from projects.json")
+
+  I.backend.add{ path = found }
+  assert(listed(I.project_rows()), "adding it again shows it")
+  assert(#I.load_state().hidden == 0, "and takes it off the hidden list")
+  for _, p in ipairs(I.load_state().projects) do assert(p ~= found, "a root's project gets no entry") end
+  I.backend.forget{ project = found }
+  assert(not listed(I.project_rows()), "an added project a root finds is hidden too")
+  I.backend.add{ path = found }
+  I.backend.forget{ project = found }
+  I.backend.forget{ project = found }
+  local hidden = 0
+  for _, p in ipairs(I.load_state().hidden) do
+    if p == found then hidden = hidden + 1 end
+  end
+  assert(hidden == 1, "hidden once: " .. hidden)
+
+  -- Without the root, a project is added to the list and only taken off it.
+  P.setup{ roots = roots }
+  I.backend.add{ path = found }
+  assert(#I.load_state().hidden == 0 and listed(I.backend.saved().rows), "no root, a list entry")
+  I.backend.forget{ project = found }
+  assert(#I.load_state().hidden == 0 and not listed(I.backend.saved().rows), "no root, nothing hidden")
+end)
+
 test("git's progress lines are not the reason", function()
   assert(I.reason("Preparing worktree (checking out 'main')\nfatal: 'main' is already used") == "fatal: 'main' is already used")
   assert(I.reason("error: one\nfatal: two") == "error: one\nfatal: two")
