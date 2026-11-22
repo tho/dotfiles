@@ -3198,6 +3198,150 @@ test("Remove Project hides a project a root finds, until it is added again", fun
   assert(#I.load_state().hidden == 0 and not listed(I.backend.saved().rows), "no root, nothing hidden")
 end)
 
+test("a project whose folder is missing is marked, put last, and removed only when chosen", function()
+  local gone_a, gone_b = tmp .. "/gone/gone-a", tmp .. "/gone/gone-b"
+  os.execute("mkdir -p " .. sh(gone_a) .. " " .. sh(gone_b))
+  I.backend.add{ path = gone_b }
+  I.backend.add{ path = gone_a }
+  os.execute("rm -rf " .. sh(tmp .. "/gone"))
+
+  -- checks counts the folder checks f runs, then every command it runs;
+  -- fails makes the checks fail.
+  local real_exec, fails = rex.exec, nil
+  local function checks(f)
+    local count, all = 0, 0
+    rex.exec = function(argv, ...)
+      all = all + 1
+      if argv[1] == "sh" then
+        count = count + 1
+        if fails ~= nil then return fails() end
+      end
+      return real_exec(argv, ...)
+    end
+    local ok, err = pcall(f)
+    rex.exec = real_exec
+    assert(ok, err)
+    return count, all
+  end
+  local function marked(rows)
+    local list = {}
+    for _, row in ipairs(rows) do
+      if row.detail ~= nil then assert(row.detail == "missing"); list[#list + 1] = row.id end
+    end
+    return table.concat(list, " ")
+  end
+  local function without_gone(rows)
+    local list = {}
+    for _, row in ipairs(rows) do
+      if row.id ~= gone_a and row.id ~= gone_b then list[#list + 1] = row.id end
+    end
+    return table.concat(list, " ")
+  end
+
+  -- A check that fails, or does not run, marks nothing.
+  local plain_rows, plain_saved
+  for _, answer in ipairs({
+    function() return { ok = false, code = 1, stdout = gone_a .. "\0", stderr = "" } end,
+    function() return nil, "sh: not found" end,
+  }) do
+    fails = answer
+    assert(checks(function()
+      plain_rows, plain_saved = I.project_rows(), I.backend.saved().rows
+    end) == 2)
+    assert(marked(plain_rows) == "" and marked(plain_saved) == "", "nothing marked")
+  end
+  fails = nil
+
+  local rows, saved
+  local picker_checks, picker_all = checks(function() rows = I.project_rows() end)
+  local saved_checks, saved_all = checks(function() saved = I.backend.saved().rows end)
+  assert(picker_checks == 1 and saved_checks == 1, "one check per listing")
+  assert(rows[#rows].id == ":add", "Add project… stays last")
+  -- order_in is the order of the two missing projects in rows.
+  local function order_in(list)
+    local at = select(2, ids(list))
+    return at[gone_a] < at[gone_b] and gone_a .. " " .. gone_b or gone_b .. " " .. gone_a
+  end
+  assert(marked(rows) == order_in(plain_rows), "marked, in their order: " .. marked(rows))
+  assert(rows[#rows - 2].detail and rows[#rows - 1].detail, "the missing ones come last")
+  assert(without_gone(rows) == without_gone(plain_rows), "the others keep their order")
+  assert(marked(saved) == order_in(plain_saved))
+  assert(saved[#saved].detail and saved[#saved - 1].detail, "last in Remove Project too")
+  assert(without_gone(saved) == without_gone(plain_saved))
+
+  -- With no project added by hand, there is nothing to check.
+  local s = I.load_state()
+  local added = s.projects
+  s.projects = {}
+  local none, empty_picker = checks(function() I.project_rows() end)
+  assert(none == 0, "no check")
+  local none_saved, empty_saved = checks(function() I.backend.saved() end)
+  assert(none_saved == 0, "no check")
+  assert(picker_all == empty_picker + 1 and saved_all == empty_saved + 1,
+    "exactly one extra command: " .. picker_all .. " vs " .. empty_picker .. ", " ..
+    saved_all .. " vs " .. empty_saved)
+  s.projects = added
+  assert(checks(function() I.reset(); I.load_state() end) == 0, "no check on load")
+
+  -- Keep, or Esc, ends the action, and the project stays.
+  for _, answer in ipairs({ "Keep", false }) do
+    again()
+    answers = { "gone-a" }
+    if answer then answers[2] = answer end
+    I.switch_run({})
+    assert(#asked == 2 and asked[2].title == "gone-a is missing", asked[#asked].title)
+    assert(asked[2].items[1].title == "Keep" and asked[2].items[2].title == "Remove from list")
+    assert(created() == 0 and #queued == 0, "no session")
+    assert(marked(I.project_rows()):find(gone_a, 1, true), "still listed")
+  end
+  I.reset()
+  assert(read(tmp .. "/state/projects.json"):find(gone_a, 1, true), "never removed by itself")
+
+  -- A hidden project under a root that is no longer set goes with any Remove;
+  -- one under a root still set stays, also when it is set with a slash.
+  local kept_root, dropped_root = tmp .. "/kept-root", tmp .. "/dropped-root"
+  for _, root in ipairs({ kept_root, dropped_root }) do
+    os.execute("mkdir -p " .. sh(root .. "/found"))
+    git(root .. "/found", "init", "-q", "-b", "main")
+  end
+  local roots = I.config.roots
+  P.setup{ roots = { kept_root, dropped_root } }
+  I.backend.forget{ project = kept_root .. "/found" }
+  I.backend.forget{ project = dropped_root .. "/found" }
+  assert(#I.load_state().hidden == 2, "both hidden")
+  P.setup{ roots = { kept_root .. "/" } }
+
+  -- Remove from list forgets it, everywhere, and opens no session.
+  again()
+  answers = { "gone-a", "Remove from list" }
+  I.switch_run({})
+  assert(#asked == 2 and created() == 0 and #queued == 0)
+  assert(not select(2, ids(I.project_rows()))[gone_a] and not select(2, ids(I.backend.saved().rows))[gone_a])
+  I.reset()
+  for _, p in ipairs(I.load_state().projects) do assert(p ~= gone_a, "gone from projects.json") end
+  local hidden = I.load_state().hidden
+  assert(#hidden == 1 and hidden[1] == kept_root .. "/found", "only the set root's: " .. table.concat(hidden, " "))
+  P.setup{ roots = roots }
+
+  -- On another host the picker shows the host's check, run there.
+  again()
+  relays, local_execs = 0, 0
+  local theirs = open_session("studio", "there", plain)
+  theirs.attached = true
+  answers = { "gone-b", "Keep" }
+  I.switch_run({ server = "studio", session_id = theirs.session_id, block_id = theirs.block_id })
+  assert(marked(asked[1].items) == gone_b and asked[2].title == "gone-b is missing")
+  assert(local_execs == 0, "the check runs on the host: " .. local_execs)
+  close("studio", theirs.session_id)
+
+  -- Remove Project takes it off like any other, and the old hide goes too.
+  again()
+  answers = { "gone-b" }
+  I.remove_run({})
+  assert(marked(asked[1].items) == gone_b and asked[1].items[#asked[1].items].id == gone_b)
+  assert(marked(I.project_rows()) == "" and #I.load_state().hidden == 0)
+end)
+
 test("git's progress lines are not the reason", function()
   assert(I.reason("Preparing worktree (checking out 'main')\nfatal: 'main' is already used") == "fatal: 'main' is already used")
   assert(I.reason("error: one\nfatal: two") == "error: one\nfatal: two")

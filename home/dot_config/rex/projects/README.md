@@ -9,7 +9,7 @@ A [Rex](https://www.superlogical.com/rex) Lua script for git projects. Pick a pr
 | Review Pull Request… | | `review_pull_request` | Open a pull request in its own worktree and session |
 | Clean Up Branch in Project… | | `clean_up_project_branch` | Delete a branch, its worktree and the session made for it |
 | Add Project to List… | | `add_project` | Browse to a folder and add it |
-| Remove Project from List… | | `remove_project` | Take a project off the list; its folder is untouched. One found under `roots` stays hidden until added again |
+| Remove Project from List… | | `remove_project` | Take a project off the list; its folder is untouched. One found under `roots` stays hidden until added again or its root is no longer set. Missing ones are marked and listed last |
 
 Bind any of them with `rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")`.
 
@@ -71,6 +71,8 @@ require("projects").setup{
 ## Branches
 
 The project picker lists the project containing the current terminal's folder first, then by last use (or name). Type a path to add a project.
+
+An added project whose folder is gone is marked `missing` and listed last. Picking it offers **Keep** or **Remove from list**; nothing is removed unless you choose it, so a project on an unmounted disk just shows as missing.
 
 | You pick | Switch Branch | Open Worktree |
 |---|---|---|

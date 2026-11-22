@@ -183,6 +183,18 @@ local function is_folder(path)
   return output({ "test", "-d", path }) ~= nil
 end
 
+-- missing returns the set of paths that are no folder on this machine,
+-- checked with one command, or an empty set when that command fails.
+local function missing(paths)
+  local gone = {}
+  if #paths == 0 then return gone end
+  local out = output({ "sh", "-c", 'for p; do [ -d "$p" ] || printf "%s\\0" "$p"; done', "sh",
+    unpack(paths) })
+  if out == nil then return gone end
+  for p in out:gmatch("[^%z]+") do gone[p] = true end
+  return gone
+end
+
 ---------------------------------------------------------------------------
 -- State: the project list and each checkout's session
 ---------------------------------------------------------------------------
@@ -190,8 +202,8 @@ end
 -- state is { projects = { path, ... }, sessions = { [folder] = record },
 -- recent = { path, ... }, hidden = { path, ... } }. recent holds the projects
 -- that were opened, the last one first. hidden holds the projects a root
--- finds that Remove Project took off the list; a path in projects is shown
--- whatever hidden says.
+-- finds that Remove Project took off the list, until added again or its
+-- root is no longer set; a path in projects is shown whatever hidden says.
 --
 -- sessions holds a record { session = id, created = boolean } for a
 -- checkout, by its folder: a project's own folder, or the folder of one of
@@ -767,9 +779,21 @@ local function mark_used(project)
   save_state()
 end
 
--- project_row returns the picker row of the project at path.
-local function project_row(path)
-  return { id = path, title = basename(path), subtitle = short(path), icon = "folder" }
+-- project_row returns the picker row of the project at path, marked when
+-- its folder is missing.
+local function project_row(path, gone)
+  return { id = path, title = basename(path), subtitle = short(path), icon = "folder",
+    detail = gone and "missing" or nil }
+end
+
+-- rows_of returns the rows of paths in their order, those in gone last.
+local function rows_of(paths, gone)
+  local rows, last = {}, {}
+  for _, p in ipairs(paths) do
+    if gone[p] then last[#last + 1] = project_row(p, true) else rows[#rows + 1] = project_row(p) end
+  end
+  for _, row in ipairs(last) do rows[#rows + 1] = row end
+  return rows
 end
 
 -- containing returns the project of paths that holds the folder cwd, or nil.
@@ -808,7 +832,8 @@ local function containing(paths, cwd)
 end
 
 -- listed returns the paths of the listed projects: the added ones, then the
--- scanned ones that Remove Project has not hidden.
+-- scanned ones that Remove Project has not hidden. It also returns the set
+-- of the added ones whose folder is missing; a scanned one is there.
 local function listed()
   local s = load_state()
   local seen, paths = {}, {}
@@ -819,17 +844,17 @@ local function listed()
       if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
     end
   end
-  return paths
+  return paths, missing(s.projects)
 end
 
 -- project_rows returns the rows of the project picker: the listed projects,
 -- then the row that adds a project. The project that
 -- holds cwd, the folder of the terminal the action was run from, goes
 -- first. Then, with project_order "recent", the most recently used go first
--- and the rest by name; with "name" all go by name.
+-- and the rest by name; with "name" all go by name. Missing ones go last.
 local function project_rows(cwd)
   local s = load_state()
-  local paths = listed()
+  local paths, gone = listed()
   local rank = {}
   local focused = containing(paths, cwd)
   if focused ~= nil then rank[focused] = 0 end
@@ -849,8 +874,7 @@ local function project_rows(cwd)
     if na ~= nb then return na < nb end
     return a < b
   end)
-  local rows = {}
-  for _, p in ipairs(paths) do rows[#rows + 1] = project_row(p) end
+  local rows = rows_of(paths, gone)
   rows[#rows + 1] = { id = ADD_PROJECT, title = "Add project…", subtitle = "Choose a folder", icon = "plus" }
   return rows
 end
@@ -1594,15 +1618,21 @@ function backend.cleanup(a)
     reason = "wt kept " .. branch .. ": " .. (kept[outcome] or tostring(outcome)), force = false } }
 end
 
--- saved returns the rows of the listed projects, for Remove Project.
+-- saved returns the rows of the listed projects, for Remove Project, the
+-- missing ones last.
 function backend.saved()
-  local rows = {}
-  for _, p in ipairs(listed()) do rows[#rows + 1] = project_row(p) end
-  return { rows = rows }
+  return { rows = rows_of(listed()) }
+end
+
+-- bare is dir without a trailing slash, / itself kept.
+local function bare(dir)
+  dir = dir:gsub("/+$", "")
+  return dir == "" and "/" or dir
 end
 
 -- forget takes project off the list. A project a root finds is hidden
--- instead, until it is added again.
+-- instead, until it is added again. Hidden projects under no root that is
+-- set now are dropped.
 function backend.forget(a)
   local s = load_state()
   local hide = false
@@ -1613,6 +1643,14 @@ function backend.forget(a)
     if p == a.project then hide = false; break end
   end
   if hide then s.hidden[#s.hidden + 1] = a.project end
+  local roots = {}
+  for _, root in ipairs(config.roots) do roots[bare(expand(root))] = true end
+  local kept = {}
+  for _, p in ipairs(s.hidden) do
+    local parent = parent_of(p)
+    if parent ~= nil and roots[bare(parent)] then kept[#kept + 1] = p end
+  end
+  s.hidden = kept
   for i, p in ipairs(s.projects) do
     if p == a.project then table.remove(s.projects, i); break end
   end
@@ -1893,22 +1931,42 @@ local function add_project(call, text)
   return nil, "projects: too many steps"
 end
 
+-- remove_missing asks whether to take project, whose folder is missing, off
+-- the list, and does so on Remove. Either way the action ends.
+local function remove_missing(call, project)
+  local answer, why = rex.ui.pick{
+    title = basename(project) .. " is missing",
+    items = {
+      { id = "keep", title = "Keep", subtitle = "It stays on the list" },
+      { id = "remove", title = "Remove from list", subtitle = "Take it off the list" },
+    },
+  }
+  if answer == "remove" then call("forget", { project = project }) end
+  if answer == nil then fail(why) end
+  return nil
+end
+
 -- choose_project asks for a project, which may be one added on the spot. A
 -- typed path opens the Add project browser there. cwd is the folder of the
 -- terminal the action was run from, whose project is listed first. It
 -- returns the folder, or nil when the person gave up; any other reason is
--- raised.
+-- raised. A missing project is offered for removal instead.
 local function choose_project(ctx, call, title, cwd)
+  local items = call("projects", { cwd = cwd }).rows
   local project, why = rex.ui.pick{
     title = ctx.server and (title .. " on " .. ctx.server) or title,
     placeholder = "Project or path",
     allow_other = true,
-    items = call("projects", { cwd = cwd }).rows,
+    items = items,
   }
   if type(project) == "table" then
     project, why = add_project(call, project.text)
   elseif project == ADD_PROJECT then
     project, why = add_project(call)
+  elseif project ~= nil then
+    for _, row in ipairs(items) do
+      if row.id == project and row.detail == "missing" then return remove_missing(call, project) end
+    end
   end
   if project == nil then fail(why) end
   return project
