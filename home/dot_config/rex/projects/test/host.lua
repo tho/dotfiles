@@ -8,7 +8,8 @@
 -- It answers the lists itself and never asks an app to show a session, so
 -- nothing appears in the palette and the app stays on its session. It makes
 -- a repository in a temporary folder and a few sessions, and removes all of
--- them again, also when a check fails. It needs git. It prints "host ok".
+-- them again, also when a check fails. It needs git and worktrunk (wt) on
+-- the server's PATH. It prints "host ok".
 
 -- The answers the lists get, in order, and what was asked and queued.
 local answers, asked, queued = {}, {}, {}
@@ -129,7 +130,10 @@ local function checks()
     state_file = dir .. "/state.json", worktrees = dir .. "/wt", roots = {},
   }
   local I = P._internal
-  local function remembered(folder) return I.load_state().sessions[folder] end
+  local function remembered(folder)
+    local record = I.load_state().sessions[folder]
+    return record and record.session
+  end
 
   -- The git and folder code, and the state file.
   local trees = I.worktrees(repo)
@@ -138,13 +142,13 @@ local function checks()
   I.backend.add{ path = repo }
   I.reset()
   assert(I.load_state().projects[1] == repo, "state round trip")
-  local rows = I.backend.branches{ project = repo, mode = "here" }.rows
+  local rows = I.backend.here_rows{ project = repo }.rows
   assert(#rows == 1 and rows[1].id == "main", "here mode lists the one branch")
-  assert(I.backend.branches{ project = dir, mode = "here" }.plain, "a plain folder has no branches")
+  assert(I.backend.here_rows{ project = dir }.plain, "a plain folder has no branches")
 
   -- Worktree mode: a new name and a base make a worktree and a session.
   answers = { "repo", { text = "feat/x" }, 1 }
-  I.run({}, "worktree")
+  I.worktree_run({})
   local wt = dir .. "/wt/repo/feat-x"
   assert(asked[3].title == "Start feat/x from" and asked[3].items[1].id == "main", "the base step")
   assert(#made == 1, "one session made")
@@ -156,7 +160,7 @@ local function checks()
   -- Find: the worktree's row goes back to the session that was made.
   I.reset()
   answers = { "repo", "feat/x" }
-  I.run({}, "worktree")
+  I.worktree_run({})
   assert(shown() == first and #made == 1, "found, not made again")
 
   -- Clean-up: ignored files do not keep a worktree, and its session is
@@ -178,7 +182,7 @@ local function checks()
   -- Adopt: a session made by hand in the project becomes the project's own.
   local hand, hand_block = by_hand(repo)
   answers = { "repo", 1 }
-  I.run({ session_id = hand, block_id = hand_block }, "here")
+  I.switch_run({ session_id = hand, block_id = hand_block })
   assert(shown() == hand and #made == 2, "adopted, and no session made for it")
   assert(label_of(hand) == "repo", "renamed: " .. tostring(label_of(hand)))
   assert(remembered(repo) == hand)
@@ -188,41 +192,42 @@ local function checks()
   git(repo, "worktree", "add", "-q", "-b", "feat/y", wt2, "main")
   local hand2 = by_hand(wt2)
   answers = { "repo", "feat/y" }
-  I.run({ session_id = hand2 }, "worktree")
+  I.worktree_run({ session_id = hand2 })
   assert(shown() == hand2 and #made == 3)
   assert(label_of(hand2) == "repo · feat/y", tostring(label_of(hand2)))
 
   -- Here mode: a new branch is switched to in the session the project has.
   answers = { "repo", { text = "side branch" }, 1 }
-  I.run({}, "here")
+  I.switch_run({})
   assert(git(repo, "symbolic-ref", "--short", "HEAD") == "side-branch")
   assert(shown() == hand and #made == 3, "the one main session")
   -- A branch that lives in a worktree is refused in git's words.
   answers = { "repo", { text = "feat/y" } }
-  local message = refused(I.run, {}, "here")
+  local message = refused(I.switch_run, {})
   assert(message:find("^fatal: ") and message:find("feat/y", 1, true), message)
   assert(git(repo, "symbolic-ref", "--short", "HEAD") == "side-branch", "nothing switched")
   answers = { "repo", "main" }
-  I.run({}, "here")
+  I.switch_run({})
   assert(git(repo, "symbolic-ref", "--short", "HEAD") == "main")
 
-  -- Clean-up: untracked files are refused and nothing changes.
+  -- Clean-up: untracked files are refused in wt's words, and nothing changes.
   write(wt2 .. "/new.txt", "x")
   answers = { "repo", "feat/y" }
   message = refused(I.clean_up, {})
-  assert(message == "Nothing was deleted: the worktree of feat/y has uncommitted changes. Commit or discard them, then clean up again.", message)
+  assert(message:find("^Cannot remove worktree: feat/y has uncommitted changes%. "), message)
   assert(is_folder(wt2) and has_branch(repo, "feat/y") and label_of(hand2) ~= nil)
 
-  -- Clean-up: git keeps a branch with commits of its own, and offers force.
+  -- Clean-up: wt keeps a branch with commits of its own, and offers force.
   git(wt2, "add", "new.txt")
   git(wt2, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "work")
   asked = {}
   answers = { "repo", "feat/y", "Force delete" }
   I.clean_up({})
-  assert(asked[3].title:find("not fully merged", 1, true), asked[3].title)
+  assert(asked[3].title == "feat/y has changes that the default branch lacks", asked[3].title)
   assert(asked[3].items[1].title == "Keep")
   assert(not is_folder(wt2) and not has_branch(repo, "feat/y"))
-  assert(label_of(hand2) == nil, "the adopted session is closed with its worktree")
+  assert(label_of(hand2) == "repo · feat/y", "the adopted session stays open, named")
+  assert(remembered(wt2) == nil, "and is forgotten")
   assert(#I.worktrees(repo) == 1)
 end
 

@@ -1,48 +1,39 @@
 -- rex-projects: pick a project, then a branch, and land in its session.
+-- README.md says what each action and setting does; this says how the code
+-- is put together.
 --
--- Two actions share one flow. Each asks for a project from a list you keep,
--- then lists the project's branches, where you choose a row or type a name:
+-- Pickers and backend. The actions (see "The actions") run in the app's own
+-- server, the one on the Mac, because the app lists and binds only that
+-- server's actions. They do the asking: rex.ui.pick lists, and the session
+-- calls. Everything that reads folders, runs git, wt or gh, or touches the
+-- saved state is an op of the backend table, run where the projects are.
+-- Ops never ask the person anything. Each answers a table of plain values,
+-- or { why = message } when the request cannot be done, carrying the
+-- tool's own words where git, wt or gh refused, and the action fails with
+-- it (fail).
 --
---   Switch Branch in Project…  (alt+cmd+n) works in the project's own folder.
---     It switches the branch there and goes to the project's session.
---   Open Worktree in Project…  (ctrl+alt+cmd+n) works in a worktree, a
---     second checkout of the repository in its own folder. It makes the
---     worktree when the branch has none, and goes to the worktree's session.
+-- The relay. connect picks where ops run: here, as a plain call, or, for a
+-- focused session on a remote host, through client.action to that server's
+-- projects_backend action, which needs this file in that host's init.lua.
+-- The answer travels as JSON, and the caller waits 10 seconds at most, so a
+-- relayed op runs network commands under net_limit and stops them in time.
+-- Session calls (session.create and the rest) go to the same server.
 --
--- A name that matches no branch makes a new one, after a second list asks
--- what it starts from. Each checkout has one session, and the script
--- remembers which, so choosing a checkout again goes back to its session
--- instead of opening another. Review Pull Request… opens a GitHub pull
--- request in its own worktree and offers to update it when it moved on.
--- Clean Up Branch in Project… deletes a finished
--- branch, with its worktree and that worktree's session.
+-- The session store (see "State"). projects.json holds the project list,
+-- the order of last use, and a record { session, created } for each
+-- checkout's folder. The backend owns it: landing reads the record and says
+-- whether the action's own session may be adopted, keep stores the session
+-- an action landed in, and cleanup and forget_record hand a forgotten
+-- record back. session_for, in the actions, finds, adopts or creates the
+-- session; close_session is the one close path, and it closes only a
+-- session rex-projects created; close_project_session, for wt's post-remove
+-- hook, takes it on its own host. Records are hints that git, wt or a person
+-- can outdate at any time, so each is checked before use.
 --
--- The projects are the ones on the machine of the focused session. For a
--- session on a remote host, the pickers still run here, and the folder and
--- git work runs on that host, which needs this file in its init.lua too.
---
--- Install: put this file next to init.lua and add to init.lua
---
---     require("projects")
---
--- Optional settings, before or after the require:
---
---     require("projects").setup{
---       key           = "alt+cmd+n",        -- Switch Branch; false binds nothing
---       worktree_key  = "ctrl+alt+cmd+n",   -- Open Worktree; false binds nothing
---       base          = "main",             -- what a new branch starts from;
---                                           -- unset, the remote's default branch
---       shell         = "fish",             -- the shell of a new session
---       worktrees     = "~/.rex/worktrees", -- where new worktrees are made
---       roots         = { "~/src" },        -- folders whose repositories are
---                                           -- listed without being added
---       project_order = "recent",           -- project picker: "recent" or "name"
---       branch_order  = "recent",           -- branch lists: "recent" or "name"
---     }
---
--- Written for Lua 5.1 (what Rex embeds) and for init.lua, which runs
--- unsandboxed on the server. Without io, the project list is kept only
--- until the server restarts, and the script says so in the log.
+-- git, wt and gh run through rex.exec with argument lists, with PATH and a
+-- few other variables from the login shell (login_env). The script is
+-- written for Lua 5.1, as Rex embeds it; test/run.lua runs it against a
+-- stand-in for Rex, and test/host.lua against a real server.
 
 local M = {}
 
@@ -62,13 +53,15 @@ local config = {
   key = "alt+cmd+n", -- runs Switch Branch in Project…
   worktree_key = "ctrl+alt+cmd+n", -- runs Open Worktree in Project…
   base = nil, -- what a new branch starts from unless another is chosen; nil
-  -- means the remote's default branch, else "main"
+  -- means the default branch that wt finds
   shell = nil, -- nil means the account's default shell
   worktrees = nil, -- nil means <home>/.rex/worktrees
   roots = {},
   project_order = "recent", -- the project picker's order: "recent" or "name"
   branch_order = "recent", -- the branch lists' order: "recent" (newest commit) or "name"
   state_file = nil, -- nil means <config dir>/rex/projects.json
+  label = nil, -- a function that answers a session's label; nil means rex-projects' own
+  layout = nil, -- a function that answers a new session's windows; nil means one shell tab
 }
 
 -- The action that each key setting runs.
@@ -84,10 +77,6 @@ local bound_keys = {}
 -- Platform
 ---------------------------------------------------------------------------
 
--- The first character of package.config is the directory separator, and it
--- is a backslash only on Windows.
-local is_windows = (package and package.config or "/"):sub(1, 1) == "\\"
-
 -- env returns an environment variable, or nil when it is unset or empty, or
 -- when this script has no os library.
 local function env(name)
@@ -97,29 +86,40 @@ local function env(name)
   return value
 end
 
-local home = env("HOME") or env("USERPROFILE") or ""
+local home = env("HOME") or ""
 
--- slashes writes every separator as "/", which git and Windows both take.
-local function slashes(path)
-  return (path:gsub("\\", "/"))
+-- trim removes blanks from both ends of s.
+local function trim(s)
+  return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+-- one_line is s trimmed, with each run of blanks and newlines as one space.
+local function one_line(s)
+  return (trim(tostring(s)):gsub("%s+", " "))
+end
+
+-- shown is a value as a warning shows it: a string quoted on one line, a
+-- number or boolean as it is, anything else by its type.
+local function shown(v)
+  if type(v) == "string" then return (string.format("%q", v):gsub("\\\n", "\\n")) end
+  if type(v) == "number" or type(v) == "boolean" then return tostring(v) end
+  return "a " .. type(v)
 end
 
 -- expand writes a leading ~ as the home folder and trims blanks and quotes
 -- that a pasted path carries.
 local function expand(path)
-  path = path:gsub("^%s+", ""):gsub("%s+$", "")
+  path = trim(path)
   path = path:gsub('^"(.*)"$', "%1"):gsub("^'(.*)'$", "%1")
-  path = slashes(path)
-  if path == "~" then return slashes(home) end
-  if path:sub(1, 2) == "~/" then return slashes(home) .. path:sub(2) end
+  if path == "~" then return home end
+  if path:sub(1, 2) == "~/" then return home .. path:sub(2) end
   return path
 end
 
 -- short writes the home folder at the start of path as ~.
 local function short(path)
-  local h = slashes(home)
-  if h ~= "" and path:sub(1, #h + 1) == h .. "/" then
-    return "~" .. path:sub(#h + 1)
+  if home ~= "" and path:sub(1, #home + 1) == home .. "/" then
+    return "~" .. path:sub(#home + 1)
   end
   return path
 end
@@ -127,11 +127,6 @@ end
 -- basename returns the last component of a slash-separated path.
 local function basename(path)
   return (path:gsub("/+$", ""):match("([^/]+)$")) or path
-end
-
--- trim removes blanks from both ends of s.
-local function trim(s)
-  return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 -- output runs a command and returns what it printed, or nil when it failed
@@ -142,46 +137,89 @@ local function output(...)
   return r.stdout
 end
 
+-- decode reads text as a JSON object or list, or returns nil for anything
+-- else.
+local function decode(text)
+  local ok, decoded = pcall(rex.json.decode, text)
+  if ok and type(decoded) == "table" then return decoded end
+  return nil
+end
+
+-- or_status returns message, the reason a tool gave for failing, or its exit
+-- status when it gave none.
+local function or_status(message, tool, r)
+  if message ~= "" then return message end
+  return tool .. " exited with status " .. tostring(r.code)
+end
+
 -- worktrees_dir is the folder that new worktrees are made in, as
--- <dir>/<project>/<branch>.
+-- <dir>/<repository>/<branch>; see worktree_path.
 local function worktrees_dir()
   if config.worktrees then return expand(config.worktrees) end
-  local from_env = env("REX_WORKTREES")
-  if from_env then return expand(from_env) end
-  return slashes(home) .. "/.rex/worktrees"
+  return home .. "/.rex/worktrees"
 end
 
 -- real returns dir as the system spells it, with every symbolic link
 -- followed, or dir itself when that cannot be found out.
 local function real(dir)
-  if is_windows then return dir end
   local out = output({ "pwd", "-P" }, { cwd = dir })
   if out == nil then return dir end
   out = trim(out)
   return out ~= "" and out or dir
 end
 
+-- spelled returns path as the system spells it, like real, also when the
+-- folder is gone: its nearest existing parent is spelled, and the rest kept.
+local function spelled(path)
+  local out = output({ "pwd", "-P" }, { cwd = path })
+  if out ~= nil and trim(out) ~= "" then return trim(out) end
+  local parent, name = path:match("^(.+)/([^/]+)$")
+  if parent == nil then return path end
+  return spelled(parent) .. "/" .. name
+end
+
+-- is_folder says whether path is a folder on this machine.
+local function is_folder(path)
+  return output({ "test", "-d", path }) ~= nil
+end
+
 ---------------------------------------------------------------------------
 -- State: the project list and each checkout's session
 ---------------------------------------------------------------------------
 
--- state is { projects = { path, ... }, sessions = { [folder] = session id },
--- recent = { path, ... } }. sessions names the session of each checkout by
--- the checkout's folder: a project's own folder, or the folder of one of its
--- worktrees. recent holds the projects that were opened, the last one first.
+-- state is { projects = { path, ... }, sessions = { [folder] = record },
+-- recent = { path, ... } }. recent holds the projects that were opened, the
+-- last one first.
+--
+-- sessions holds a record { session = id, created = boolean } for a
+-- checkout, by its folder: a project's own folder, or the folder of one of
+-- its worktrees. The rules:
+--   - a checkout has at most one record, and a session belongs to at most
+--     one checkout: keep drops any other record of the session it stores;
+--   - created says rex-projects made the session. Only such a session is
+--     ever closed; an adopted one is forgotten and stays open;
+--   - a record is a hint: git, wt or a person may remove the checkout or
+--     close the session at any time. Before a record that may stop an
+--     adoption is used, the backend checks its folder (record_at); one whose
+--     folder is gone is dropped, as if there were none. The close path checks
+--     only the session (session_exists): Clean Up of a worktree whose folder
+--     was deleted by hand still closes the session rex-projects made for it.
+--     The record of the checkout an action lands in is kept as it is: its
+--     folder is there by then, and a worktree made again at the same path
+--     keeps its session;
+--   - a record whose folder is gone is kept until an action reaches it
+--     (record_at, forget_record, keep), so a hook can still close its
+--     session after a restart.
+-- A value in any other shape, such as the bare id an older version kept, is
+-- skipped on load and leaves the file at the next save.
 local state = nil
 
 -- state_path returns where the state is kept, or nil when there is nowhere.
 local function state_path()
   if config.state_file then return expand(config.state_file) end
-  local base
-  if is_windows then
-    base = env("APPDATA")
-  else
-    base = env("XDG_CONFIG_HOME") or (home ~= "" and (home .. "/.config") or nil)
-  end
+  local base = env("XDG_CONFIG_HOME") or (home ~= "" and (home .. "/.config") or nil)
   if base == nil then return nil end
-  return slashes(base) .. "/rex/projects.json"
+  return base .. "/rex/projects.json"
 end
 
 -- warned_memory_only keeps the log to one warning about a missing io library.
@@ -209,22 +247,39 @@ local function load_state()
   if file == nil then return state end
   local text = file:read("*a")
   file:close()
-  local ok, decoded = pcall(rex.json.decode, text)
-  if ok and type(decoded) == "table" then
+  local decoded = decode(text)
+  if decoded ~= nil then
     -- Read each member by hand: another version of this file may hold more.
     state.projects = strings(decoded.projects)
     state.recent = strings(decoded.recent)
     if type(decoded.sessions) == "table" then
       for k, v in pairs(decoded.sessions) do
-        if type(k) == "string" and type(v) == "string" then state.sessions[k] = v end
+        if type(k) == "string" and type(v) == "table" and type(v.session) == "string"
+            and type(v.created) == "boolean" then
+          state.sessions[k] = { session = v.session, created = v.created }
+        end
       end
     end
   end
   return state
 end
 
+-- replace moves tmp over path, with os.rename when the runtime has it.
+local function replace(tmp, path)
+  if os ~= nil and os.rename ~= nil then return os.rename(tmp, path) end
+  local r, err = rex.exec({ "mv", "-f", tmp, path })
+  if r == nil then return nil, err end
+  if not r.ok then return nil, trim(r.stderr) end
+  return true
+end
+
+local function remove(file)
+  if os ~= nil and os.remove ~= nil then os.remove(file) else rex.exec({ "rm", "-f", file }) end
+end
+
 -- save_state writes the state. It returns nothing and never raises: failing
--- to remember is not worth stopping a session for.
+-- to remember is not worth stopping a session for. It writes a temporary file
+-- and renames it over the old one, so a save cut short leaves the old file.
 local function save_state()
   local path = state_path()
   if io == nil or io.open == nil or path == nil then
@@ -234,23 +289,21 @@ local function save_state()
     end
     return
   end
-  -- Make the folder first. mkdir -p exists on every Unix; Windows mkdir
-  -- makes parents by itself and fails when the folder exists, which is fine.
   local dir = path:match("^(.*)/[^/]+$")
-  if dir then
-    if is_windows then
-      rex.exec({ "cmd", "/c", "mkdir", (dir:gsub("/", "\\")) })
-    else
-      rex.exec({ "mkdir", "-p", dir })
-    end
+  if dir then rex.exec({ "mkdir", "-p", dir }) end
+  local tmp = path .. ".tmp"
+  local file, err = io.open(tmp, "w")
+  local ok = file ~= nil
+  if ok then
+    ok, err = file:write(rex.json.encode({ projects = state.projects, sessions = state.sessions, recent = state.recent }))
+    local closed, close_err = file:close()
+    if ok and not closed then ok, err = false, close_err end
+    if ok then ok, err = replace(tmp, path) end
   end
-  local file, err = io.open(path, "w")
-  if file == nil then
+  if not ok then
     rex.log("warn", "projects: cannot save " .. path .. ": " .. tostring(err))
-    return
+    if file ~= nil then remove(tmp) end
   end
-  file:write(rex.json.encode({ projects = state.projects, sessions = state.sessions, recent = state.recent }))
-  file:close()
 end
 
 ---------------------------------------------------------------------------
@@ -295,36 +348,208 @@ local function timed_out(what)
     NET_SECONDS .. " seconds), and was stopped"
 end
 
+local LOGIN_VARS = {
+  "PATH", "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+  "GH_HOST", "GH_CONFIG_DIR", "XDG_CONFIG_HOME", "SSH_AUTH_SOCK",
+}
+local LOGIN_SECONDS = 5
+local login_cache = nil
+
+-- The Rex server's PATH can lack Homebrew on a Mac, so git, wt and gh are
+-- found through the login shell.
+local function login_env()
+  if login_cache ~= nil then return login_cache end
+  login_cache = false
+  local shell = env("SHELL")
+  if shell == nil then
+    rex.log("warn", "projects: $SHELL is not set; git, wt and gh use the server's environment")
+    return login_cache
+  end
+  local r, err = rex.exec({ shell, "-l", "-c", "env" }, { timeout = LOGIN_SECONDS })
+  local problem = nil
+  if r == nil then
+    problem = shell .. " -l did not run (" .. tostring(err or "no reason given") .. ")"
+  elseif r.timed_out then
+    problem = shell .. " -l took over " .. LOGIN_SECONDS .. " seconds"
+  elseif not r.ok then
+    problem = shell .. " -l exited with status " .. tostring(r.code)
+  end
+  if problem ~= nil then
+    rex.log("warn", "projects: cannot read the login shell's environment: " .. problem ..
+      "; git, wt and gh use the server's environment")
+    return login_cache
+  end
+  local wanted = {}
+  for _, name in ipairs(LOGIN_VARS) do wanted[name] = true end
+  local found = {}
+  for line in (r.stdout or ""):gmatch("[^\n]+") do
+    local name, value = line:match("^([%w_]+)=(.*)$")
+    if name ~= nil and wanted[name] and value ~= "" then found[name] = value end
+  end
+  if next(found) ~= nil then login_cache = found end
+  return login_cache
+end
+
+local function tool_opts(opts)
+  local login = login_env()
+  if not login then return opts end
+  local merged = {}
+  for k, v in pairs(opts or {}) do merged[k] = v end
+  merged.env = {}
+  for k, v in pairs(login) do merged.env[k] = v end
+  for k, v in pairs(opts and opts.env or {}) do merged.env[k] = v end
+  return merged
+end
+
 -- git_in runs git in dir, for at most timeout seconds when one is given,
 -- and returns what it printed, or nil and git's message.
 -- Arguments go as a list, never through a shell, so no quoting is needed.
 local function git_in(timeout, dir, ...)
-  local r, err = rex.exec({ "git", "-C", dir, ... }, timeout and { timeout = timeout } or nil)
+  local r, err = rex.exec({ "git", "-C", dir, ... }, tool_opts(timeout and { timeout = timeout } or nil))
   if r == nil then return nil, tostring(err or "git did not run") end
   if r.timed_out then return nil, timed_out("git " .. tostring((...))) end
-  if not r.ok then
-    local message = trim(r.stderr)
-    if message == "" then message = "git exited with status " .. tostring(r.code) end
-    return nil, reason(message)
-  end
+  if not r.ok then return nil, reason(or_status(trim(r.stderr), "git", r)) end
   return r.stdout
 end
 
 -- git runs a git command that stays on this machine.
 local function git(dir, ...) return git_in(nil, dir, ...) end
 
+-- git_text returns what such a command printed, trimmed, or "" when it failed.
+local function git_text(dir, ...) return trim(git(dir, ...) or "") end
+
 -- git_net runs one that uses the network, such as fetch.
 local function git_net(dir, ...) return git_in(net_timeout(), dir, ...) end
 
--- exists says whether path, a file or a folder, is there.
-local function exists(path)
-  if is_windows then
-    local native = path:gsub("/", "\\")
-    local out = rex.exec({ "cmd", "/c", "if", "exist", native, "echo", "yes" })
-    return out ~= nil and out.ok and out.stdout:find("yes", 1, true) ~= nil
+---------------------------------------------------------------------------
+-- Worktrunk
+---------------------------------------------------------------------------
+
+-- wt_reason returns why wt stopped, from what it wrote to stderr, on one
+-- line: its error, marked ✗, git's own error under it, and its hints,
+-- marked ↳. The progress lines before the error are not the reason. A
+-- message with no such mark, such as a usage error, comes back whole.
+local function wt_reason(stderr)
+  -- wt colours nothing when stderr is no terminal, unless told to.
+  local text = stderr:gsub("\27%[[%d;]*%a", "")
+  text = text:gsub("\r", "")
+  local parts, started = {}, false
+  for line in text:gmatch("[^\n]+") do
+    local err, hint = line:match("^✗%s*(.-)%s*$"), line:match("^↳%s*(.-)%s*$")
+    if err ~= nil then
+      started = true
+      parts[#parts + 1] = err
+    elseif started and hint ~= nil then
+      parts[#parts + 1] = hint
+    elseif started and (line:find("fatal: ", 1, true) or line:find("error: ", 1, true)) then
+      parts[#parts + 1] = trim(line)
+    end
   end
-  local r = rex.exec({ "test", "-e", path })
-  return r ~= nil and r.ok
+  if #parts == 0 then return trim(text) end
+  local out = parts[1]
+  for i = 2, #parts do
+    if not out:find("[.:;!?]$") then out = out .. "." end
+    out = out .. " " .. parts[i]
+  end
+  return out
+end
+
+-- wt_in runs wt in project and returns rex.exec's result, or nil and why,
+-- and true as well when the command was stopped for taking too long.
+--
+-- In an op that another server asked for, see net_limit, a command that
+-- uses the network (network true) gets what is left of NET_SECONDS. Every
+-- other one is kept off the network: GIT_ALLOW_PROTOCOL=none stops each git
+-- command wt runs from reaching a remote. That matters for the default
+-- branch, which wt asks the remote for, for up to 10 seconds, when neither
+-- its own record nor <remote>/HEAD names it. Kept off the network, wt finds
+-- it among the local branches instead and records that, so later commands
+-- read it from the record.
+local function wt_in(project, network, ...)
+  local opts = nil
+  if net_limit ~= nil then
+    if network then
+      opts = { timeout = net_timeout() }
+    else
+      opts = { env = { GIT_ALLOW_PROTOCOL = "none" } }
+    end
+  end
+  local r, err = rex.exec({ "wt", "-C", project, ... }, tool_opts(opts))
+  if r == nil or r.code == 127 then
+    return nil, "wt did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
+      "). The Projects actions need worktrunk (https://worktrunk.dev) on PATH (the login shell's)."
+  end
+  if r.timed_out then return nil, timed_out("wt " .. tostring((...))), true end
+  return r
+end
+
+-- wt_hooked runs a wt command whose hooks run, as wt_in does. Hooks run as
+-- in a terminal, network and all, so in an op another server asked for the
+-- command gets the network's time limit. wt finds the default branch off
+-- the network first, as Review Pull Request does.
+local function wt_hooked(project, ...)
+  if net_limit ~= nil then wt_in(project, false, "config", "state", "default-branch") end
+  return wt_in(project, true, ...)
+end
+
+-- wt_why returns why wt failed, from rex.exec's result r. A hook that needs
+-- approval, which wt cannot ask for without a terminal, is named with its
+-- commands, and with what to run in a terminal to approve them.
+local function wt_why(project, r)
+  local text = (r.stderr or ""):gsub("\27%[[%d;]*%a", "")
+  text = text:gsub("\r", "")
+  if not text:find("Cannot prompt for approval", 1, true) then
+    return or_status(wt_reason(r.stderr or ""), "wt", r)
+  end
+  local parts, started = {}, false
+  for line in text:gmatch("[^\n]+") do
+    local asks = line:match("^▲%s*(.-)%s*$")
+    if asks ~= nil then
+      started = true
+      parts[#parts + 1] = asks
+    elseif started and line:find("^✗") then
+      break
+    elseif started then
+      local command = trim(line:gsub("^○%s*", ""))
+      if command ~= "" then parts[#parts + 1] = command end
+    end
+  end
+  local asked = table.concat(parts, " ")
+  if asked ~= "" and not asked:find("[.:;!?]$") then asked = asked .. "." end
+  if asked ~= "" then asked = asked .. " " end
+  return asked .. "wt cannot ask for approval without a terminal: run wt config approvals add " ..
+    "in a terminal in " .. short(project) .. ", then try again"
+end
+
+-- wt runs wt and returns its JSON answer, decoded, or nil and wt's message,
+-- and true as well when it was stopped for taking too long. how is "hooks"
+-- for a command whose hooks run (see wt_hooked), else whether it uses the
+-- network (see wt_in).
+local function wt(project, how, ...)
+  local r, err, stopped
+  if how == "hooks" then
+    r, err, stopped = wt_hooked(project, ...)
+  else
+    r, err, stopped = wt_in(project, how, ...)
+  end
+  if r == nil then return nil, err, stopped end
+  if not r.ok then return nil, wt_why(project, r) end
+  local decoded = decode(r.stdout)
+  if decoded == nil then return nil, "wt did not answer with JSON: " .. trim(r.stdout) end
+  return decoded
+end
+
+-- toml writes s as a TOML string.
+local function toml(s)
+  local escaped = s:gsub('[\\"]', "\\%0")
+  return '"' .. escaped .. '"'
+end
+
+-- worktree_path is the --config-set that puts a new worktree in
+-- <worktrees>/<repository>/<branch>, a slash in the branch written as a
+-- dash. It goes with every wt switch, over what wt's own config says.
+local function worktree_path()
+  return "worktree-path=" .. toml(worktrees_dir() .. "/{{ repo }}/{{ branch | sanitize }}")
 end
 
 -- is_repo_root says whether dir is the top folder of a repository. It asks for
@@ -338,18 +563,14 @@ end
 -- toplevel returns the top folder of the checkout that holds dir, as git
 -- spells it, or nil when dir is in no checkout.
 local function toplevel(dir)
-  local out = git(dir, "rev-parse", "--show-toplevel")
-  if out == nil then return nil end
-  out = trim(out)
-  return out ~= "" and slashes(out) or nil
+  local out = git_text(dir, "rev-parse", "--show-toplevel")
+  return out ~= "" and out or nil
 end
 
 -- current_branch returns the branch checked out in dir, or nil when HEAD is
 -- detached.
 local function current_branch(dir)
-  local out = git(dir, "symbolic-ref", "--short", "-q", "HEAD")
-  if out == nil then return nil end
-  out = trim(out)
+  local out = git_text(dir, "symbolic-ref", "--short", "-q", "HEAD")
   return out ~= "" and out or nil
 end
 
@@ -379,7 +600,7 @@ local function worktrees(project)
     local path = entry:match("^worktree ([^\n]+)")
     if path then
       list[#list + 1] = {
-        path = slashes(path),
+        path = path,
         branch = entry:match("\nbranch refs/heads/([^\n]+)"),
         prunable = entry:find("\nprunable", 1, true) ~= nil,
       }
@@ -435,28 +656,69 @@ local function remote_branches(project)
   return list
 end
 
--- valid_branch_name says whether git accepts name as a branch name. When it
--- does not, the second result is git's message.
-local function valid_branch_name(project, name)
+-- branch_name returns text as a branch name: no branch name holds a space,
+-- so a typed one means a dash.
+local function branch_name(text)
+  local name = trim(text or ""):gsub("%s+", "-")
+  return name
+end
+
+-- remote_branch returns the remote branch of project that git calls name,
+-- such as origin/x, as remote_branches lists it, or nil.
+local function remote_branch(project, name)
+  for _, r in ipairs(remote_branches(project)) do
+    if r.name == name then return r end
+  end
+  return nil
+end
+
+-- pr_number reads a pull request from what was typed or chosen: 123, #123,
+-- or a link to it or to a page of it, such as /pull/123/files.
+local function pr_number(text)
+  text = trim(tostring(text or ""))
+  return tonumber(text:match("^#?(%d+)$") or text:match("/pull/(%d+)$")
+    or text:match("/pull/(%d+)[/?#]"))
+end
+
+-- typed_name says what text, a branch name typed or picked in project, whose
+-- checkouts are c, is. It answers { kind, name }, name as git will get it,
+-- with kind one of
+--   current   the main checkout's branch, or HEAD when that is detached
+--   local     a local branch
+--   remote    a remote branch such as origin/x, with branch = "x"
+--   shortcut  wt's ^ (the default branch) or - (wt's previous branch)
+--   pr        a pull request, pr:N or a link to one, with pr = what Review
+--             takes for it
+--   new       a name git takes for a new branch
+-- or nil and why it names no branch. A bare number is a branch name.
+local function typed_name(project, c, text)
+  local name = branch_name(text)
+  if name == "" then return nil, "no branch was named" end
+  if name == "^" or name == "-" then return { kind = "shortcut", name = name } end
+  local n = name:match("^pr:(%d+)$")
+  if n ~= nil then return { kind = "pr", name = name, pr = "#" .. n } end
+  if name:find("^https?://") and pr_number(name) ~= nil then
+    return { kind = "pr", name = name, pr = name }
+  end
+  if name == (c.current or "HEAD") then return { kind = "current", name = name } end
+  if has_ref(project, "refs/heads/" .. name) then return { kind = "local", name = name } end
+  local remote = remote_branch(project, name)
+  if remote ~= nil then return { kind = "remote", name = name, branch = remote.branch } end
   local out, err = git(project, "check-ref-format", "--branch", name)
-  return out ~= nil, err
+  if out == nil then return nil, err end
+  -- git expands a name such as @{-1} to the branch it stands for, and
+  -- reads @ as HEAD.
+  local read = trim(out)
+  if read == "@" then read = "HEAD" end
+  if read ~= name then return nil, name .. " is not a branch name: git reads it as " .. read end
+  return { kind = "new", name = name }
 end
 
 ---------------------------------------------------------------------------
 -- Projects
 ---------------------------------------------------------------------------
 
--- windows_folders lists the names of the folders directly inside dir, on
--- Windows, where dir /b /ad lists folder names only.
-local function windows_folders(dir)
-  local names = {}
-  local out = output({ "cmd", "/c", "dir", "/b", "/ad", (dir:gsub("/", "\\")) })
-  if out == nil then return names end
-  for name in out:gmatch("[^\r\n]+") do names[#names + 1] = name end
-  return names
-end
-
--- repos_in lists the repositories directly inside dir, as paths, on Unix.
+-- repos_in lists the repositories directly inside dir, as paths.
 -- A repository has a .git entry: a folder, or a file in a worktree.
 -- -print0 ends each path with NUL, the one byte a path cannot hold.
 local function repos_in(dir)
@@ -474,29 +736,15 @@ end
 -- as paths. Only folders are searched, one level down, so it stays quick.
 local function scan()
   local found = {}
-  local roots = config.roots
-  local from_env = env("REX_PROJECTS")
-  if from_env then
-    roots = { from_env }
-    for _, r in ipairs(config.roots) do roots[#roots + 1] = r end
-  end
-  for _, root in ipairs(roots) do
-    root = expand(root)
-    if is_windows then
-      for _, name in ipairs(windows_folders(root)) do
-        local path = root .. "/" .. name
-        if is_repo_root(path) then found[#found + 1] = path end
-      end
-    else
-      for _, path in ipairs(repos_in(root)) do found[#found + 1] = path end
-    end
+  for _, root in ipairs(config.roots) do
+    for _, path in ipairs(repos_in(expand(root))) do found[#found + 1] = path end
   end
   return found
 end
 
 -- The ids of the rows that are not a folder. They travel as JSON between
 -- servers, so they hold no NUL byte; a colon keeps them apart from any real
--- path, which starts with "/" or a drive letter.
+-- path, which starts with "/".
 local ADD_PROJECT = ":add"
 local ADD_HERE = ":here"
 local UP = ":up"
@@ -526,7 +774,6 @@ end
 -- project that holds cwd wins.
 local function containing(paths, cwd)
   if cwd == nil or cwd == "" then return nil end
-  cwd = slashes(cwd)
   local trees = worktrees(cwd)
   local main = trees and trees[1] and trees[1].path or nil
   -- The terminal and the list may spell a folder through a symbolic link.
@@ -564,11 +811,10 @@ end
 local function project_rows(cwd)
   local s = load_state()
   local seen, paths = {}, {}
-  for _, p in ipairs(s.projects) do
-    if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
-  end
-  for _, p in ipairs(scan()) do
-    if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
+  for _, list in ipairs({ s.projects, scan() }) do
+    for _, p in ipairs(list) do
+      if not seen[p] then seen[p] = true; paths[#paths + 1] = p end
+    end
   end
   local rank = {}
   local focused = containing(paths, cwd)
@@ -595,42 +841,19 @@ local function project_rows(cwd)
   return rows
 end
 
--- is_folder says whether path is a folder on this machine.
-local function is_folder(path)
-  if is_windows then
-    -- A folder holds the NUL device on Windows; a file does not.
-    local native = path:gsub("/", "\\")
-    local out = output({ "cmd", "/c", "if", "exist", native .. "\\NUL", "echo", "yes" })
-    return out ~= nil and out:find("yes", 1, true) ~= nil
-  end
-  return output({ "test", "-d", path }) ~= nil
-end
-
 -- subfolders lists the folders directly inside dir as { path = ..., repo =
 -- boolean }, sorted by name, hidden folders left out. It returns an empty list
 -- for a folder it cannot read.
 local function subfolders(dir)
   local list = {}
-  if is_windows then
-    -- Repositories are not marked: one git call for each folder would be
-    -- slow, and Return then opens the folder, from where "Add" is one row
-    -- away.
-    local base = dir:gsub("/+$", "")
-    for _, name in ipairs(windows_folders(dir)) do
-      if name:sub(1, 1) ~= "." then
-        list[#list + 1] = { path = base .. "/" .. name, repo = false }
-      end
-    end
-  else
-    -- -print0 ends each path with NUL, the one byte a path cannot hold.
-    local out = output({ "find", dir, "-mindepth", "1", "-maxdepth", "1", "-type", "d",
-      "-not", "-name", ".*", "-print0" })
-    local repos = {}
-    for _, path in ipairs(repos_in(dir)) do repos[path] = true end
-    if out ~= nil then
-      for path in out:gmatch("[^%z]+") do
-        list[#list + 1] = { path = path, repo = repos[path] == true }
-      end
+  -- -print0 ends each path with NUL, the one byte a path cannot hold.
+  local out = output({ "find", dir, "-mindepth", "1", "-maxdepth", "1", "-type", "d",
+    "-not", "-name", ".*", "-print0" })
+  local repos = {}
+  for _, path in ipairs(repos_in(dir)) do repos[path] = true end
+  if out ~= nil then
+    for path in out:gmatch("[^%z]+") do
+      list[#list + 1] = { path = path, repo = repos[path] == true }
     end
   end
   table.sort(list, function(a, b) return basename(a.path):lower() < basename(b.path):lower() end)
@@ -641,11 +864,9 @@ end
 local function parent_of(dir)
   local parent = dir:match("^(.*)/[^/]+/?$")
   if parent == nil or parent == "" then
-    -- "/x" has the parent "/"; "C:/x" has "C:/".
     if dir:match("^/[^/]+/?$") then return "/" end
     return nil
   end
-  if parent:match("^%a:$") then return parent .. "/" end
   return parent
 end
 
@@ -685,6 +906,7 @@ end
 -- message for a folder with none:
 --   current  the branch checked out in the project's own folder, the main
 --            checkout; nil when HEAD is detached
+--   top      the project's own folder as git spells it
 --   others   its other checkouts, the worktrees
 --   taken    each branch that a worktree holds, with that worktree
 local function checkouts(project)
@@ -697,7 +919,7 @@ local function checkouts(project)
   for i, tree in ipairs(trees) do
     if tree.path == top then own = i; break end
   end
-  local c = { current = current_branch(project), others = {}, taken = {} }
+  local c = { current = current_branch(project), top = trees[own].path, others = {}, taken = {} }
   for i, tree in ipairs(trees) do
     if i ~= own then
       c.others[#c.others + 1] = tree
@@ -715,69 +937,76 @@ local function checkouts(project)
   return c
 end
 
--- branch_rows returns the one list of branches that a mode shows.
---   "here"      the main checkout's branch, then every other regular branch,
---               then the remote branches
---   "worktree"  the worktrees, then the regular branches, then the remote ones
---   "cleanup"   the worktrees and the regular branches
--- A regular branch is a local one that no worktree holds. Only "here" lists
--- the main checkout's branch: it cannot get a worktree or be deleted. A
--- remote branch is listed while no local branch has its name, once for each
--- remote that has it.
-local function branch_rows(project, mode, c)
-  local rows, add = row_list()
-  if mode == "here" then
-    if c.current then add(c.current, "current branch") else add("HEAD", "detached") end
-  else
-    for _, tree in ipairs(c.others) do
-      -- A worktree whose folder is gone can only be cleaned up.
-      if tree.branch and (mode == "cleanup" or not tree.prunable) then
-        add(tree.branch, short(tree.path), "folder")
-      end
-    end
-  end
+-- add_branches adds, after a flow's own first rows, the regular branches,
+-- the local ones that are neither the main checkout's nor held by a
+-- worktree, then the remote branches. A remote branch is listed while no
+-- local branch has its name, once for each remote that has it.
+local function add_branches(project, c, add)
   local locals = {}
   for _, name in ipairs(local_branches(project)) do
     locals[name] = true
     if name ~= c.current and not c.taken[name] then add(name) end
   end
-  if mode ~= "cleanup" then
-    for _, remote in ipairs(remote_branches(project)) do
-      if not locals[remote.branch] then add(remote.name) end
+  for _, remote in ipairs(remote_branches(project)) do
+    if not locals[remote.branch] then add(remote.name) end
+  end
+end
+
+-- add_current adds the row of the main checkout's branch.
+local function add_current(c, add)
+  if c.current then add(c.current, "current branch") else add("HEAD", "detached") end
+end
+
+-- here_rows returns the branches Switch Branch offers: the main checkout's
+-- branch, then every other regular branch, then the remote branches.
+local function here_rows(project, c)
+  local rows, add = row_list()
+  add_current(c, add)
+  add_branches(project, c, add)
+  return rows
+end
+
+-- worktree_rows returns the branches Open Worktree offers: the worktrees,
+-- then the regular branches, then the remote ones. The main checkout's
+-- branch is not listed: it cannot get a worktree.
+local function worktree_rows(project, c)
+  local rows, add = row_list()
+  for _, tree in ipairs(c.others) do
+    -- A worktree whose folder is gone can only be cleaned up.
+    if tree.branch and not tree.prunable then
+      add(tree.branch, short(tree.path), "folder")
     end
+  end
+  add_branches(project, c, add)
+  return rows
+end
+
+-- cleanup_rows returns the branches Clean Up offers: the worktrees, those
+-- whose folder is gone too, then the regular branches. The main checkout's
+-- branch cannot be deleted, and a remote branch is not Clean Up's to delete.
+local function cleanup_rows(project, c)
+  local rows, add = row_list()
+  for _, tree in ipairs(c.others) do
+    if tree.branch then add(tree.branch, short(tree.path), "folder") end
+  end
+  for _, name in ipairs(local_branches(project)) do
+    if name ~= c.current and not c.taken[name] then add(name) end
   end
   return rows
 end
 
--- remote_head returns the branch that git recorded as the default branch of
--- remote, such as "main", or nil. git clone records it in
--- refs/remotes/<remote>/HEAD; a remote added by hand has none until
--- git remote set-head runs.
-local function remote_head(project, remote)
-  local out = git(project, "symbolic-ref", "--quiet", "refs/remotes/" .. remote .. "/HEAD")
-  if out == nil then return nil end
-  local prefix = "refs/remotes/" .. remote .. "/"
-  out = trim(out)
-  if out:sub(1, #prefix) ~= prefix or #out == #prefix then return nil end
-  return out:sub(#prefix + 1)
-end
-
 -- default_base returns the name of what a new branch starts from by
--- default: the base setting, else the default branch of origin, else of the
--- first other remote that has one recorded, else "main". It reads only what
--- is on disk, so it costs no network call.
+-- default: the base setting, else the default branch that wt finds (wt
+-- config state default-branch), else nil. wt keeps what it found in
+-- git config (worktrunk.default-branch). Before that it reads
+-- <remote>/HEAD, then asks the remote, then guesses from the local
+-- branches; see wt_in for how a remote host skips asking.
 local function default_base(project)
   if config.base then return config.base end
-  local remotes = {}
-  local out = git(project, "remote") or ""
-  for line in out:gmatch("[^\r\n]+") do
-    if line == "origin" then table.insert(remotes, 1, line) else remotes[#remotes + 1] = line end
-  end
-  for _, remote in ipairs(remotes) do
-    local head = remote_head(project, remote)
-    if head ~= nil then return head end
-  end
-  return "main"
+  local r = wt_in(project, false, "config", "state", "default-branch")
+  if r == nil or not r.ok then return nil end
+  local name = trim(r.stdout)
+  return name ~= "" and name or nil
 end
 
 -- default_remote_base returns the remote branch of the default base, as
@@ -788,10 +1017,11 @@ end
 -- fetched before counts, so that the row names something.
 local function default_remote_base(project)
   local base = default_base(project)
+  if base == nil then return nil end
   local remote, branch = nil, nil
   if has_ref(project, "refs/heads/" .. base) then
-    local r = trim(git(project, "config", "--get", "branch." .. base .. ".remote") or "")
-    local m = trim(git(project, "config", "--get", "branch." .. base .. ".merge") or "")
+    local r = git_text(project, "config", "--get", "branch." .. base .. ".remote")
+    local m = git_text(project, "config", "--get", "branch." .. base .. ".merge")
     -- A remote of "." is the repository itself.
     if r ~= "" and r ~= "." and m:find("^refs/heads/") then
       remote, branch = r, m:sub(#"refs/heads/" + 1)
@@ -826,58 +1056,63 @@ local function base_rows(project, c)
   if fetched ~= nil then
     add(fetched.name, "default · fetched first")
   else
-    -- Leave the default out where it names nothing, such as "main" in a
-    -- repository with no remote whose first branch is "master", so that
+    -- Leave the default out where there is none or it names nothing, such
+    -- as a base setting of "develop" in a repository without one, so that
     -- Return on the first row always works. The default may be any commit,
     -- so rev-parse reads it.
     local base = default_base(project)
-    if git(project, "rev-parse", "--verify", "--quiet", base .. "^{commit}") ~= nil then
+    if base ~= nil and git(project, "rev-parse", "--verify", "--quiet", base .. "^{commit}") ~= nil then
       add(base, "default")
     end
   end
-  if c.current then add(c.current, "current branch") else add("HEAD", "detached") end
+  add_current(c, add)
   for _, name in ipairs(local_branches(project)) do add(name) end
   for _, remote in ipairs(remote_branches(project)) do add(remote.name) end
   return rows
 end
 
--- add_worktree makes a worktree of project for branch, in
--- <worktrees>/<project>/<branch>. Without base, the branch exists already.
--- With base, the branch is new and starts there, and track ("--track",
--- "--no-track", or nil for what git does by itself) says whether it follows
--- base. It returns the folder as git spells it, or nil and git's message.
-local function add_worktree(project, branch, base, track)
-  -- A branch name may hold slashes; a folder name may not.
-  local folder = branch:gsub("[/\\:]", "-")
-  local dir = worktrees_dir() .. "/" .. basename(project) .. "/" .. folder
-  -- A worktree whose folder was deleted by hand is still on git's list, and
-  -- git then refuses its branch and its folder. Pruning drops such entries.
+-- switch_worktree runs wt switch in project, with args naming what to
+-- switch to: a branch, a remote branch such as origin/x, --create and
+-- --base for a new branch, or pr:<number>. wt goes to the branch's worktree,
+-- or makes one, and makes the local branch when there is none. how is
+-- "hooks" for the user's own branches: their hooks run, and wt's approval of
+-- a project's hooks decides, as in a terminal. Else no hook runs, since the
+-- hooks of a pull request come from whoever wrote it, and how is "network"
+-- when wt fetches, as it does for a pull request, or "local".
+--
+-- It returns { dir, branch }: the checkout's folder as git spells it, and
+-- its branch. Else it returns nil and wt's message, and true as well when wt
+-- was stopped for taking too long.
+local function switch_worktree(project, how, ...)
+  local r, err, stopped
+  if how == "hooks" then
+    r, err, stopped = wt(project, "hooks", "switch", "--no-cd", "--format=json",
+      "--config-set", worktree_path(), ...)
+  else
+    r, err, stopped = wt(project, how == "network", "switch", "--no-cd", "--no-hooks", "--format=json",
+      "--config-set", worktree_path(), ...)
+  end
+  if r == nil then return nil, err, stopped end
+  local co = { dir = tostring(r.path or ""), branch = r.branch }
+  -- wt may spell the folder differently from git (a symlink such as /tmp),
+  -- and the rest of this file, the remembered sessions too, goes by git's
+  -- spelling.
   for _, tree in ipairs(worktrees(project) or {}) do
-    if tree.prunable and (tree.branch == branch or tree.path == dir) then
-      git(project, "worktree", "prune")
-      break
-    end
+    if co.branch ~= nil and tree.branch == co.branch then co.dir = tree.path; break end
   end
-  local args = { "worktree", "add" }
-  if base ~= nil then
-    if track ~= nil then args[#args + 1] = track end
-    args[#args + 1] = "-b"
-    args[#args + 1] = branch
-  end
-  args[#args + 1] = dir
-  args[#args + 1] = base or branch
-  local _, err = git(project, unpack(args))
-  if err ~= nil then return nil, err end
-  -- Git may spell the folder differently from the path made here (a symlink
-  -- such as /tmp), and its list of worktrees gives git's spelling next time.
-  for _, tree in ipairs(worktrees(project) or {}) do
-    if tree.branch == branch then return tree.path end
-  end
-  return dir
+  return co
 end
 
--- switch_branch checks branch out in the project's own folder. base and
--- track mean what they do in add_worktree. It returns true, or nil and git's
+-- pr_mark says whether branch was opened for a pull request: Review Pull
+-- Request marks it with branch.<name>.rex-pr.
+local function pr_mark(project, branch)
+  return git_text(project, "config", "--get", "branch." .. branch .. ".rex-pr") ~= ""
+end
+
+-- switch_branch checks branch out in the project's own folder. Without
+-- base, the branch exists already. With base, the branch is new and starts
+-- there, and track ("--track", "--no-track", or nil for what git does by
+-- itself) says whether it follows base. It returns true, or nil and git's
 -- message.
 local function switch_branch(project, branch, base, track)
   local args = { "switch" }
@@ -894,11 +1129,21 @@ local function switch_branch(project, branch, base, track)
   return true
 end
 
+-- record_at returns the record of the checkout in folder while the folder is
+-- there. A record whose folder is gone is dropped and saved.
+local function record_at(folder)
+  local sessions = load_state().sessions
+  local record = sessions[folder]
+  if record == nil or is_folder(folder) then return record end
+  sessions[folder] = nil
+  save_state()
+  return nil
+end
+
 -- inside says whether the folder cwd is in the checkout at dir. In a
 -- repository both must have the same top folder, which keeps a worktree made
 -- inside another checkout apart from it. A plain folder goes by its path.
 local function inside(cwd, dir, repo)
-  cwd = slashes(cwd)
   if repo then
     local top = toplevel(cwd)
     return top ~= nil and top == toplevel(dir)
@@ -912,16 +1157,22 @@ end
 -- session starts (nil for the account's default), and adopt, which says
 -- whether the session the action was run from may become the checkout's
 -- session. It may when its terminal is inside the checkout and it is not
--- already the session of another checkout.
-local function landing(dir, label, a, repo)
+-- already the session of another checkout. It also answers the project's
+-- name, the branch checked out in dir (nil for a plain folder or a detached
+-- HEAD) and pr, the number of the pull request reviewed, for the label and
+-- layout settings.
+local function landing(dir, label, a, repo, pr)
   local sessions = load_state().sessions
   local adopt = a.from ~= nil and a.cwd ~= nil and inside(a.cwd, dir, repo)
   if adopt then
-    for folder, id in pairs(sessions) do
-      if id == a.from and folder ~= dir then adopt = false end
+    for folder, record in pairs(sessions) do
+      if record.session == a.from and folder ~= dir and record_at(folder) then adopt = false end
     end
   end
-  return { dir = dir, label = label, session = sessions[dir], adopt = adopt, shell = config.shell }
+  local record = sessions[dir]
+  return { dir = dir, label = label, session = record and record.session, adopt = adopt,
+    shell = config.shell, project = basename(a.project),
+    branch = repo and current_branch(dir) or nil, pr = pr }
 end
 
 ---------------------------------------------------------------------------
@@ -936,15 +1187,15 @@ end
 -- for a remote session, through client.action on that server. Ops never ask
 -- the person anything: a call to another server has 10 seconds to answer.
 -- Their results travel as JSON, so they hold only strings, numbers,
--- booleans and tables. An op that git refuses answers { why = git's message }
+-- booleans and tables. An op that git turns down answers { why = git's message }
 -- instead of raising, so that the message arrives as git wrote it.
 local backend = {}
 
 -- start_dir is the folder the Add project browser opens in: the first root,
--- else REX_PROJECTS, else the home folder.
+-- else the home folder.
 local function start_dir()
-  local first = config.roots[1] or env("REX_PROJECTS")
-  local dir = first and expand(first) or slashes(home)
+  local first = config.roots[1]
+  local dir = first and expand(first) or home
   if dir == "" or not is_folder(dir) then dir = "/" end
   return dir
 end
@@ -990,12 +1241,12 @@ end
 -- why is set when nothing was typed or no folder above the path exists.
 function backend.typed(a)
   local path = expand(a.text or "")
-  if path == "" then return { why = "cancelled" } end
-  if path:sub(1, 1) ~= "/" and not path:match("^%a:/") then
+  if path == "" then return { why = "nothing was typed" } end
+  if path:sub(1, 1) ~= "/" then
     local base = a.dir or start_dir()
     path = (base == "/" and "" or base:gsub("/+$", "")) .. "/" .. path
   end
-  if #path > 1 and not path:match("^%a:/$") then path = path:gsub("/+$", "") end
+  if #path > 1 then path = path:gsub("/+$", "") end
   if is_folder(path) then return { dir = path, repo = is_repo_root(path) } end
   local dir, rest = parent_of(path), basename(path)
   while dir ~= nil and not is_folder(dir) do
@@ -1010,165 +1261,313 @@ function backend.add(a)
   return { path = save_project(a.path) }
 end
 
--- branches returns the rows of the branch list that a.mode shows for
--- a.project: "here", "worktree" or "cleanup". A folder with no repository
--- has no branches. The two modes that open a session answer plain = true for
--- it, and clean-up, which has nothing to do there, answers why with what git
--- said.
-function backend.branches(a)
+-- here_rows returns the rows of Switch Branch's branch list for a.project.
+-- A folder with no repository has no branches, and answers plain = true.
+function backend.here_rows(a)
+  local c = checkouts(a.project)
+  if c == nil then return { plain = true } end
+  return { rows = here_rows(a.project, c) }
+end
+
+-- worktree_rows returns the rows of Open Worktree's branch list for
+-- a.project. A folder with no repository has no branches, and answers
+-- plain = true.
+function backend.worktree_rows(a)
+  local c = checkouts(a.project)
+  if c == nil then return { plain = true } end
+  return { rows = worktree_rows(a.project, c) }
+end
+
+-- name says what the branch a.name, typed or picked in a.project, is:
+--   { name }        a branch there is (local, remote, or the main
+--                   checkout's), one of wt's shortcuts ^ and -, or a pull
+--                   request; the open ops take it or say why not
+--   { name, rows }  a new branch: the name as git will get it, and the rows
+--                   to choose its base from
+--   { why }         no name was given, git does not take it, or the folder is
+--                   no repository
+-- It makes nothing.
+function backend.name(a)
   local c, unreadable = checkouts(a.project)
-  if c == nil then
-    if a.mode == "cleanup" then return { why = unreadable } end
-    return { plain = true }
-  end
-  local rows = branch_rows(a.project, a.mode, c)
-  if a.mode == "cleanup" and #rows == 0 then
-    return { why = basename(a.project) .. " has no branch to clean up" }
-  end
+  if c == nil then return { why = unreadable } end
+  local t, why = typed_name(a.project, c, a.name)
+  if t == nil then return { why = why } end
+  if t.kind ~= "new" then return { name = t.name } end
+  return { name = t.name, rows = base_rows(a.project, c) }
+end
+
+-- cleanup_rows returns the rows of Clean Up's branch list for a.project, or
+-- why with what git said about a folder with no repository, or why there is
+-- nothing to clean up.
+function backend.cleanup_rows(a)
+  local c, unreadable = checkouts(a.project)
+  if c == nil then return { why = unreadable } end
+  local rows = cleanup_rows(a.project, c)
+  if #rows == 0 then return { why = basename(a.project) .. " has no branch to clean up" } end
   return { rows = rows }
 end
 
--- open makes the checkout for the branch a.name ready and says where it is.
--- a.mode is "here", which switches the branch in the project's own folder,
--- or "worktree", which gives the branch a worktree. The name is read as a
--- local branch, then as a remote one ("origin/x", which becomes a local
--- branch "x" that tracks it), and else as a new branch, which starts from
--- a.base. a.from is the session the action was run from and a.cwd the folder
--- of its terminal.
---
--- It answers one of
---   { dir, label, session, adopt }  where to work; see landing
---   { name, bases }                 the name is new and has no base yet:
---                                   the name as git will get it, and the
---                                   rows to choose a base from
---   { why }                         git refused, and nothing further changed
---
--- A project whose checkout is ready goes first on the recent list.
-local open_checkout
-function backend.open(a)
-  local r = open_checkout(a)
-  if r.dir ~= nil then mark_used(a.project) end
-  return r
+-- prepare reads the repository of a.project and the branch a.name for an
+-- open op. It answers the checkouts and the name as typed_name reads it, or
+-- nil and the op's answer: the landing of a plain folder, which is one place
+-- to work, or why the name names no branch.
+local function prepare(a)
+  local c = checkouts(a.project)
+  if c == nil then return nil, landing(a.project, basename(a.project), a, false) end
+  local t, why = typed_name(a.project, c, a.name)
+  if t == nil then return nil, { why = why } end
+  return c, t
 end
 
-function open_checkout(a)
-  local project = a.project
-  local title = basename(project)
-  local c = checkouts(project)
-  -- A plain folder is one place to work, whatever the mode.
-  if c == nil then return landing(project, title, a, false) end
-
-  -- No branch name holds a space, so a typed one means a dash.
-  local name = trim(a.name or "")
-  name = name:gsub("%s+", "-")
-  if name == "" then return { why = "no branch was named" } end
-
-  local worktree = a.mode == "worktree"
-  if worktree then
-    local tree = c.taken[name]
-    if tree ~= nil and not tree.prunable then
-      return landing(tree.path, title .. " · " .. name, a, true)
-    end
-  elseif name == (c.current or "HEAD") then
-    return landing(project, title, a, true)
+-- new_base checks base, what a new branch of project starts from, and
+-- fetches it when it is the default base. It answers base, or nil and why.
+local function new_base(project, base)
+  base = trim(base or "")
+  if base == "" then return nil, "no base was named" end
+  -- Git would read a base that starts with a dash as an option.
+  if base:sub(1, 1) == "-" then return nil, "not a branch or a commit: " .. base end
+  -- The default base starts from what its remote has now. Every other
+  -- base is taken as it is here, unpushed commits and all.
+  local fetched = default_remote_base(project)
+  if fetched ~= nil and base == fetched.name then
+    local _, failed = git_net(project, "fetch", "--quiet", fetched.remote, fetched.branch)
+    if failed ~= nil then return nil, failed end
   end
+  return base
+end
 
-  -- What git is asked for: an existing branch as it is (no base), or a new
-  -- one from a base.
-  local branch, base, track = name, nil, nil
-  if not has_ref(project, "refs/heads/" .. name) then
-    local remote = nil
-    for _, r in ipairs(remote_branches(project)) do
-      if r.name == name then remote = r; break end
-    end
-    if remote ~= nil then
-      branch, base, track = remote.branch, name, "--track"
-    else
-      local valid, err = valid_branch_name(project, name)
-      if not valid then return { why = err } end
-      base = trim(a.base or "")
-      if base == "" then return { name = name, bases = base_rows(project, c) } end
-      -- Git would read a base that starts with a dash as an option.
-      if base:sub(1, 1) == "-" then return { why = "not a branch or a commit: " .. base } end
-      -- The default base starts from what its remote has now. Every other
-      -- base is taken as it is here, unpushed commits and all.
-      local fetched = default_remote_base(project)
-      if fetched ~= nil and base == fetched.name then
-        local _, err = git_net(project, "fetch", "--quiet", fetched.remote, fetched.branch)
-        if err ~= nil then return { why = err } end
-      end
-      -- A new branch does not follow the remote branch it starts from,
-      -- however that branch was written: origin/x, remotes/origin/x.
-      local full = git(project, "rev-parse", "--symbolic-full-name", base)
-      if full ~= nil and full:find("^refs/remotes/") then track = "--no-track" end
-    end
+-- elsewhere says why Switch Branch does not take t, a shortcut or a pull
+-- request, and what does.
+local function elsewhere(t)
+  if t.kind == "pr" then
+    return t.name .. " is a pull request, which Switch Branch does not open: use Review Pull Request"
   end
+  local what = t.name == "^" and "the default branch" or "the previous branch"
+  return t.name .. " is wt's shortcut for " .. what ..
+    ", which Switch Branch does not take: type the branch's name, or use Open Worktree"
+end
 
-  if worktree then
-    local dir, err = add_worktree(project, branch, base, track)
-    if dir == nil then return { why = err } end
-    return landing(dir, title .. " · " .. branch, a, true)
+local function switch_checkout(a)
+  local c, t = prepare(a)
+  if c == nil then return t end
+  local project, title = a.project, basename(a.project)
+  if t.kind == "shortcut" or t.kind == "pr" then return { why = elsewhere(t) } end
+  if t.kind == "current" then return landing(project, title, a, true) end
+  local branch, base, track = t.name, nil, nil
+  if t.kind == "remote" then branch, base, track = t.branch, t.name, "--track" end
+  if t.kind == "new" then
+    local why
+    base, why = new_base(project, a.base)
+    if base == nil then return { why = why } end
+    -- A new branch here does not follow the remote branch it starts from,
+    -- however that branch was written: origin/x, remotes/origin/x. wt makes
+    -- a worktree's branch follow one of its own name.
+    local full = git(project, "rev-parse", "--symbolic-full-name", base)
+    if full ~= nil and full:find("^refs/remotes/") then track = "--no-track" end
   end
   local ok, err = switch_branch(project, branch, base, track)
   if not ok then return { why = err } end
   return landing(project, title, a, true)
 end
 
--- keep remembers a.session as the session of the checkout in a.dir.
+local review_checkout
+
+local function worktree_checkout(a)
+  local c, t = prepare(a)
+  if c == nil then return t end
+  local project, title = a.project, basename(a.project)
+  if t.kind == "pr" then return review_checkout(a, t.pr) end
+  if t.kind == "current" then return landing(project, title, a, true) end
+  local tree = t.kind == "local" and c.taken[t.name] or nil
+  if tree ~= nil and not tree.prunable then
+    return landing(tree.path, title .. " · " .. t.name, a, true)
+  end
+  -- Hooks run for the user's own branches, not for a pull request's, by its
+  -- mark, nor for wt's shortcuts.
+  local branch = t.kind == "remote" and t.branch or t.name
+  local how = (t.kind ~= "shortcut" and not pr_mark(project, branch)) and "hooks" or "local"
+  local co, err, stopped
+  if t.kind == "new" then
+    local base, why = new_base(project, a.base)
+    if base == nil then return { why = why } end
+    co, err, stopped = switch_worktree(project, how, "--create", t.name, "--base", base)
+  else
+    -- A remote branch goes by its own name, origin/x, and wt makes x. wt
+    -- reads ^ and - itself.
+    co, err, stopped = switch_worktree(project, how, t.name)
+  end
+  if co == nil and stopped and how == "hooks" then
+    err = err .. ". A wt hook may have held it: open " .. branch .. " again to go to the worktree wt made"
+  end
+  if co == nil then return { why = err } end
+  -- A name wt answers with the main checkout, such as ^ or origin/main, is
+  -- the main checkout.
+  if co.dir == c.top then return landing(project, title, a, true) end
+  return landing(co.dir, title .. " · " .. (co.branch or t.name), a, true)
+end
+
+-- switch_here switches the project's own folder to the branch a.name and
+-- says where to work. The name is read as typed_name reads it: the main
+-- checkout's branch, a local branch, a remote one ("origin/x", which becomes
+-- a local branch "x" that tracks it), or a new branch, which starts from
+-- a.base, which name offers rows for. wt's shortcuts ^ and -, and pull
+-- requests, are refused with what takes them. a.from is the session the action was
+-- run from and a.cwd the folder of its terminal.
+--
+-- It answers one of
+--   { dir, label, session, adopt, ... }  where to work; see landing
+--   { why }                              git said no, and nothing further changed
+--
+-- A project whose checkout is ready goes first on the recent list.
+function backend.switch_here(a)
+  local r = switch_checkout(a)
+  if r.dir ~= nil then mark_used(a.project) end
+  return r
+end
+
+-- open_worktree makes the worktree of the branch a.name ready and says where
+-- it is. The name is read as typed_name reads it: the main checkout's
+-- branch, which is the project's own folder, a branch a worktree holds, a
+-- local branch, a remote one ("origin/x", which becomes a local branch "x"
+-- that tracks it), or a new branch, which starts from a.base, which name
+-- offers rows for. wt reads its shortcuts ^ (the default branch) and - (its
+-- previous branch) itself, and a pull request, pr:N or a link, opens as
+-- Review Pull Request opens it. a.from is the session the action was run from and
+-- a.cwd the folder of its terminal.
+--
+-- It answers one of
+--   { dir, label, session, adopt, ... }  where to work; see landing
+--   { why }                              git or wt said no, or no branch or base was named,
+--                                        and nothing further changed
+--
+-- A project whose checkout is ready goes first on the recent list.
+function backend.open_worktree(a)
+  local r = worktree_checkout(a)
+  if r.dir ~= nil then mark_used(a.project) end
+  return r
+end
+
+-- keep remembers a.session as the session of the checkout in a.dir, and
+-- a.created, whether rex-projects made it.
 function backend.keep(a)
-  load_state().sessions[a.dir] = a.session
+  local sessions = load_state().sessions
+  for folder, record in pairs(sessions) do
+    if record.session == a.session then sessions[folder] = nil end
+  end
+  sessions[a.dir] = { session = a.session, created = a.created == true }
   save_state()
   return {}
 end
 
--- cleanup removes the branch a.branch of a.project: first its worktree, when
--- it has one, then the branch with git branch -d. A worktree with changed or
--- untracked files is refused and nothing changes; ignored files do not count.
--- With a.force it only deletes the branch, with git branch -D.
+-- folder_of returns the key of the record of the checkout at path, matched
+-- also through symbolic links and when the folder is gone, or nil. A
+-- worktree's record goes by git's spelling, every link followed, so path is
+-- spelled that way too.
+local function folder_of(path)
+  local sessions = load_state().sessions
+  if sessions[path] ~= nil then return path end
+  local want = spelled(path)
+  if sessions[want] ~= nil then return want end
+  return nil
+end
+
+-- forget_record forgets the record of the checkout at a.path, without
+-- checking its folder, and answers { record }, or {} when there is none.
+function backend.forget_record(a)
+  local path = type(a.path) == "string" and expand(a.path):gsub("/+$", "") or ""
+  if path == "" then return {} end
+  local folder = folder_of(path)
+  if folder == nil then return {} end
+  local record = load_state().sessions[folder]
+  load_state().sessions[folder] = nil
+  save_state()
+  return { record = record }
+end
+
+-- kept says why wt kept a branch, for each branch_outcome of wt remove that
+-- Force delete cannot change.
+local kept = {
+  retained_checked_out = "another worktree has it checked out",
+  retained_raced = "it moved while its worktree was removed; clean up again",
+  retained_failed = "git could not delete it",
+  not_attempted = "wt did not try to delete it",
+}
+
+-- cleanup removes the branch a.branch of a.project with wt remove: first its
+-- worktree, when it has one, then the branch, when it adds nothing to the
+-- default branch (squash and rebase merges count; see wt remove --help). wt
+-- will not remove a worktree with changed or untracked files, and nothing
+-- changes; ignored files do not count. A worktree whose folder is gone is
+-- pruned.
+-- With a.force, wt remove -D deletes the branch whatever it holds.
+--
+-- The hooks of the user's own branches run; a branch marked for a pull
+-- request runs none.
 --
 -- It answers
---   { why }               refused, by this script or by git
---   { session, refused }  session is the one remembered for the worktree
---                         that was removed, for the caller to close; refused
---                         is git's reason when it kept the branch
+--   { why }              the worktree, when there was one, is still there,
+--                        and why wt failed
+--   { record, failed }   the worktree is gone, yet wt failed, said why in
+--                        failed, or was stopped; record as below
+--   { record, kept }     record is the one kept for the worktree, now gone
+--                        from git's list and its record forgotten, for the
+--                        caller's close path, or nil. kept, when the branch
+--                        stays, is { reason, force }: force says whether
+--                        Force delete would delete it.
 function backend.cleanup(a)
   local project, branch = a.project, a.branch
   local c, unreadable = checkouts(project)
   if c == nil then return { why = unreadable } end
-  if a.force then
-    local _, err = git(project, "branch", "-D", branch)
-    if err ~= nil then return { why = err } end
-    return {}
-  end
-
-  local session = nil
   local tree = c.taken[branch]
-  if tree ~= nil then
-    -- Git refuses such a worktree too, but names the folder; this names the
-    -- branch. A worktree whose folder is gone has no files to lose.
-    -- Untracked files are asked for by name: status.showUntrackedFiles=no
-    -- would hide them here, and git worktree remove would then delete them.
-    if not tree.prunable then
-      local status, err = git(tree.path, "status", "--porcelain", "--untracked-files=normal")
-      if status == nil then return { why = err } end
-      if trim(status) ~= "" then
-        return { why = "Nothing was deleted: the worktree of " .. branch
-          .. " has uncommitted changes. Commit or discard them, then clean up again." }
-      end
-    end
-    local _, err = git(project, "worktree", "remove", tree.path)
-    if err ~= nil then return { why = err } end
-    local s = load_state()
-    session = s.sessions[tree.path]
-    if session ~= nil then
-      s.sessions[tree.path] = nil
-      save_state()
+  local marked = pr_mark(project, branch)
+  -- --delete-branch wins over a [remove] delete-branch = false in wt's
+  -- config.
+  local args = { "remove", "--foreground", "--format=json", "--delete-branch" }
+  if marked then table.insert(args, 3, "--no-hooks") end
+  if a.force then args[#args + 1] = "-D" end
+  args[#args + 1] = branch
+  local r, err
+  if marked then
+    r, err = wt_in(project, false, unpack(args))
+  else
+    r, err = wt_hooked(project, unpack(args))
+  end
+  -- wt exits 1 when git fails to delete the branch, yet answers what it
+  -- removed. A refusal answers nothing.
+  local list, outcome, why = nil, nil, err
+  if r ~= nil then
+    list = decode(r.stdout)
+    outcome = list and type(list[1]) == "table" and list[1].branch_outcome or nil
+    if not r.ok and outcome == nil then
+      why = wt_why(project, r)
+    elseif list == nil then
+      why = "wt did not answer with JSON: " .. trim(r.stdout)
     end
   end
 
-  local _, err = git(project, "branch", "-d", branch)
-  if err ~= nil then return { session = session, refused = err } end
-  return { session = session }
+  -- Whatever wt answered, the worktree is gone when git no longer lists it,
+  -- its folder deleted by hand or not, and only then is its record forgotten.
+  local record, gone = nil, false
+  if tree ~= nil then
+    local now = worktrees(project)
+    gone = now ~= nil
+    for _, other in ipairs(now or {}) do
+      if other.path == tree.path then gone = false; break end
+    end
+    if gone then record = backend.forget_record{ path = tree.path }.record end
+  end
+  if why ~= nil then
+    if gone then return { record = record, failed = why } end
+    return { why = why }
+  end
+
+  if outcome == "deleted" then return { record = record } end
+  if outcome == "retained_unmerged" and not a.force then
+    return { record = record,
+      kept = { reason = branch .. " has changes that the default branch lacks", force = true } }
+  end
+  return { record = record, kept = {
+    reason = "wt kept " .. branch .. ": " .. (kept[outcome] or tostring(outcome)), force = false } }
 end
 
 -- saved returns the rows of the projects on the list, for Remove Project.
@@ -1196,80 +1595,58 @@ end
 -- Pull requests
 ---------------------------------------------------------------------------
 
--- A branch that Review Pull Request made carries two settings in the
--- repository's config: branch.<name>.rex-pr, the number of its pull request,
--- and branch.<name>.rex-pr-head, the commit of the pull request it was last
--- brought up to. Git drops both when it deletes the branch.
+-- wt switch pr:<number> makes or finds the checkout of a pull request. Each
+-- branch Review Pull Request opens then carries a setting in the
+-- repository's config: branch.<name>.rex-pr, the number of its pull request.
+-- Git drops it when it deletes the branch.
 
 -- gh runs the GitHub CLI in project and returns what it printed as JSON,
 -- decoded, or nil and why.
 local function gh(project, ...)
-  local r, err = rex.exec({ "gh", ... }, { cwd = project, timeout = net_timeout() })
+  local r, err = rex.exec({ "gh", ... }, tool_opts({ cwd = project, timeout = net_timeout() }))
   if r ~= nil and r.timed_out then return nil, timed_out("gh") end
   if r == nil or r.code == 127 then
     return nil, "gh did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
-      "). Review Pull Request needs the GitHub CLI on the server's PATH."
+      "). Review Pull Request needs the GitHub CLI on PATH (the login shell's)."
   end
-  if not r.ok then
-    local message = trim(r.stderr)
-    if message == "" then message = "gh exited with status " .. tostring(r.code) end
-    return nil, message
-  end
-  local ok, decoded = pcall(rex.json.decode, r.stdout)
-  if not ok or type(decoded) ~= "table" then return nil, "gh did not answer with JSON" end
+  if not r.ok then return nil, or_status(trim(r.stderr), "gh", r) end
+  local decoded = decode(r.stdout)
+  if decoded == nil then return nil, "gh did not answer with JSON" end
   return decoded
 end
 
--- pr_number reads a pull request from what was typed or chosen: 123, #123,
--- or a link to it or to a page of it, such as /pull/123/files.
-local function pr_number(text)
-  text = trim(tostring(text or ""))
-  return tonumber(text:match("^#?(%d+)$") or text:match("/pull/(%d+)$")
-    or text:match("/pull/(%d+)[/?#]"))
-end
-
--- repo_of reads a repository URL as { host, path = "owner/repo" }, both in
--- lower case. host is nil for a path on disk.
-local function repo_of(url)
+-- owner_repo reads the owner/repo that a repository's address ends in, in
+-- lower case, or nil: https://github.com/Acme/App.git, git@work:acme/app and
+-- acme/app itself all read acme/app.
+local function owner_repo(url)
   url = trim(url):gsub("/+$", ""):gsub("%.git$", "")
-  local host, path
-  local rest = url:match("^%a[%w+.-]*://(.+)$")
-  if rest then
-    rest = rest:gsub("^[^/@]*@", "")
-    host, path = rest:match("^([^/]+)/(.+)$")
-    if host then host = host:gsub(":%d+$", "") end
-  else
-    host, path = url:match("^[^@/]+@([^:/]+):(.+)$")
-    -- host:owner/repo, with no user. One letter before the colon is a
-    -- Windows drive.
-    if host == nil then host, path = url:match("^([^:/@][^:/@]+):(.+)$") end
-    if host == nil then path = url end
-  end
-  local owner_repo = path and path:match("([^/]+/[^/]+)$")
-  if owner_repo == nil then return nil end
-  return { host = host and host:lower(), path = owner_repo:lower() }
+  local path = url:match("([^/:]+/[^/:]+)$")
+  return path and path:lower() or nil
 end
 
--- pr_remote returns the remote that is the repository at url, or nil. A
--- remote with the same host and owner/repo is it. Failing that, one with
--- the same owner/repo is: an SSH host alias (git@work:acme/app) names the
--- host in a way only ssh can read. Of several, origin wins.
-local function pr_remote(project, url)
-  local want = repo_of(url)
-  if want == nil then return nil end
-  local exact, alike = nil, nil
+-- wrong_link says why typed, a link to a pull request, is not one of
+-- project's, or returns nil for a link that is, and for a number. wt reads
+-- only the number of a link and looks for it in the repository gh is set
+-- to (gh repo set-default), else in a remote's. So the link's repository
+-- must be that one, else one of the remotes.
+local function wrong_link(project, typed)
+  local linked = owner_repo(tostring(typed):match("^(.*)/pull/%d+") or "")
+  if linked == nil then return nil end
+  local title = basename(project)
+  -- set-default --view reads git config, not the network.
+  local r = rex.exec({ "gh", "repo", "set-default", "--view" },
+    tool_opts({ cwd = project, timeout = net_timeout() }))
+  local default = r ~= nil and r.ok and owner_repo(r.stdout) or nil
+  if default ~= nil then
+    if default == linked then return nil end
+    return "that link is to a pull request of " .. linked .. ", and gh looks in " .. default ..
+      " for those of " .. title .. " (gh repo set-default)"
+  end
   local names = git(project, "remote") or ""
   for name in names:gmatch("[^\r\n]+") do
-    local have = repo_of(git(project, "remote", "get-url", name) or "")
-    if have and have.path == want.path then
-      if have.host == nil or have.host == want.host then
-        if exact == nil or name == "origin" then exact = name end
-      elseif alike == nil or name == "origin" then
-        alike = name
-      end
-    end
+    if owner_repo(git(project, "remote", "get-url", name) or "") == linked then return nil end
   end
-  return exact or alike
+  return "that link is to a pull request of " .. linked .. ", which is no remote of " .. title
 end
 
 -- pr_branches maps each pull request number to the branch Review made for it.
@@ -1281,11 +1658,6 @@ local function pr_branches(project)
     if branch then map[tonumber(number)] = branch end
   end
   return map
-end
-
--- plural writes a count with its noun.
-local function plural(n, noun)
-  return n .. " " .. noun .. (n == 1 and "" or "s")
 end
 
 -- pulls returns the rows of the pull request list of a.project: those whose
@@ -1332,173 +1704,39 @@ function backend.pulls(a)
   return { rows = rows }
 end
 
--- review makes the worktree of the pull request a.pr ready and says where it
--- is, as open does. A pull request from the same repository gets a branch
--- of its own name, which follows the remote branch; one from a fork gets
--- pr/<number>, which follows nothing. A branch of that name that Review did
--- not make, such as the author's own, is opened as it is.
---
--- When the pull request moved on since its worktree was last brought up to
--- it, the answer also holds update: what to show in the dialog that asks
--- whether to, and what sync needs to do it. Nothing changes before that.
-local review_checkout
-function backend.review(a)
-  local r = review_checkout(a)
-  if r.dir ~= nil then mark_used(a.project) end
-  return r
-end
-
-function review_checkout(a)
+-- review_checkout makes the checkout of the pull request typed, a number or
+-- a link, in a.project ready with wt switch pr:<number> and says where it
+-- is, as the open ops do, or answers { why }.
+-- wt names the branch after the pull request's branch, and for one from a
+-- fork sets it to push there; a branch of that name that is there already
+-- is opened as it is. A pull request of the main checkout's branch opens in
+-- the main checkout. A checkout that was there already stays at the commit
+-- it is at: bringing it up to the pull request is git's to do.
+function review_checkout(a, typed)
   local project = a.project
   local title = basename(project)
-  local n = pr_number(a.pr)
-  if n == nil then return { why = "not a pull request: " .. tostring(a.pr) } end
+  local n = pr_number(typed)
+  if n == nil then return { why = "not a pull request: " .. tostring(typed) } end
   local c, unreadable = checkouts(project)
   if c == nil then return { why = unreadable } end
-  local pr, err = gh(project, "pr", "view", tostring(n),
-    "--json", "number,url,headRefName,headRefOid,isCrossRepository")
-  if pr == nil then return { why = err } end
-  local label = title .. " · #" .. n
-
-  -- Fetch the pull request from its repository: the remote that is it, else
-  -- its address. A pull request from the same repository also brings its
-  -- remote branch up to date, for the new branch to follow.
-  local repo_url = tostring(pr.url):match("^(.*)/pull/%d+") or ""
-  -- gh was asked by number, so a link to another repository would open
-  -- this one's pull request of that number.
-  local linked = repo_of(tostring(a.pr):match("^(.*)/pull/%d+") or "")
-  local found = repo_of(repo_url)
-  if linked ~= nil and found ~= nil and (linked.path ~= found.path
-      or (linked.host ~= nil and found.host ~= nil and linked.host ~= found.host)) then
-    return { why = "that link is to a pull request of " .. linked.path .. ", and " ..
-      title .. " is " .. found.path }
+  local wrong = wrong_link(project, typed)
+  if wrong ~= nil then return { why = wrong } end
+  -- On another host, have wt find the default branch off the network
+  -- first: the switch below may use the network, and so may wt to find it.
+  if net_limit ~= nil then wt_in(project, false, "config", "state", "default-branch") end
+  local co, err = switch_worktree(project, "network", "pr:" .. n)
+  if co == nil then return { why = err } end
+  if co.branch ~= nil then
+    git(project, "config", "branch." .. co.branch .. ".rex-pr", tostring(n))
   end
-  local remote = pr_remote(project, repo_url)
-  local same = not pr.isCrossRepository and remote ~= nil
-  local from, ref = remote or (repo_url .. ".git"), "refs/pull/" .. n .. "/head"
-  local _, ferr
-  if same then
-    _, ferr = git_net(project, "fetch", "--quiet", from, ref, pr.headRefName)
-    -- The branch of a merged or closed pull request may be deleted, and
-    -- git then fetches nothing at all. The pull request itself stays.
-    if ferr ~= nil then same = false end
-  end
-  if not same then _, ferr = git_net(project, "fetch", "--quiet", from, ref) end
-  if ferr ~= nil then return { why = ferr } end
-  local new = pr.headRefOid
-  if git(project, "cat-file", "-e", tostring(new) .. "^{commit}") == nil then
-    return { why = "#" .. n .. " was fetched, but its head " .. tostring(new) .. " did not arrive" }
-  end
-
-  local branch = pr_branches(project)[n]
-  if branch == nil or not has_ref(project, "refs/heads/" .. branch) then
-    branch = pr.isCrossRepository and ("pr/" .. n) or pr.headRefName
-    if not has_ref(project, "refs/heads/" .. branch) then
-      local dir, werr = add_worktree(project, branch, new, "--no-track")
-      if dir == nil then return { why = werr } end
-      git(project, "config", "branch." .. branch .. ".rex-pr", tostring(n))
-      git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
-      -- Following the remote branch lets a fix be pushed, and lets clean-up
-      -- see the branch as merged.
-      if same and has_ref(project, "refs/remotes/" .. remote .. "/" .. pr.headRefName) then
-        git(project, "branch", "--quiet", "--set-upstream-to=" .. remote .. "/" .. pr.headRefName, branch)
-      end
-      return landing(dir, label, a, true)
-    end
-    -- Not made by Review: open it, and leave it as it is.
-    if branch == c.current then return landing(project, title, a, true) end
-    local tree = c.taken[branch]
-    if tree ~= nil and not tree.prunable then return landing(tree.path, label, a, true) end
-    local dir, werr = add_worktree(project, branch)
-    if dir == nil then return { why = werr } end
-    return landing(dir, label, a, true)
-  end
-
-  -- Review made this branch before. Find or make its checkout.
-  local dir
-  local tree = c.taken[branch]
-  if branch == c.current then
-    dir, label = project, title
-  elseif tree ~= nil and not tree.prunable then
-    dir = tree.path
-  else
-    local werr
-    dir, werr = add_worktree(project, branch)
-    if dir == nil then return { why = werr } end
-  end
-  local r = landing(dir, label, a, true)
-  local old = trim(git(project, "config", "--get", "branch." .. branch .. ".rex-pr-head") or "")
-  if old == new or git(project, "cat-file", "-e", old .. "^{commit}") == nil then
-    -- Up to date, or with no record of where it was: nothing to offer.
-    git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
-    return r
-  end
-  -- Brought up to it by other means, such as git pull in the worktree.
-  if git(dir, "merge-base", "--is-ancestor", new, "HEAD") ~= nil then
-    git(project, "config", "branch." .. branch .. ".rex-pr-head", new)
-    return r
-  end
-
-  local function count(range)
-    return tonumber(trim(git(dir, "rev-list", "--count", range) or "0")) or 0
-  end
-  local rewritten = git(project, "merge-base", "--is-ancestor", old, new) == nil
-  local own = count(old .. "..HEAD")
-  local dirty = trim(git(dir, "status", "--porcelain", "--untracked-files=normal") or "") ~= ""
-  local how
-  if own > 0 then
-    how = "Rebase your " .. plural(own, "commit") .. " onto them"
-  else
-    how = (rewritten and "Move to " or "Fast-forward to ") .. new:sub(1, 7)
-  end
-  if dirty then how = how .. ", keeping your uncommitted changes" end
-  local head = trim(git(dir, "rev-parse", "--short", "HEAD") or "")
-  r.update = {
-    title = rewritten and ("#" .. n .. " was force-pushed")
-      or ("#" .. n .. " has " .. plural(count(old .. ".." .. new), "new commit")),
-    how = how,
-    keep = "Stay at " .. head,
-    project = project, dir = dir, branch = branch, old = old, new = new, pr = n,
-  }
-  return r
+  if co.dir == c.top then return landing(project, title, a, true, n) end
+  return landing(co.dir, title .. " · #" .. n, a, true, n)
 end
 
--- sync brings the checkout a.dir of a pull request up to its head a.new:
--- the commits made there since a.old, the head it was last brought up to,
--- go on top, and uncommitted changes are put back. That moves a checkout
--- with no commits of its own straight to a.new, and leaves out the old
--- commits of a pull request that was force-pushed. A rebase that stops is
--- undone, so the checkout is as it was. A rebase that was under way there
--- already is the person's own, and is left alone.
-function backend.sync(a)
-  local pr = "#" .. tostring(a.pr)
-  for _, state in ipairs({ "rebase-merge", "rebase-apply" }) do
-    local path = trim(git(a.dir, "rev-parse", "--git-path", state) or "")
-    -- Git gives the path from a.dir unless it lies elsewhere.
-    if path ~= "" and not path:find("^/") and not path:find("^%a:[/\\]") then
-      path = a.dir .. "/" .. path
-    end
-    if path ~= "" and exists(path) then
-      return { why = pr .. " was not updated, because a rebase is under way in " ..
-        short(a.dir) .. ". Finish or abort it, then review again." }
-    end
-  end
-  local function stash() return trim(git(a.dir, "rev-parse", "--quiet", "--verify", "refs/stash") or "") end
-  local stashed = stash()
-  local _, err = git(a.dir, "rebase", "--quiet", "--autostash", "--onto", a.new, a.old)
-  if err ~= nil then
-    git(a.dir, "rebase", "--abort")
-    return { why = pr .. " was not updated, because the rebase stopped; "
-      .. "the worktree is as it was. " .. err }
-  end
-  git(a.project, "config", "branch." .. a.branch .. ".rex-pr-head", a.new)
-  -- Git reports success when the uncommitted changes clash with the new
-  -- head: it leaves them in the stash and the clash in the files.
-  if stash() ~= stashed then
-    return { why = pr .. " was updated, but your uncommitted changes clash with it. " ..
-      "They are safe in git stash, and the files show the conflict." }
-  end
-  return {}
+function backend.review(a)
+  local r = review_checkout(a, a.pr)
+  if r.why == nil then mark_used(a.project) end
+  return r
 end
 
 -- The app cannot hide an action, so this one sits in a category of its own,
@@ -1514,6 +1752,7 @@ rex.action{
     if args == nil or args.op == nil then return end
     local op = backend[args.op]
     if op == nil then error("projects_backend: unknown op " .. tostring(args.op), 0) end
+    login_env()
     -- Asked for by another server, which waits only so long: see net_limit.
     if args.relayed then
       net_limit = { by = os ~= nil and os.time ~= nil and (os.time() + NET_SECONDS) or nil }
@@ -1529,25 +1768,13 @@ rex.action{
 -- The actions
 ---------------------------------------------------------------------------
 
--- fail raises a one-line error that names the script.
-local function fail(message)
-  error("projects: " .. tostring(message), 0)
-end
-
--- stop ends an action whose question got no answer. A person who cancels is
--- not worth a log line. Any other reason is, because the palette that would
--- show it is what failed.
-local function stop(why)
-  if why ~= nil and why ~= "cancelled" then
-    rex.log("warn", "projects: " .. tostring(why))
-  end
-end
-
--- refuse ends the action with a message for the person, such as git's own
--- words for what it would not do. The app shows an action's error, so the
--- message is raised as one, on one line.
-local function refuse(text)
-  error((trim(tostring(text)):gsub("%s+", " ")), 0)
+-- fail ends an action for why. A person who cancelled, or no reason, ends it
+-- quietly. Any other reason, such as git's own words or a palette that
+-- failed, is the message for the person: the app shows an action's error, so
+-- it is raised as one, on one line.
+local function fail(why)
+  if why == nil or why == "cancelled" then return end
+  error(one_line(why), 0)
 end
 
 -- connect returns the function that runs a backend op where the projects of
@@ -1568,7 +1795,7 @@ local function connect(ctx)
       if err:find("not.found") then
         err = err .. " (is projects.lua in init.lua on " .. host .. "?)"
       end
-      fail(host .. ": " .. err)
+      fail("projects: " .. host .. ": " .. err)
     end
     return r.result or {}
   end, server
@@ -1583,29 +1810,28 @@ end
 -- completed while it is typed: a path that is no folder opens the nearest
 -- folder above it, with the name that was not found as the filter. text is a
 -- path typed before the browser opened, to start from. It returns the folder,
--- or nil and why ("cancelled" when the person gave up, or was told that the
--- typed path is no folder).
+-- or nil and why the action ends: none when nothing was typed, the
+-- palette's reason when the person gave up, or the reason to show.
 local function add_project(call, text)
   local page, filter
   -- jump goes to a typed path. It returns the project when the path was a
   -- repository and is added now, or nil and why when there is nowhere to go.
   local function jump(typed_text)
     local typed = call("typed", { text = typed_text, dir = page and page.dir })
-    if typed.why ~= nil then
-      if typed.why ~= "cancelled" then refuse(typed.why) end
-      return nil, "cancelled"
-    end
+    if typed.why ~= nil then return nil, typed.why end
     if typed.repo then return call("add", { path = typed.dir }).path end
     page, filter = call("browse", { dir = typed.dir }), typed.rest
   end
+  local function blank(typed_text) return expand(tostring(typed_text or "")) == "" end
   if text ~= nil then
+    if blank(text) then return nil end
     local added, why = jump(text)
     if added ~= nil or why ~= nil then return added, why end
   else
     page = call("browse")
   end
-  -- A folder tree is finite, but a typed path can loop; the cap keeps a
-  -- script from asking forever.
+  -- Each page waits for a pick, so a person ends the walk. The cap is for a
+  -- picker that answers without one, such as a script or a broken palette.
   for _ = 1, 200 do
     local picked, why = rex.ui.pick{
       title = "Add project",
@@ -1618,6 +1844,7 @@ local function add_project(call, text)
     if picked == nil then return nil, why end
     if type(picked) == "table" then
       -- The person typed a path instead of choosing a row.
+      if blank(picked.text) then return nil end
       local added, stopped = jump(picked.text)
       if added ~= nil or stopped ~= nil then return added, stopped end
     elseif picked == ADD_HERE then
@@ -1630,13 +1857,14 @@ local function add_project(call, text)
       page = call("browse", { dir = picked })
     end
   end
-  return nil, "too many steps"
+  return nil, "projects: too many steps"
 end
 
 -- choose_project asks for a project, which may be one added on the spot. A
 -- typed path opens the Add project browser there. cwd is the folder of the
 -- terminal the action was run from, whose project is listed first. It
--- returns the folder, or nil when the person gave up.
+-- returns the folder, or nil when the person gave up; any other reason is
+-- raised.
 local function choose_project(ctx, call, title, cwd)
   local project, why = rex.ui.pick{
     title = ctx.server and (title .. " on " .. ctx.server) or title,
@@ -1649,7 +1877,7 @@ local function choose_project(ctx, call, title, cwd)
   elseif project == ADD_PROJECT then
     project, why = add_project(call)
   end
-  if project == nil then stop(why) end
+  if project == nil then fail(why) end
   return project
 end
 
@@ -1690,39 +1918,67 @@ local function session_exists(server, id)
   return false
 end
 
+-- shaped calls the label or layout setting, by name, with its own copy of
+-- t, and answers what it returns when fits says it may be used. On an error
+-- or another answer it warns and answers nil, and the action goes on.
+local function shaped(name, t, fits)
+  local f = config[name]
+  if f == nil then return nil end
+  local copy = {}
+  for k, v in pairs(t) do copy[k] = v end
+  local ok, v = pcall(f, copy)
+  if ok and fits(v) then return v end
+  local what = ok and "answered " .. shown(v) or "failed: " .. (type(v) == "string" and v or shown(v))
+  rex.log("warn", one_line("projects: the " .. name .. " function " .. what))
+  return nil
+end
+
+local function is_label(v) return type(v) == "string" end
+-- session.create needs a window, so an empty table is no layout.
+local function is_layout(v) return type(v) == "table" and v[1] ~= nil end
+
 -- session_for goes to the session of the checkout that r, the answer of an
 -- open op, names. That is the session remembered for the checkout, while it
 -- still exists. Else it is the session the action was run from, when r says
 -- it may be adopted, and that session gets the checkout's label. Else it is
 -- a new one. The id of an adopted or new session is remembered, in place of
--- one that is gone.
+-- one that is gone. The label setting gives an adopted or new session its
+-- label, and the layout setting gives a new one its windows.
 local function session_for(ctx, call, server, r)
   local id = r.session
   if id == nil or not session_exists(server, id) then
-    if r.adopt and ctx.session_id ~= nil then
+    local adopting = r.adopt and ctx.session_id ~= nil
+    local t = { project = r.project, branch = r.branch, dir = r.dir, host = ctx.server,
+      pr = r.pr, shell = r.shell, label = r.label }
+    local label = shaped("label", t, is_label) or r.label
+    if adopting then
       id = ctx.session_id
-      local renamed, err = server.call("session.set_label", { session_id = id, label = r.label })
+      local renamed, err = server.call("session.set_label", { session_id = id, label = label })
       if renamed == nil then
         rex.log("warn", "projects: cannot rename the session: " .. tostring(err))
       end
     else
       -- A window in the API is a tab in the app.
-      local session, failed = server.call("session.create", {
-        label = r.label,
-        initial_windows = { {
-          window_label = "shell",
-          layout = rex.layout.block{
-            flavor = "com.superlogical.terminal.shell",
-            -- The app's Startup Command setting only reaches the terminals
-            -- the app makes itself, and a script cannot read it.
-            options = { cwd = r.dir, shell = r.shell },
-          },
-        } },
-      })
-      if session == nil then fail(failed) end
+      local shell_tab = { {
+        window_label = "shell",
+        layout = rex.layout.block{
+          flavor = "com.superlogical.terminal.shell",
+          -- The app's Startup Command setting only reaches the terminals
+          -- the app makes itself, and a script cannot read it.
+          options = { cwd = r.dir, shell = r.shell },
+        },
+      } }
+      local windows = shaped("layout", t, is_layout)
+      local session, failed = server.call("session.create", { label = label, initial_windows = windows or shell_tab })
+      if session == nil and windows ~= nil then
+        rex.log("warn", "projects: the server refused the session with the layout function's windows: " ..
+          one_line(failed) .. "; trying one shell tab")
+        session, failed = server.call("session.create", { label = label, initial_windows = shell_tab })
+      end
+      if session == nil then fail("projects: " .. tostring(failed)) end
       id = session.session_id
     end
-    call("keep", { dir = r.dir, session = id })
+    call("keep", { dir = r.dir, session = id, created = not adopting })
   end
   -- Neither finding nor creating a session shows it. Ask the app to.
   --
@@ -1735,9 +1991,14 @@ local function session_for(ctx, call, server, r)
   rex.client.queue("session.select", { session_id = id })
 end
 
--- close_session ends a session and stops what runs in it. A call on a
--- session other than the action's own fails until the caller attaches to it.
-local function close_session(server, id)
+-- close_session is the one close path for the session of a checkout's
+-- record, which the backend has forgotten by now. It ends the
+-- session, and what runs in it, only when rex-projects created it and it is
+-- still there; an adopted session stays open. A call on a session other
+-- than the action's own fails until the caller attaches to it.
+local function close_session(server, record)
+  if not record.created then return end
+  local id = record.session
   if not session_exists(server, id) then return end
   server.call("session.attach", { session_id = id })
   local closed, err = server.call("session.destroy", { session_id = id })
@@ -1746,64 +2007,90 @@ local function close_session(server, id)
   end
 end
 
--- run is the body of Switch Branch in Project… (mode "here") and of Open
--- Worktree in Project… (mode "worktree"). Both ask for a project and a
--- branch; the mode decides what a branch without a worktree turns into.
-local function run(ctx, mode)
+-- pick_branch asks for the branch in project: a row of rows, or a typed
+-- name, and for a new branch, what it starts from. It answers the name as
+-- git will get it and the base, or nil, nil and why the action ends there;
+-- a nil why ends it quietly.
+local function pick_branch(call, project, rows, title, placeholder)
+  local name, why = rex.ui.pick{
+    title = title,
+    placeholder = placeholder,
+    allow_other = true,
+    items = rows,
+  }
+  if name == nil then return nil, nil, why end
+  name = typed_or_picked(name)
+  if name == "" then return nil, nil, nil end
+
+  local n = call("name", { project = project, name = name })
+  if n.why ~= nil then return nil, nil, n.why end
+  if n.rows == nil then return n.name, nil end
+  local base
+  base, why = rex.ui.pick{
+    title = "Start " .. n.name .. " from",
+    placeholder = "Base branch",
+    allow_other = true,
+    items = n.rows,
+  }
+  if base == nil then return nil, nil, why end
+  base = typed_or_picked(base)
+  if base == "" then return nil, nil, nil end
+  return n.name, base
+end
+
+-- switch_run is the body of Switch Branch in Project…: it asks for a project
+-- and a branch, switches the project's own folder to the branch, and goes
+-- to the project's session.
+local function switch_run(ctx)
   ctx = ctx or {}
   local call, server = connect(ctx)
-  local worktree = mode == "worktree"
 
   -- The folder of the terminal the action was run from: its project is
   -- listed first, and its session may become the checkout's.
   local cwd = terminal_dir(ctx, server)
-
-  -- 1. The project.
-  local project = choose_project(ctx, call, worktree and "Open worktree" or "Switch branch", cwd)
+  local project = choose_project(ctx, call, "Switch branch", cwd)
   if project == nil then return end
 
-  -- 2. The branch: a row, or a typed name. A plain folder has none.
-  local list = call("branches", { project = project, mode = mode })
-  local name, why = nil, nil
+  -- A plain folder has no branches.
+  local list = call("here_rows", { project = project })
+  local name, base, why = nil, nil, nil
   if not list.plain then
-    name, why = rex.ui.pick{
-      title = (worktree and "Open worktree in " or "Switch branch in ") .. basename(project),
-      placeholder = worktree and "Worktree, branch or new name" or "Branch or new name",
-      allow_other = true,
-      items = list.rows or {},
-    }
-    if name == nil then return stop(why) end
-    name = typed_or_picked(name)
-    if name == "" then return end
+    name, base, why = pick_branch(call, project, list.rows or {},
+      "Switch branch in " .. basename(project), "Branch or new name")
+    if name == nil then return fail(why) end
   end
 
-  local args = {
-    project = project,
-    mode = mode,
-    name = name,
-    from = ctx.session_id,
-    cwd = cwd,
-  }
-  local r = call("open", args)
+  local r = call("switch_here", { project = project, name = name, base = base,
+    from = ctx.session_id, cwd = cwd })
+  if r.why ~= nil then return fail(r.why) end
+  session_for(ctx, call, server, r)
+end
 
-  -- 3. For a new branch, what it starts from.
-  if r.bases ~= nil then
-    local base
-    base, why = rex.ui.pick{
-      title = "Start " .. r.name .. " from",
-      placeholder = "Base branch",
-      allow_other = true,
-      items = r.bases,
-    }
-    if base == nil then return stop(why) end
-    base = typed_or_picked(base)
-    if base == "" then return end
-    args.name, args.base = r.name, base
-    r = call("open", args)
+-- worktree_run is the body of Open Worktree in Project…: it asks for a
+-- project and a branch, makes the branch's worktree when it has none, and
+-- goes to the worktree's session.
+local function worktree_run(ctx)
+  ctx = ctx or {}
+  local call, server = connect(ctx)
+
+  -- The folder of the terminal the action was run from: its project is
+  -- listed first, and its session may become the checkout's.
+  local cwd = terminal_dir(ctx, server)
+  local project = choose_project(ctx, call, "Open worktree", cwd)
+  if project == nil then return end
+
+  -- A plain folder has no branches.
+  local list = call("worktree_rows", { project = project })
+  local name, base, why = nil, nil, nil
+  if not list.plain then
+    name, base, why = pick_branch(call, project, list.rows or {},
+      "Open worktree in " .. basename(project), "Worktree, branch or new name")
+    if name == nil then return fail(why) end
   end
 
-  if r.why ~= nil then refuse(r.why) end
-  if r.dir == nil then return end
+  local r = call("open_worktree", { project = project, name = name, base = base,
+    from = ctx.session_id, cwd = cwd })
+  if r.why ~= nil then return fail(r.why) end
   session_for(ctx, call, server, r)
 end
 
@@ -1815,39 +2102,49 @@ local function clean_up(ctx)
   local project = choose_project(ctx, call, "Clean up branch", terminal_dir(ctx, server))
   if project == nil then return end
 
-  local list = call("branches", { project = project, mode = "cleanup" })
-  if list.why ~= nil then refuse(list.why) end
+  local list = call("cleanup_rows", { project = project })
+  if list.why ~= nil then return fail(list.why) end
   local branch, why = rex.ui.pick{
     title = "Clean up branch in " .. basename(project),
     placeholder = "Choose the branch to delete, with its worktree",
     items = list.rows or {},
   }
-  if branch == nil then return stop(why) end
+  if branch == nil then return fail(why) end
 
   local r = call("cleanup", { project = project, branch = branch })
-  if r.why ~= nil then refuse(r.why) end
+  if r.why ~= nil then return fail(r.why) end
+  -- wt failed, yet the worktree is gone, so its session goes too.
+  if r.failed ~= nil then
+    if r.record ~= nil then close_session(server, r.record) end
+    return fail(r.failed)
+  end
 
-  -- Git keeps a branch whose commits are in no other branch, which is usual
-  -- after a squash or rebase merge. Show its reason and offer to force.
-  local failed
-  if r.refused ~= nil then
-    local answer = rex.ui.pick{
-      title = trim(r.refused):match("^[^\r\n]*"),
+  -- wt keeps a branch with changes that the default branch lacks. Say so
+  -- and offer to force.
+  why = r.kept and r.kept.reason
+  local record = r.record
+  if r.kept and r.kept.force then
+    local answer
+    answer, why = rex.ui.pick{
+      title = r.kept.reason,
       items = {
         { id = "keep", title = "Keep", subtitle = branch .. " and its commits stay" },
-        { id = "force", title = "Force delete", subtitle = "git branch -D " .. branch },
+        { id = "force", title = "Force delete", subtitle = "wt remove -D " .. branch },
       },
     }
     if answer == "force" then
       local forced = call("cleanup", { project = project, branch = branch, force = true })
-      failed = forced.why
+      why = forced.why or forced.failed or (forced.kept and forced.kept.reason)
+      -- The worktree may have gone only now.
+      record = record or forced.record
     end
   end
 
-  -- The worktree is gone by now, so its session goes too, whatever became of
-  -- the branch. It goes last, because this action may be running in it.
-  if r.session ~= nil then close_session(server, r.session) end
-  if failed ~= nil then refuse(failed) end
+  -- Once the worktree is gone, its session goes too, whatever became of
+  -- the branch, when rex-projects made it. It goes last, because this action
+  -- may be running in it.
+  if record ~= nil then close_session(server, record) end
+  return fail(why)
 end
 
 -- add_run is the body of Add Project to List…: it adds a project and opens
@@ -1855,7 +2152,7 @@ end
 local function add_run(ctx)
   local call = connect(ctx or {})
   local _, why = add_project(call)
-  stop(why)
+  return fail(why)
 end
 
 -- remove_run is the body of Remove Project from List….
@@ -1863,17 +2160,17 @@ local function remove_run(ctx)
   local call = connect(ctx)
   local rows = call("saved").rows
   if rows == nil or #rows == 0 then return end
-  local project = rex.ui.pick{
+  local project, why = rex.ui.pick{
     title = "Remove project",
     placeholder = "Choose a project to forget (its folder stays)",
     items = rows,
   }
-  if project == nil then return end
+  if project == nil then return fail(why) end
   call("forget", { project = project })
 end
 
 -- review_run is the body of Review Pull Request…: it opens a pull request
--- in a worktree, and offers to bring one opened before up to date.
+-- in a worktree and goes to its session.
 local function review_run(ctx)
   ctx = ctx or {}
   local call, server = connect(ctx)
@@ -1882,37 +2179,21 @@ local function review_run(ctx)
   if project == nil then return end
 
   local list = call("pulls", { project = project })
-  if list.why ~= nil then refuse(list.why) end
+  if list.why ~= nil then return fail(list.why) end
   local picked, why = rex.ui.pick{
     title = "Review pull request in " .. basename(project),
     placeholder = "Pull request, number or link",
     allow_other = true,
     items = list.rows or {},
   }
-  if picked == nil then return stop(why) end
+  if picked == nil then return fail(why) end
   picked = typed_or_picked(picked)
   if picked == "" then return end
 
   local r = call("review", { project = project, pr = picked, from = ctx.session_id, cwd = cwd })
-  if r.why ~= nil then refuse(r.why) end
-  if r.dir == nil then return end
+  if r.why ~= nil then return fail(r.why) end
 
-  -- The pull request moved on. Update is first, so Return takes it; giving
-  -- no answer keeps the worktree as it is.
-  local failed
-  if r.update ~= nil then
-    local answer = rex.ui.pick{
-      title = r.update.title,
-      items = {
-        { id = "update", title = "Update", subtitle = r.update.how },
-        { id = "keep", title = "Keep as is", subtitle = r.update.keep },
-      },
-    }
-    if answer == "update" then failed = call("sync", r.update).why end
-  end
-  -- Go to the session either way, and say afterwards when the update failed.
   session_for(ctx, call, server, r)
-  if failed ~= nil then refuse(failed) end
 end
 
 rex.action{
@@ -1921,7 +2202,7 @@ rex.action{
   description = "Choose a project and a branch, switch the project's folder to it, and go to the project's session",
   category = "Projects",
   keywords = "checkout branch repository folder session new project",
-  run = function(ctx) run(ctx, "here") end,
+  run = switch_run,
 }
 
 rex.action{
@@ -1930,7 +2211,7 @@ rex.action{
   description = "Choose a project and a branch, and go to the session of the branch's worktree, making both when needed",
   category = "Projects",
   keywords = "worktree branch repository folder session new project",
-  run = function(ctx) run(ctx, "worktree") end,
+  run = worktree_run,
 }
 
 rex.action{
@@ -1960,6 +2241,15 @@ rex.action{
   run = review_run,
 }
 
+-- close_run closes the session rex-projects made for the checkout at
+-- args.path, on this host, and forgets its record.
+local function close_run(_, args)
+  local path = args and args.path
+  if type(path) ~= "string" or trim(path) == "" then return end
+  local r = backend.forget_record{ path = path }
+  if r.record then close_session(rex, r.record) end
+end
+
 rex.action{
   name = "remove_project",
   title = "Remove Project from List…",
@@ -1967,6 +2257,15 @@ rex.action{
   category = "Projects",
   keywords = "forget delete project list",
   run = remove_run,
+}
+
+rex.action{
+  name = "close_project_session",
+  title = "Projects: Close Checkout Session",
+  description = "Close the session rex-projects made for the checkout at path; for wt's post-remove hook",
+  category = "Internal",
+  args = { path = "string?" },
+  run = close_run,
 }
 
 ---------------------------------------------------------------------------
@@ -1993,25 +2292,66 @@ local function bind_key(setting, key)
   end
 end
 
+local function is_string(v) return type(v) == "string" end
+local function string_or_false(v) return v == false or type(v) == "string" end
+local function function_or_false(v) return v == false or type(v) == "function" end
+local function is_order(v) return v == "recent" or v == "name" end
+local function string_list(v)
+  if type(v) ~= "table" then return false end
+  local n = 0
+  for _ in pairs(v) do n = n + 1 end
+  for i = 1, n do
+    if type(v[i]) ~= "string" then return false end
+  end
+  return true
+end
+
+-- The options setup takes, in the order it applies them: each one's check,
+-- and the words for what it wants. The keys go last.
+local options = {
+  { name = "worktrees", ok = is_string, wants = "a string" },
+  { name = "roots", ok = string_list, wants = "a list of strings" },
+  { name = "base", ok = string_or_false, wants = "a string or false" },
+  { name = "project_order", ok = is_order, wants = '"recent" or "name"' },
+  { name = "branch_order", ok = is_order, wants = '"recent" or "name"' },
+  { name = "shell", ok = string_or_false, wants = "a string or false" },
+  { name = "label", ok = function_or_false, wants = "a function or false" },
+  { name = "layout", ok = function_or_false, wants = "a function or false" },
+  { name = "state_file", ok = is_string, wants = "a string" },
+  { name = "key", ok = string_or_false, wants = "a string or false" },
+  { name = "worktree_key", ok = string_or_false, wants = "a string or false" },
+}
+local option_names = {}
+for _, o in ipairs(options) do option_names[o.name] = true end
+
 -- M.setup changes the settings it is given and leaves the rest as they were.
+-- An unknown name, or a value that fails its check, is warned about and
+-- changes nothing; false unsets the settings that allow it.
 function M.setup(opts)
-  opts = opts or {}
-  if opts.worktrees ~= nil then config.worktrees = opts.worktrees end
-  if opts.roots ~= nil then config.roots = opts.roots end
-  -- false goes back to the remote's default branch.
-  if opts.base ~= nil then config.base = opts.base or nil end
-  for _, key in ipairs({ "project_order", "branch_order" }) do
-    local v = opts[key]
-    if v == "recent" or v == "name" then
-      config[key] = v
-    elseif v ~= nil then
-      rex.log("warn", "projects: " .. key .. " must be \"recent\" or \"name\", not " .. tostring(v))
+  if opts == nil then return M end
+  if type(opts) ~= "table" then
+    rex.log("warn", "projects: setup takes a table, not " .. shown(opts))
+    return M
+  end
+  for name in pairs(opts) do
+    if not option_names[name] then
+      local plain = type(name) == "string" and name:match("^[%w_]+$")
+      rex.log("warn", "projects: setup has no option " .. (plain and name or shown(name)))
     end
   end
-  if opts.shell ~= nil then config.shell = opts.shell or nil end
-  if opts.state_file ~= nil then config.state_file = opts.state_file; state = nil end
-  if opts.key ~= nil then bind_key("key", opts.key) end
-  if opts.worktree_key ~= nil then bind_key("worktree_key", opts.worktree_key) end
+  for _, o in ipairs(options) do
+    local v = opts[o.name]
+    if v ~= nil and not o.ok(v) then
+      rex.log("warn", "projects: " .. o.name .. " must be " .. o.wants .. ", not " .. shown(v))
+    elseif v ~= nil then
+      if key_actions[o.name] then
+        bind_key(o.name, v)
+      else
+        config[o.name] = v or nil
+        if o.name == "state_file" then state = nil end
+      end
+    end
+  end
   return M
 end
 
@@ -2020,17 +2360,22 @@ bind_key("worktree_key", config.worktree_key)
 
 -- Pure helpers, for the tests in test/.
 M._internal = {
-  expand = expand, short = short, basename = basename, slashes = slashes,
+  expand = expand, short = short, basename = basename,
   load_state = load_state, save_state = save_state, worktrees = worktrees,
-  checkouts = checkouts, branch_rows = branch_rows, base_rows = base_rows,
-  add_worktree = add_worktree, project_rows = project_rows,
-  valid_branch_name = valid_branch_name, subfolders = subfolders,
-  parent_of = parent_of, is_folder = is_folder, reason = reason, refuse = refuse,
-  run = run, clean_up = clean_up, add_run = add_run, remove_run = remove_run,
-  review_run = review_run, pr_number = pr_number, repo_of = repo_of,
-  pr_remote = pr_remote,
+  checkouts = checkouts, here_rows = here_rows, worktree_rows = worktree_rows,
+  cleanup_rows = cleanup_rows,
+  base_rows = base_rows,
+  project_rows = project_rows,
+  subfolders = subfolders,
+  parent_of = parent_of, is_folder = is_folder, reason = reason, fail = fail,
+  wt_reason = wt_reason, toml = toml,
+  switch_run = switch_run, worktree_run = worktree_run,
+  clean_up = clean_up, add_run = add_run, remove_run = remove_run,
+  review_run = review_run, pr_number = pr_number, owner_repo = owner_repo,
   backend = backend, config = config,
+  tool_opts = tool_opts,
   reset = function() state = nil end,
+  reset_login = function() login_cache = nil end,
 }
 
 return M
