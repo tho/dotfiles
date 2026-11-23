@@ -80,6 +80,7 @@ An added project whose folder is gone is marked `missing` and listed last. Picki
 | New name | Asks for a base, creates it | Same, via `wt switch --create` |
 
 - The first base offered is the default base's remote branch (e.g. `origin/main`), fetched before branching. Other bases are used as they are; local `main` is never moved.
+- Run from a terminal inside one of the project's worktrees, that worktree's branch (`this worktree`) comes right after the default base, for stacking a branch on it. From the main checkout or elsewhere, the main checkout's branch comes there.
 - Open Worktree accepts wt shortcuts: `^`, `-`, `pr:N`, or a PR link.
 - A folder that isn't a repository just opens its session.
 

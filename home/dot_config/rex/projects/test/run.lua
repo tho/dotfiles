@@ -1327,6 +1327,54 @@ test("worktree: when wt refuses, its message is the error and no session is made
   git(repo, "branch", "-q", "-D", "occupied")
 end)
 
+test("worktree: a terminal in a worktree offers its branch right after the default base, to stack on", function()
+  os.execute("mkdir -p " .. sh(wt .. "/feat-x/sub"))
+  local mine = open_session(nil, "mine", wt .. "/feat-x/sub")
+  mine.attached = true
+  answers = { "my-app", { text = "part2" }, 2 }
+  I.worktree_run({ session_id = mine.session_id, block_id = mine.block_id })
+  local items = asked[3].items
+  local list = ids(items)
+  assert(list[1] == "origin/main" and list[2] == "feat/x" and items[2].subtitle == "this worktree",
+    list[2] .. " · " .. tostring(items[2].subtitle))
+  local count = 0
+  for _, id in ipairs(list) do if id == "feat/x" then count = count + 1 end end
+  assert(count == 1, "listed once: " .. count)
+  assert(git(repo, "rev-parse", "part2") == git(repo, "rev-parse", "feat/x"), "part2 starts at feat/x")
+  assert(selected().cwd == wt .. "/part2" and mine.label == "mine", "a new session; the terminal's stays")
+
+  -- Switch Branch offers it too, and switches the main checkout to a branch stacked on it.
+  local start = branch_of(repo)
+  mine.cwd = wt .. "/part2"
+  again()
+  answers = { "my-app", { text = "x6" }, 2 }
+  I.switch_run({ session_id = mine.session_id, block_id = mine.block_id })
+  assert(asked[3].items[2].id == "part2" and asked[3].items[2].subtitle == "this worktree", asked[3].items[2].id)
+  assert(branch_of(repo) == "x6" and git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "part2"))
+  git(repo, "switch", "-q", start)
+  git(repo, "branch", "-q", "-D", "x6")
+
+  -- The main checkout, a folder outside the project and no terminal keep the list.
+  local want = ids(I.backend.name{ project = repo, name = "x5" }.rows)
+  assert(want[2] == branch_of(repo), "second is the main checkout's branch")
+  for _, cwd in ipairs({ repo, plain, tmp .. "/no-such-folder" }) do
+    local got = ids(I.backend.name{ project = repo, name = "x5", cwd = cwd }.rows)
+    assert(table.concat(got, " ") == table.concat(want, " "), cwd .. ": " .. table.concat(got, " "))
+  end
+
+  -- A detached worktree has no branch to offer.
+  git(repo, "worktree", "add", "-q", "--detach", wt .. "/loose", "origin/pr-1")
+  local got = ids(I.backend.name{ project = repo, name = "x5", cwd = wt .. "/loose" }.rows)
+  assert(table.concat(got, " ") == table.concat(want, " "), "detached: " .. table.concat(got, " "))
+
+  close(nil, mine.session_id)
+  close_kept(wt .. "/part2")
+  git(repo, "worktree", "remove", "--force", wt .. "/part2")
+  git(repo, "branch", "-q", "-D", "part2")
+  git(repo, "worktree", "remove", "--force", wt .. "/loose")
+  os.execute("rmdir " .. sh(wt .. "/feat-x/sub"))
+end)
+
 test("worktree: hooks run for your own branches, and a project's need wt's approval", function()
   git(repo, "branch", "hook-local")
   git(up, "branch", "hook-remote")

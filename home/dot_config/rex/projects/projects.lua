@@ -1006,7 +1006,11 @@ end
 
 -- add_current adds the row of the main checkout's branch.
 local function add_current(c, add)
-  if c.current then add(c.current, "current branch") else add("HEAD", "detached") end
+  if c.current then
+    add(c.current, "current branch")
+  else
+    add("HEAD", "detached")
+  end
 end
 
 -- here_rows returns the branches Switch Branch offers: the main checkout's
@@ -1097,12 +1101,24 @@ local function default_remote_base(project)
   return { name = remote .. "/" .. branch, remote = remote, branch = branch }
 end
 
+-- add_this_worktree adds the branch of the worktree that holds cwd, the
+-- invoking terminal's folder, for stacking a branch on it.
+local function add_this_worktree(c, add, cwd)
+  if cwd == nil or cwd == "" then return end
+  local top = toplevel(cwd)
+  for _, tree in ipairs(c.others) do
+    if tree.path == top and tree.branch then return add(tree.branch, "this worktree") end
+  end
+end
+
 -- base_rows returns the rows that say what a new branch starts from: the
--- default base, the main checkout's branch, then every other branch, the
--- remote ones included. A default base with a remote branch is listed as
--- that remote branch, which is fetched before the new branch starts there;
--- the local branch is listed with the others.
-local function base_rows(project, c)
+-- default base, then the branch of the worktree the terminal at cwd is in
+-- (none for the main checkout or a folder elsewhere), the main checkout's
+-- branch, then every other branch, the remote ones
+-- included. A default base with a remote branch is listed as that remote
+-- branch, which is fetched before the new branch starts there; the local
+-- branch is listed with the others.
+local function base_rows(project, c, cwd)
   local rows, add = row_list()
   local fetched = default_remote_base(project)
   if fetched ~= nil then
@@ -1117,6 +1133,7 @@ local function base_rows(project, c)
       add(base, "default")
     end
   end
+  add_this_worktree(c, add, cwd)
   add_current(c, add)
   for _, name in ipairs(local_branches(project)) do add(name) end
   for _, remote in ipairs(remote_branches(project)) do add(remote.name) end
@@ -1321,7 +1338,8 @@ end
 --                   checkout's), one of wt's shortcuts ^ and -, or a pull
 --                   request; the open ops take it or say why not
 --   { name, rows }  a new branch: the name as git will get it, and the rows
---                   to choose its base from
+--                   to choose its base from; a.cwd, the invoking terminal's
+--                   folder, adds the worktree it is in
 --   { why }         no name was given, git does not take it, or the folder is
 --                   no repository
 -- It makes nothing.
@@ -1331,7 +1349,7 @@ function backend.name(a)
   local t, why = typed_name(a.project, c, a.name)
   if t == nil then return { why = why } end
   if t.kind ~= "new" then return { name = t.name } end
-  return { name = t.name, rows = base_rows(a.project, c) }
+  return { name = t.name, rows = base_rows(a.project, c, a.cwd) }
 end
 
 -- cleanup_rows returns the rows of Clean Up's branch list for a.project, or
@@ -2008,7 +2026,7 @@ end
 -- name, and for a new branch, what it starts from. It answers the name as
 -- git will get it and the base, or nil, nil and why the action ends there;
 -- a nil why ends it quietly.
-local function pick_branch(call, project, rows, title, placeholder)
+local function pick_branch(call, project, cwd, rows, title, placeholder)
   local name, why = rex.ui.pick{
     title = title,
     placeholder = placeholder,
@@ -2019,7 +2037,7 @@ local function pick_branch(call, project, rows, title, placeholder)
   name = typed_or_picked(name)
   if name == "" then return nil, nil, nil end
 
-  local n = call("name", { project = project, name = name })
+  local n = call("name", { project = project, name = name, cwd = cwd })
   if n.why ~= nil then return nil, nil, n.why end
   if n.rows == nil then return n.name, nil end
   local base
@@ -2052,7 +2070,7 @@ local function switch_run(ctx)
   local list = call("here_rows", { project = project })
   local name, base, why = nil, nil, nil
   if not list.plain then
-    name, base, why = pick_branch(call, project, list.rows or {},
+    name, base, why = pick_branch(call, project, cwd, list.rows or {},
       "Switch branch in " .. basename(project), "Branch or new name")
     if name == nil then return fail(why) end
   end
@@ -2080,7 +2098,7 @@ local function worktree_run(ctx)
   local list = call("worktree_rows", { project = project })
   local name, base, why = nil, nil, nil
   if not list.plain then
-    name, base, why = pick_branch(call, project, list.rows or {},
+    name, base, why = pick_branch(call, project, cwd, list.rows or {},
       "Open worktree in " .. basename(project), "Worktree, branch or new name")
     if name == nil then return fail(why) end
   end
