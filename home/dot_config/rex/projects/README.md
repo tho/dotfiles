@@ -17,7 +17,7 @@ Bind any of them with `rex.bind("ctrl+alt+cmd+c", "clean_up_project_branch")`.
 Requires, on every host whose projects you want:
 
 - Git 2.43+
-- [worktrunk](https://worktrunk.dev) (`wt`) v0.82.0; its user config applies
+- [worktrunk](https://worktrunk.dev) (`wt`) v0.83.0; its user config applies
 - Rex server at control API revision 17+
 
 Tools are found on the login shell's `PATH` (`$SHELL -l -c env`), so set `PATH` in a profile file.

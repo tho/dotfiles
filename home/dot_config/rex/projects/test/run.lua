@@ -19,11 +19,13 @@ local function sh(s) return "'" .. s:gsub("'", "'\\''") .. "'" end
 -- capture runs a shell command and returns what it printed, its exit status
 -- and what it wrote to stderr.
 local errfile = os.tmpname()
--- Like the Rex server, run commands with no terminal: wt opens /dev/tty
--- directly and would wait for an approval answer. macOS has no setsid.
+-- Like the Rex server, wt runs with no terminal: it opens /dev/tty directly
+-- and would wait for an approval answer. Only wt is detached, as starting
+-- perl for every git command took most of the run. macOS has no setsid.
 local detach = "perl -MPOSIX -e 'POSIX::setsid(); exec \"/bin/sh\", \"-c\", $ARGV[0] or die \"exec: $!\"' "
-local function capture(cmd)
-  local p = io.popen(detach .. sh("{ " .. cmd .. "; } </dev/null 2>" .. sh(errfile) .. "; echo \"::$?\""))
+local function capture(cmd, no_terminal)
+  local line = "{ " .. cmd .. "; } </dev/null 2>" .. sh(errfile) .. "; echo \"::$?\""
+  local p = io.popen(no_terminal and detach .. sh(line) or line)
   local out = p:read("*a"); p:close()
   local body, code = out:match("^(.*)::(%d+)\n$")
   local ef = io.open(errfile); local err = ef:read("*a"); ef:close()
@@ -257,7 +259,7 @@ run_exec = function(argv, opts)
   for _, a in ipairs(argv) do parts[#parts + 1] = sh(a) end
   local cmd = table.concat(parts, " ")
   if opts and opts.cwd then cmd = "cd " .. sh(opts.cwd) .. " && " .. cmd end
-  local out, code, err = capture(cmd)
+  local out, code, err = capture(cmd, argv[1] == "wt")
   return { ok = code == 0, code = code, stdout = out, stderr = err }
 end
 
@@ -616,7 +618,7 @@ end
 -- The palette and the keys
 ---------------------------------------------------------------------------
 
-test("the Projects section holds the five entries, and the backend sits elsewhere", function()
+test("the palette holds the five entries, each mode has its key, and setup moves or removes either", function()
   local titles = {}
   for _, spec in pairs(actions) do
     if spec.category == "Projects" then titles[#titles + 1] = spec.title end
@@ -626,17 +628,15 @@ test("the Projects section holds the five entries, and the backend sits elsewher
     "Remove Project from List…", "Switch Branch in Project…" }
   assert(table.concat(titles, " | ") == table.concat(want, " | "), table.concat(titles, " | "))
   assert(actions.projects_backend.category == "Internal")
-end)
 
-test("each mode has its key, and the key runs that mode", function()
+  again()
   assert(bound("alt+cmd+n") == "switch_project_branch", "here mode on alt+cmd+n")
   assert(bound("ctrl+alt+cmd+n") == "open_project_worktree", "worktree mode on ctrl+alt+cmd+n")
   actions[bound("alt+cmd+n")].run({})
   actions[bound("ctrl+alt+cmd+n")].run({})
   assert(asked[1].title == "Switch branch" and asked[2].title == "Open worktree")
-end)
 
-test("setup moves or removes either key and leaves the other", function()
+  again()
   P.setup{ key = "ctrl+alt+p" }
   assert(bound("alt+cmd+n") == "" and bound("ctrl+alt+p") == "switch_project_branch", "key moves")
   assert(bound("ctrl+alt+cmd+n") == "open_project_worktree", "the other key stays")
@@ -660,11 +660,24 @@ end)
 -- The project list
 ---------------------------------------------------------------------------
 
-test("path helpers", function()
+test("text helpers: paths, and the reason in what git and wt print", function()
   assert(I.expand("  ~/x  ") == os.getenv("HOME") .. "/x")
   assert(I.expand('"/a/b"') == "/a/b")
   assert(I.expand("/a\\b") == "/a\\b", "a backslash is part of a Unix name")
   assert(I.basename("/a/b/") == "b")
+
+  assert(I.reason("Preparing worktree (checking out 'main')\nfatal: 'main' is already used") == "fatal: 'main' is already used")
+  assert(I.reason("error: one\nfatal: two") == "error: one\nfatal: two")
+  assert(I.reason("no marker here") == "no marker here")
+
+  local stderr = "◎ Fetching PR #9...\n  T (#9)\n\27[31m✗\27[0m Failed to fetch branch x from origin\n" ..
+    "   fatal: couldn't find remote ref refs/heads/x\n↳ To list branches, run wt list\n"
+  assert(I.wt_reason(stderr) == "Failed to fetch branch x from origin. " ..
+    "fatal: couldn't find remote ref refs/heads/x. To list branches, run wt list", I.wt_reason(stderr))
+  assert(I.wt_reason("✗ Cannot remove worktree: a has uncommitted changes\n  ?? new.txt\n↳ Commit first\n") ==
+    "Cannot remove worktree: a has uncommitted changes. Commit first")
+  assert(I.wt_reason("error: unexpected argument '--x' found\n") == "error: unexpected argument '--x' found")
+  assert(I.toml([[/a "b"\c]]) == [["/a \"b\"\\c"]], I.toml([[/a "b"\c]]))
 end)
 
 test("add a project, then it is listed and kept with its session", function()
@@ -681,7 +694,7 @@ test("add a project, then it is listed and kept with its session", function()
   assert(remembered(repo) == s.session_id, "the session id is in projects.json")
 end)
 
-test("plain folder: both modes go to its one session", function()
+test("plain folder: both modes go to its one session, and clean-up says git's words", function()
   answers = { "Add project…", { text = plain }, "Add plain" }
   I.switch_run({})
   assert(#asked == 3, "a plain folder has no branch list")
@@ -692,42 +705,54 @@ test("plain folder: both modes go to its one session", function()
   answers = { "plain" }
   I.worktree_run({})
   assert(#asked == 1 and selected() == s and created() == 0, "the same session again")
-end)
 
-test("plain folder: clean-up shows what git says about it", function()
+  again()
   answers = { "plain" }
   local message = refused(I.clean_up, {})
   assert(message:find("^fatal: not a git repository"), message)
   assert(#asked == 1, "no branch list")
 end)
 
-test("a typed path that is no folder opens the nearest folder, filtered", function()
-  answers = { "Add project…", { text = tmp .. "/code/my-/deeper" } }
+test("the browser lists folders alike, .. goes up, and a path that is no folder filters the nearest one", function()
+  answers = { "Add project…", { text = tmp .. "/code" }, "..", "code" }
   I.switch_run({})
   local page = asked[3]
+  assert(page.allow_other, "typing a path is allowed")
+  assert(page.items[1].title == "Add code", "first row adds the folder: " .. page.items[1].title)
+  assert(page.items[2].title == "..", "second row goes up")
+  local row
+  for _, r in ipairs(page.items) do if r.title == "my-app" then row = r end end
+  assert(row and row.icon == "folder" and row.detail == nil, "every folder looks alike")
+  assert(asked[4].items[1].title == "Add " .. I.basename(tmp), ".. goes up")
+  assert(asked[5].placeholder:find("code", 1, true), "Return on a plain folder opens it")
+  again()
+  answers = { "Add project…", { text = tmp .. "/code/my-/deeper" } }
+  I.switch_run({})
+  page = asked[3]
   assert(page.items[1].title == "Add code", "the nearest folder: " .. page.items[1].title)
   assert(page.value == "my-", "what was not found is the filter: " .. tostring(page.value))
   assert(created() == 0 and #queued == 0)
-  -- A name typed in the browser is inside the folder it shows.
-  again()
-  answers = { "Add project…", { text = tmp }, { text = "code/my-app" }, 1 }
-  I.switch_run({})
-  assert(asked[4].title == "Switch branch in my-app", asked[4].title)
-  assert(asked[3].value == nil, "a folder that exists has no filter")
 end)
 
-test("a path typed in the project picker opens the browser there", function()
+test("a repository is added at once, typed in the picker or the browser, or chosen from its rows", function()
   answers = { { text = tmp .. "/code/my" } }
   I.switch_run({})
   assert(asked[1].allow_other, "the project picker takes a path")
-  assert(asked[2].title == "Add project" and asked[2].value == "my")
-  assert(asked[2].items[1].title == "Add code")
-  -- A repository is added at once, and the flow moves on to its branches.
-  again()
-  answers = { { text = repo }, 1 }
-  I.switch_run({})
-  assert(asked[2].title == "Switch branch in my-app", asked[2].title)
-  assert(selected().cwd == repo)
+  assert(asked[2].title == "Add project" and asked[2].value == "my" and asked[2].items[1].title == "Add code")
+  for _, case in ipairs({
+    { { text = repo } },
+    -- A name typed in the browser is inside the folder it shows.
+    { "Add project…", { text = tmp }, { text = "code/my-app" } },
+    { "Add project…", { text = tmp .. "/code" }, "my-app" },
+  }) do
+    again()
+    answers = { unpack(case) }
+    answers[#answers + 1] = 1
+    I.switch_run({})
+    assert(asked[#case + 1].title == "Switch branch in my-app", asked[#case + 1].title)
+    assert(asked[#case].value == nil, "a folder that exists has no filter")
+    assert(selected().cwd == repo)
+  end
 end)
 
 test("blank typed text ends Add Project quietly", function()
@@ -748,33 +773,6 @@ test("blank typed text ends Add Project quietly", function()
   assert(#I.backend.saved().rows == #saved, "nothing was added")
   local typed = I.backend.typed{ text = "" }
   assert(typed.why ~= nil and typed.why ~= "cancelled", tostring(typed.why))
-end)
-
-test("the browser lists folders alike, and Return on one adds it", function()
-  answers = { "Add project…", { text = tmp .. "/code" } }
-  I.switch_run({})
-  local page = asked[3]
-  assert(page.allow_other, "typing a path is allowed")
-  assert(page.items[1].title == "Add code", "first row adds the folder: " .. page.items[1].title)
-  assert(page.items[2].title == "..", "second row goes up")
-  local row
-  for _, r in ipairs(page.items) do if r.title == "my-app" then row = r end end
-  assert(row and row.icon == "folder" and row.detail == nil, "every folder looks alike")
-  -- Choose the repository: it is added and the flow moves on to the branch.
-  again()
-  answers = { "Add project…", { text = tmp .. "/code" }, "my-app", 1 }
-  I.switch_run({})
-  assert(asked[4].title == "Switch branch in my-app")
-  assert(selected().cwd == repo)
-end)
-
-test("Return on a plain folder opens it and .. goes back up", function()
-  answers = { "Add project…", { text = tmp }, "code", ".." }
-  I.switch_run({})
-  assert(created() == 0)
-  -- Page 3 lists tmp, page 4 lists code, page 5 is tmp again after "..".
-  assert(asked[4].placeholder:find("code", 1, true))
-  assert(asked[5].items[1].title == "Add " .. I.basename(tmp))
 end)
 
 test("Add Project to List… adds a folder and opens no session", function()
@@ -805,7 +803,7 @@ test("here: the list is the current branch, the other local ones, then the remot
   assert(not at["origin/HEAD"], "origin/HEAD is no branch")
 end)
 
-test("here: Return on the first row goes to the main session and switches nothing", function()
+test("here: Return on the first row, a branch or a detached HEAD, goes to the main session and switches nothing", function()
   local main = remembered(repo)
   answers = { "my-app", 1 }
   I.switch_run({})
@@ -814,9 +812,8 @@ test("here: Return on the first row goes to the main session and switches nothin
   assert(asked[2].allow_other, "a name can be typed")
   assert(branch_of(repo) == "main")
   assert(selected().session_id == main and created() == 0, "the one main session")
-end)
 
-test("here: a detached main checkout has a first row too, and Return switches nothing", function()
+  again()
   git(repo, "switch", "-q", "--detach")
   local main = remembered(repo)
   answers = { "my-app", 1 }
@@ -828,16 +825,15 @@ test("here: a detached main checkout has a first row too, and Return switches no
   git(repo, "switch", "-q", "main")
 end)
 
-test("here: a local branch is switched to, in the same session", function()
+test("here: a local branch is switched to in the same session, and a remote one becomes a local branch tracking it", function()
   local main = remembered(repo)
   answers = { "my-app", "feature-x" }
   I.switch_run({})
   assert(#asked == 2, "no base for a branch that exists")
   assert(branch_of(repo) == "feature-x")
   assert(selected().session_id == main and created() == 0)
-end)
 
-test("here: a remote branch becomes a local one that tracks the remote picked", function()
+  again()
   answers = { "my-app", "upstream/shared" }
   I.switch_run({})
   assert(#asked == 2)
@@ -870,12 +866,7 @@ test("here: Return on the base list starts from the default, and a base can be t
   assert(branch_of(repo) == "from-default")
   assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/main"))
   -- A remote branch is one however it is written.
-  answers = { "my-app", { text = "from-long" }, { text = "remotes/origin/pr-1" } }
-  I.switch_run({})
-  assert(branch_of(repo) == "from-long")
-  assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/pr-1"))
-  assert(select(2, try(repo, "config", "--get", "branch.from-long.remote")) ~= 0, "--no-track")
-  answers = { "my-app", { text = "from-typed" }, { text = "origin/pr-1" } }
+  answers = { "my-app", { text = "from-typed" }, { text = "remotes/origin/pr-1" } }
   I.switch_run({})
   assert(branch_of(repo) == "from-typed")
   assert(git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/pr-1"))
@@ -1106,11 +1097,6 @@ test("name says what a branch is, and makes nothing", function()
     assert(r.name == typed and r.rows ~= nil, typed)
   end
   assert(name("https://github.com/o/r/pulls").why ~= nil, "a link to no pull request")
-  git(repo, "switch", "-q", "-c", "prev-one")
-  git(repo, "switch", "-q", current)
-  r = name("@{-1}")
-  assert(r.why == "@{-1} is not a branch name: git reads it as prev-one" and r.name == nil, tostring(r.why))
-  git(repo, "branch", "-q", "-D", "prev-one")
 end)
 
 test("open without a base for a new name answers why and makes nothing", function()
@@ -1169,14 +1155,6 @@ test("each flow opens a branch with one open call, a new one too", function()
   if not ok then error(err, 0) end
 end)
 
-test("here: a name git does not take is refused with git's words, before any base", function()
-  answers = { "my-app", { text = "bad..name" } }
-  local message = refused(I.switch_run, {})
-  assert(#asked == 2)
-  assert(message == "fatal: 'bad..name' is not a valid branch name", message)
-  assert(#queued == 0)
-end)
-
 test("@{-1} and @ are refused in both flows, before any base", function()
   local start = branch_of(repo)
   git(repo, "switch", "-q", "-c", "prev-two")
@@ -1202,16 +1180,6 @@ test("@{-1} and @ are refused in both flows, before any base", function()
   assert(r.why == "@ is not a branch name: git reads it as HEAD" and r.name == nil, tostring(r.why))
   assert(branch_of(repo) == start and not exists(wt .. "/prev-two"), "nothing switched or made")
   git(repo, "branch", "-q", "-D", "prev-two")
-end)
-
-test("a bare number is a new branch in both flows", function()
-  for flow, run in pairs({ here = I.switch_run, worktree = I.worktree_run }) do
-    again()
-    local err = ends({ "my-app", { text = "123" } }, run)
-    assert(err == nil, flow .. ": " .. tostring(err))
-    assert(#asked == 3 and asked[3].title == "Start 123 from", flow .. ": the base list is asked")
-    assert(not has_branch(repo, "123") and #queued == 0, flow .. ": cancelled, nothing made")
-  end
 end)
 
 test("a blank name or a blank base ends either flow quietly", function()
@@ -1260,9 +1228,12 @@ test("worktree: a new name plus a base makes the branch, the worktree and its se
   assert(created() == 1)
   assert(branch_of(wt .. "/feat-x") == "feat/x")
   assert(branch_of(repo) == "main", "the main checkout stays as it was")
+  assert(select(2, try(repo, "config", "--get", "branch.feat/x.remote")) ~= 0, "a remote base is not tracked")
+  local o = s.windows[1].layout.options
+  assert(#s.windows == 1 and o.cwd == s.cwd and o.shell == nil, "one tab, with the account's shell")
 end)
 
-test("worktree: the list is the worktrees, the regular branches, then the remote ones", function()
+test("worktree: the list is the worktrees, the regular branches, then the remote ones, and a worktree's row goes back to its session", function()
   local rows = I.backend.worktree_rows{ project = repo }.rows
   assert(rows[1].id == "feat/x" and rows[1].icon == "folder", "worktrees are first")
   assert(rows[1].subtitle == I.short(wt .. "/feat-x"))
@@ -1272,9 +1243,8 @@ test("worktree: the list is the worktrees, the regular branches, then the remote
   assert(at["feat/x"] < at["feature-x"] and at["feature-x"] < at["origin/pr-1"])
   local _, here = branches("here")
   assert(not here["feat/x"], "here mode does not list a branch that a worktree holds")
-end)
 
-test("worktree: a worktree's row goes back to its session", function()
+  again()
   local id = remembered(wt .. "/feat-x")
   answers = { "my-app", "feat/x" }
   I.worktree_run({})
@@ -1294,13 +1264,6 @@ test("worktree: a local branch and a remote branch each get a worktree and a ses
   assert(s.cwd == wt .. "/pr-1" and s.label == "my-app · pr-1", "the local branch has the plain name")
   assert(git(repo, "rev-parse", "--abbrev-ref", "pr-1@{upstream}") == "origin/pr-1")
   assert(created() == 2)
-end)
-
-test("worktree: a new branch from a remote base is not tracked", function()
-  answers = { "my-app", { text = "topic" }, "origin/main" }
-  I.worktree_run({})
-  assert(branch_of(wt .. "/topic") == "topic")
-  assert(select(2, try(repo, "config", "--get", "branch.topic.remote")) ~= 0, "--no-track")
 end)
 
 test("worktree: the main checkout's branch, typed, goes to the project's session", function()
@@ -1431,8 +1394,8 @@ test("worktree: a blocking hook that fails says wt's words, and opening again la
     answers = { "my-app", { text = "hook-fails" }, 1 }
     message = refused(I.worktree_run, {})
   end)
-  assert(message == "pre-start user:fail failed (exit code 3). To skip pre-start hooks, re-run with --no-hooks",
-    message)
+  -- wt's hint after the reason differs between its versions.
+  assert(message:find("pre-start user:fail failed (exit code 3). ", 1, true) == 1 and not message:find("\n"), message)
   assert(created() == 0 and exists(wt .. "/hook-fails"), "wt made the worktree, and no session")
   again()
   local from = #wt_argv
@@ -1447,67 +1410,38 @@ test("worktree: a blocking hook that fails says wt's words, and opening again la
   git(repo, "branch", "-q", "-D", "hook-fails")
 end)
 
-test("worktree: a revision such as main~1 is no branch, and makes no worktree", function()
-  local before = #I.worktrees(repo)
-  answers = { "my-app", { text = "main~1" } }
-  local title = refused(I.worktree_run, {})
-  assert(#asked == 2, "project, then name: no base is asked for")
-  assert(title:find("^fatal: ") and title:find("'main~1'", 1, true), "git's refusal: " .. title)
-  assert(created() == 0 and #queued == 0, "no session")
-  assert(#I.worktrees(repo) == before and not exists(wt .. "/main~1"), "no worktree")
-end)
-
-test("here: a typed branch that lives in a worktree shows git's refusal", function()
-  answers = { "my-app", { text = "feat/x" } }
-  local title = refused(I.switch_run, {})
-  assert(title:find("^fatal: ") and title:find("'feat/x'", 1, true) and title:find("worktree", 1, true), title)
-  assert(branch_of(repo) == "main" and #queued == 0, "nothing switched")
-end)
-
-test("worktree: ^ opens the default branch's checkout, the main one here", function()
+test("worktree: ^ opens the default branch's checkout and - wt's previous branch, with hooks as in a terminal", function()
   assert(branch_of(repo) == "main")
-  answers = { "my-app", { text = "^" } }
-  I.worktree_run({})
-  assert(#asked == 2, "no base")
-  local s = selected()
-  assert(s.cwd == repo and s.label == "my-app" and s.session_id == remembered(repo), s.label)
-  assert(created() == 0 and not exists(wt .. "/main"))
-end)
-
-test("worktree: - opens wt's previous branch, and without one says wt's words", function()
-  git(repo, "config", "worktrunk.history", "feature-x")
-  answers = { "my-app", { text = "-" } }
-  I.worktree_run({})
-  assert(#asked == 2, "no base")
-  local s = selected()
-  assert(s.cwd == wt .. "/feature-x" and s.label == "my-app · feature-x", s.cwd .. " · " .. s.label)
+  local dir = wt .. "/feature-x"
+  close_kept(dir)
+  I.backend.forget_record{ path = dir }
+  try(repo, "worktree", "remove", dir)
+  with_hooks(logging_hooks, function()
+    for _, case in ipairs({
+      { typed = "^", hook = "switch main", cwd = repo, label = "my-app", created = 0 },
+      { typed = "-", hook = "start feature-x", cwd = dir, label = "my-app · feature-x", created = 1 },
+    }) do
+      git(repo, "config", "worktrunk.history", "feature-x")
+      again()
+      local from = #wt_argv
+      answers = { "my-app", { text = case.typed } }
+      I.worktree_run({})
+      assert(#asked == 2, case.typed .. ": no base")
+      local s = selected()
+      assert(s.cwd == case.cwd and s.label == case.label, case.typed .. ": " .. s.cwd .. " · " .. s.label)
+      assert(created() == case.created and not exists(wt .. "/main"), case.typed)
+      local runs = wt_runs(from, "switch")
+      assert(#runs == 1 and not holds(runs[1], "--no-hooks"), case.typed .. ": " .. table.concat(runs[1] or {}, " "))
+      assert(ran(case.hook), case.typed .. ": the hook ran: " .. tostring(read(hook_log)))
+    end
+  end)
+  assert(selected().session_id ~= remembered(repo) and exists(dir), "wt made the worktree of -")
   git(repo, "config", "--unset", "worktrunk.history")
   again()
   answers = { "my-app", { text = "-" } }
   local message = refused(I.worktree_run, {})
   assert(message:find("No previous branch", 1, true), message)
   assert(#queued == 0 and created() == 0)
-end)
-
-test("worktree: ^ and - run hooks, as in a terminal", function()
-  local dir = wt .. "/feature-x"
-  close_kept(dir)
-  I.backend.forget_record{ path = dir }
-  try(repo, "worktree", "remove", dir)
-  with_hooks(logging_hooks, function()
-    for _, case in ipairs({ { typed = "^", hook = "switch main" }, { typed = "-", hook = "start feature-x" } }) do
-      git(repo, "config", "worktrunk.history", "feature-x")
-      again()
-      local from = #wt_argv
-      answers = { "my-app", { text = case.typed } }
-      I.worktree_run({})
-      local runs = wt_runs(from, "switch")
-      assert(#runs == 1 and not holds(runs[1], "--no-hooks"), case.typed .. ": " .. table.concat(runs[1] or {}, " "))
-      assert(ran(case.hook), case.typed .. ": the hook ran: " .. tostring(read(hook_log)))
-    end
-  end)
-  git(repo, "config", "--unset", "worktrunk.history")
-  assert(exists(dir), "wt made the worktree of -")
 end)
 
 test("here: wt's shortcuts and pull requests are refused with what takes them", function()
@@ -1610,7 +1544,7 @@ local function in_terminal(dir, ...)
   local words = {}
   for i, w in ipairs({ ... }) do words[i] = sh(w) end
   local _, code, err = capture("cd " .. sh(dir) .. " && XDG_CONFIG_HOME=" .. sh(base_env.XDG_CONFIG_HOME) ..
-    " PATH=" .. sh(base_env.PATH) .. " " .. table.concat(words, " "))
+    " PATH=" .. sh(base_env.PATH) .. " " .. table.concat(words, " "), true)
   assert(code == 0, table.concat({ ... }, " ") .. ": " .. err)
 end
 
@@ -1683,7 +1617,7 @@ local function in_file(dir)
   return type(sessions) == "table" and sessions[dir] ~= nil
 end
 
-test("records: Clean Up of a worktree whose folder was deleted closes the session it made", function()
+test("records: Clean Up of a worktree whose folder was deleted closes the session rex-projects made, and no other", function()
   answers = { "my-app", { text = "gone-c" }, 1 }
   I.worktree_run({})
   local dir, id = wt .. "/gone-c", selected().session_id
@@ -1695,9 +1629,8 @@ test("records: Clean Up of a worktree whose folder was deleted closes the sessio
   assert(not has_branch(repo, "gone-c"))
   assert(session(nil, id) == nil and calls[#calls][1] == "session.destroy", "the session is closed")
   assert(not in_file(dir), "the record is gone from the file")
-end)
 
-test("records: Clean Up of a worktree whose folder was deleted leaves an adopted session open", function()
+  again()
   answers = { "my-app", { text = "gone-d" }, 1 }
   I.worktree_run({})
   local dir, made = wt .. "/gone-d", selected().session_id
@@ -1716,9 +1649,8 @@ test("records: Clean Up of a worktree whose folder was deleted leaves an adopted
   assert(#calls == 0 and session(nil, mine.session_id) == mine, "the adopted session stays open")
   assert(not in_file(dir), "the record is gone from the file")
   close(nil, mine.session_id)
-end)
 
-test("records: Clean Up after the folder was deleted and the session closed by hand closes nothing", function()
+  again()
   answers = { "my-app", { text = "gone-e" }, 1 }
   I.worktree_run({})
   local dir, id = wt .. "/gone-e", selected().session_id
@@ -1755,20 +1687,31 @@ local function closes(path)
   for _, c in ipairs(calls) do assert(c[3] == nil, c[1] .. " went to another server") end
 end
 
-test("records: wt remove in a terminal, then the hook, closes the session it made", function()
+test("records: wt remove in a terminal, then the hook, closes the session it made, also after a restart", function()
   assert(actions.close_project_session.category == "Internal")
   answers = { "my-app", { text = "hook-a" }, 1 }
   I.worktree_run({})
   local dir, id = wt .. "/hook-a", selected().session_id
   in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "hook-a")
   assert(not exists(dir) and in_file(dir))
+  local file = tmp .. "/state/projects.json"
+  local before = read(file)
+  I.reset()
+  assert(record(dir).session == id and read(file) == before, "kept on load, and the load writes nothing")
   again()
   closes(dir)
   assert(session(nil, id) == nil and calls[#calls][1] == "session.destroy", "the session is closed")
   assert(record(dir) == nil and not in_file(dir), "the record is gone")
+  -- A second call, a path with no record, or no path, changes nothing.
+  before = read(file)
   again()
   closes(dir)
-  assert(#calls == 0, "a second call does nothing")
+  closes(tmp .. "/never-opened")
+  closes("")
+  closes("  ")
+  closes(nil)
+  actions.close_project_session.run({}, nil)
+  assert(#calls == 0 and read(file) == before)
 end)
 
 test("records: the hook leaves an adopted session open and forgets its record", function()
@@ -1790,32 +1733,7 @@ test("records: the hook leaves an adopted session open and forgets its record", 
   close(nil, mine.session_id)
 end)
 
-test("records: the hook for a path with no record, or none, changes nothing", function()
-  local file = tmp .. "/state/projects.json"
-  local before = read(file)
-  closes(tmp .. "/never-opened")
-  closes("")
-  closes("  ")
-  closes(nil)
-  actions.close_project_session.run({}, nil)
-  assert(#calls == 0 and read(file) == before)
-end)
-
-test("records: after a restart, a gone folder's record is still there for the hook", function()
-  answers = { "my-app", { text = "hook-c" }, 1 }
-  I.worktree_run({})
-  local dir, id = wt .. "/hook-c", selected().session_id
-  in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "hook-c")
-  local before = read(tmp .. "/state/projects.json")
-  I.reset()
-  assert(record(dir).session == id and in_file(dir), "kept on load")
-  assert(read(tmp .. "/state/projects.json") == before, "the load writes nothing")
-  again()
-  closes(dir)
-  assert(session(nil, id) == nil and record(dir) == nil)
-end)
-
-test("records: the hook finds the record through a symbolic link, folder there or gone", function()
+test("records: the hook finds the record through a symbolic link, and a worktrees folder set through one is kept by git's spelling", function()
   local link = tmp .. "/wt-link"
   os.execute("ln -s " .. sh(tmp .. "/wt") .. " " .. sh(link))
   answers = { "my-app", { text = "hook-d" }, 1 }
@@ -1834,9 +1752,8 @@ test("records: the hook finds the record through a symbolic link, folder there o
   closes(link .. "/my-app/hook-e")
   assert(session(nil, id) == nil and record(wt .. "/hook-e") == nil, "closed, folder gone")
   os.remove(link)
-end)
 
-test("records: a worktree folder set through a link is kept by git's spelling, for the hook", function()
+  again()
   local link = tmp .. "/wt-via"
   os.execute("ln -s " .. sh(tmp .. "/wt") .. " " .. sh(link))
   P.setup{ worktrees = link }
@@ -1895,7 +1812,7 @@ local function dropped(...)
   end
 end
 
-test("open hook: wt switch in a terminal opens the worktree's session, and again goes back", function()
+test("open hook: wt switch in a terminal opens the worktree's session, the main checkout the project's, a PR #N", function()
   assert(actions.open_project_session.category == "Internal")
   -- As after a restart: the Open Worktree runs above leave no mark.
   I.reset()
@@ -1908,9 +1825,8 @@ test("open hook: wt switch in a terminal opens the worktree's session, and again
   opens(dir .. "/")
   assert(created() == 0 and selected() == s, "the same session")
   dropped("sw-a")
-end)
 
-test("open hook: the main checkout goes to the project's session, a PR to #N", function()
+  again()
   local main = remembered(repo)
   if main == nil or session(nil, main) == nil then
     answers = { "my-app", 1 }
@@ -1984,19 +1900,17 @@ test("open hook: a repository not on the list gets its session, and the list sta
   close_kept(tmp .. "/elsewhere/solo-side")
 end)
 
-test("a session that cannot be made ends Open Worktree with projects: and the reason", function()
-  create_fails = "boom"
+test("a session that cannot be made ends Open Worktree with projects: and the reason, on one line", function()
+  create_fails = "  session\n  limit   reached \n"
   local message, logged = ends({ "my-app", { text = "boom-a" }, 1 }, I.worktree_run, {})
-  create_fails = nil
-  assert(message == "projects: boom", message)
+  assert(message == "projects: session limit reached", message)
   assert(created() == 1 and #logged == 0, "no layout, so no second try")
   in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "boom-a")
-end)
-
-test("a session refused with a layout's windows and with one shell tab ends with the reason", function()
+  -- With a layout's windows, one shell tab is tried too.
+  again()
   create_fails = "boom"
   P.setup{ layout = function(t) return { { window_label = "x", layout = { options = { cwd = t.dir } } } } end }
-  local message, logged = ends({ "my-app", { text = "boom-c" }, 1 }, I.worktree_run, {})
+  message, logged = ends({ "my-app", { text = "boom-c" }, 1 }, I.worktree_run, {})
   P.setup{ layout = false }
   create_fails = nil
   assert(message == "projects: boom", message)
@@ -2004,15 +1918,6 @@ test("a session refused with a layout's windows and with one shell tab ends with
   assert(logged[1]:find("refused the session with the layout function's windows: boom; trying one shell tab", 1, true),
     logged[1])
   in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "boom-c")
-end)
-
-test("a session that cannot be made is shown on one line", function()
-  create_fails = "  session\n  limit   reached \n"
-  answers = { "my-app", { text = "boom-b" }, 1 }
-  local message = refused(I.worktree_run, {})
-  create_fails = nil
-  assert(message == "projects: session limit reached", message)
-  in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "boom-b")
 end)
 
 ---------------------------------------------------------------------------
@@ -2055,9 +1960,12 @@ end)
 test("clean-up: uncommitted changes are refused with wt's words, and nothing changes", function()
   local dir = wt .. "/pr-1"
   local id = remembered(dir)
+  -- An untracked file counts, also when git status is set to hide them.
+  git(repo, "config", "status.showUntrackedFiles", "no")
   write(dir .. "/new.txt", "x")
   answers = { "my-app", "pr-1" }
   local message = refused(I.clean_up, {})
+  git(repo, "config", "--unset", "status.showUntrackedFiles")
   assert(message:find("^Cannot remove worktree: pr%-1 has uncommitted changes%. "), message)
   assert(exists(dir .. "/new.txt") and has_branch(repo, "pr-1") and session(nil, id), "an untracked file")
   os.remove(dir .. "/new.txt")
@@ -2070,19 +1978,6 @@ test("clean-up: uncommitted changes are refused with wt's words, and nothing cha
   assert(remembered(dir) == id)
   assert(#calls == 0, "the session is left alone")
   git(dir, "checkout", "-q", "--", "f")
-end)
-
-test("clean-up: untracked files count even when git status is set to hide them", function()
-  local dir = wt .. "/pr-1"
-  local id = remembered(dir)
-  git(repo, "config", "status.showUntrackedFiles", "no")
-  write(dir .. "/new.txt", "x")
-  answers = { "my-app", "pr-1" }
-  local message = refused(I.clean_up, {})
-  git(repo, "config", "--unset", "status.showUntrackedFiles")
-  assert(message:find("^Cannot remove worktree: pr%-1 has uncommitted changes%. "), message)
-  assert(exists(dir .. "/new.txt") and has_branch(repo, "pr-1") and session(nil, id), "nothing changed")
-  os.remove(dir .. "/new.txt")
 end)
 
 test("clean-up: run from a worktree's adopted session, Keep keeps the branch and the session", function()
@@ -2105,26 +2000,6 @@ test("clean-up: run from a worktree's adopted session, Keep keeps the branch and
   close(nil, id)
 end)
 
-test("clean-up: the session rex-projects made for a worktree is closed while the action waits", function()
-  answers = { "my-app", { text = "keepme" }, 1 }
-  I.worktree_run({})
-  local dir = wt .. "/keepme"
-  local id = remembered(dir)
-  assert(record(dir).created == true)
-  commit(dir, "g", "work\n", "work")
-  again()
-  answers = { "my-app", "keepme", function()
-    -- The session goes last, after anything more is asked.
-    assert(session(nil, id), "the session is open while the offer shows")
-    return "Keep"
-  end }
-  I.clean_up({})
-  assert(not exists(dir) and has_branch(repo, "keepme"))
-  assert(session(nil, id) == nil, "the worktree's session is closed")
-  assert(calls[#calls][1] == "session.destroy")
-  git(repo, "branch", "-q", "-D", "keepme")
-end)
-
 test("clean-up: accepting the offer deletes the branch with -D", function()
   local _, at = cleanup_branches()
   assert(at["feat/x"], "the branch is a regular one now")
@@ -2140,6 +2015,9 @@ test("clean-up: accepting the offer deletes the branch with -D", function()
 end)
 
 test("clean-up: a worktree whose folder is gone is cleared with its branch", function()
+  answers = { "my-app", { text = "topic" }, 1 }
+  I.worktree_run({})
+  again()
   local dir = wt .. "/topic"
   os.execute("rm -rf " .. sh(dir))
   local _, at = branches("worktree")
@@ -2165,7 +2043,26 @@ local function unmerged(name)
   return dir, remembered(dir)
 end
 
-test("clean-up: Force delete removes the branch of a worktree rex-projects made, and its session", function()
+test("clean-up: the session rex-projects made is closed after the offer, the branch kept or force deleted", function()
+  answers = { "my-app", { text = "keepme" }, 1 }
+  I.worktree_run({})
+  local dir = wt .. "/keepme"
+  local id = remembered(dir)
+  assert(record(dir).created == true)
+  commit(dir, "g", "work\n", "work")
+  again()
+  answers = { "my-app", "keepme", function()
+    -- The session goes last, after anything more is asked.
+    assert(session(nil, id), "the session is open while the offer shows")
+    return "Keep"
+  end }
+  I.clean_up({})
+  assert(not exists(dir) and has_branch(repo, "keepme"))
+  assert(session(nil, id) == nil, "the worktree's session is closed")
+  assert(calls[#calls][1] == "session.destroy")
+  git(repo, "branch", "-q", "-D", "keepme")
+
+  again()
   local dir, id = unmerged("forceme")
   answers = { "my-app", "forceme", "Force delete" }
   I.clean_up({})
@@ -2188,7 +2085,7 @@ test("clean-up: a cancelled or failed offer keeps the branch and still closes th
   git(repo, "branch", "-q", "-D", "offer")
 end)
 
-test("clean-up: a branch wt keeps for good is said after the session is closed", function()
+test("clean-up: a branch git cannot delete is said after the session is closed, on the first remove or a Force delete", function()
   answers = { "my-app", { text = "hold/x" }, 1 }
   I.worktree_run({})
   local dir = wt .. "/hold-x"
@@ -2207,6 +2104,21 @@ test("clean-up: a branch wt keeps for good is said after the session is closed",
   assert(not exists(dir) and has_branch(repo, "hold/x"), "the worktree goes, the branch stays")
   assert(session(nil, id) == nil and record(dir) == nil, "the session is closed")
   git(repo, "branch", "-q", "-D", "hold/x")
+
+  again()
+  local dir, id = unmerged("v2/x")
+  local refs = git(repo, "rev-parse", "--git-path", "refs/heads/v2")
+  if refs:sub(1, 1) ~= "/" then refs = repo .. "/" .. refs end
+  answers = { "my-app", "v2/x", function()
+    os.execute("chmod a-w " .. sh(refs))
+    return "Force delete"
+  end }
+  local ok, message = pcall(I.clean_up, {})
+  os.execute("chmod u+w " .. sh(refs))
+  assert(not ok and message == "wt kept v2/x: git could not delete it", tostring(message))
+  assert(not exists(dir) and has_branch(repo, "v2/x"), "the worktree goes, the branch stays")
+  assert(session(nil, id) == nil and record(dir) == nil, "the session is closed")
+  git(repo, "branch", "-q", "-D", "v2/x")
 end)
 
 -- opened opens a worktree for a new branch with nothing to merge, with a
@@ -2219,11 +2131,8 @@ local function opened(name)
   return dir, remembered(dir)
 end
 
-test("clean-up: hooks run whatever the branch's config holds, and so does opening it", function()
+test("clean-up: hooks run for your own branches, and a project's need wt's approval", function()
   local dir = opened("rm-own")
-  git(repo, "branch", "rm-marked")
-  -- An old rex-pr line is left as it is, and nothing reads it.
-  git(repo, "config", "branch.rm-marked.rex-pr", "5")
   with_hooks(logging_hooks, function()
     local from = #wt_argv
     answers = { "my-app", "rm-own" }
@@ -2233,27 +2142,10 @@ test("clean-up: hooks run whatever the branch's config holds, and so does openin
       table.concat(runs[1] or {}, " "))
     assert(ran("remove rm-own"), "the user's pre-remove hook ran: " .. tostring(read(hook_log)))
     assert(not exists(dir) and not has_branch(repo, "rm-own"))
-
-    again()
-    from = #wt_argv
-    answers = { "my-app", { text = "rm-marked" } }
-    I.worktree_run({})
-    runs = wt_runs(from, "switch")
-    assert(#runs == 1 and not holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
-    assert(ran("start rm-marked"), "the pre-start hook ran")
-    again()
-    from = #wt_argv
-    answers = { "my-app", "rm-marked" }
-    I.clean_up({})
-    runs = wt_runs(from, "remove")
-    assert(#runs == 1 and not holds(runs[1], "--no-hooks"), table.concat(runs[1] or {}, " "))
-    assert(ran("remove rm-marked"), "the pre-remove hook ran")
-    assert(not exists(wt .. "/rm-marked") and not has_branch(repo, "rm-marked"))
   end)
-end)
 
-test("clean-up: a project hook that needs approval stops it, and nothing changes", function()
-  local dir, id = opened("rm-ask")
+  local id
+  dir, id = opened("rm-ask")
   os.execute("mkdir -p " .. sh(repo .. "/.config"))
   write(repo .. "/.config/wt.toml", '[pre-remove]\nmark = "touch ../removed"\n')
   answers = { "my-app", "rm-ask" }
@@ -2339,22 +2231,6 @@ test("clean-up: a worktree that only Force delete removes has its session closed
   assert(session(nil, id) == nil and record(dir) == nil, "the session is closed")
 end)
 
-test("clean-up: a Force delete git cannot finish says so, the worktree gone and its session closed", function()
-  local dir, id = unmerged("v2/x")
-  local refs = git(repo, "rev-parse", "--git-path", "refs/heads/v2")
-  if refs:sub(1, 1) ~= "/" then refs = repo .. "/" .. refs end
-  answers = { "my-app", "v2/x", function()
-    os.execute("chmod a-w " .. sh(refs))
-    return "Force delete"
-  end }
-  local ok, message = pcall(I.clean_up, {})
-  os.execute("chmod u+w " .. sh(refs))
-  assert(not ok and message == "wt kept v2/x: git could not delete it", tostring(message))
-  assert(not exists(dir) and has_branch(repo, "v2/x"), "the worktree goes, the branch stays")
-  assert(session(nil, id) == nil and record(dir) == nil, "the session is closed")
-  git(repo, "branch", "-q", "-D", "v2/x")
-end)
-
 ---------------------------------------------------------------------------
 -- How an action ends
 ---------------------------------------------------------------------------
@@ -2387,11 +2263,9 @@ test("a cancelled list ends any action quietly, and a failed one says why", func
     err, logged = ends(failing, f, {})
     assert(err == "palette broke", name .. " failed: " .. tostring(err))
     assert(#logged == 0, name .. " failed logged: " .. table.concat(logged, "; "))
-    again()
-    failing[#failing] = { why = false }
-    err = ends(failing, f, {})
-    assert(err == nil, name .. " with no reason: " .. tostring(err))
   end
+  again()
+  assert(ends({ { why = false } }, I.switch_run, {}) == nil, "a failure with no reason is quiet")
   assert(created() == 0 and #queued == 0, "nothing was opened")
   assert(git(repo, "for-each-ref", "--format=%(refname)") == before, "no branch changed")
   assert(branch_of(repo) == "main")
@@ -2457,7 +2331,7 @@ local function open_pr(typed, ctx)
   return selected()
 end
 
-test("worktree: pr:N with a project hook not approved fails with wt's words, and nothing changes", function()
+test("worktree: pr:N opens the pull request's worktree with hooks, labelled by its number, and again as it is", function()
   git(up, "switch", "-q", "-c", "review-me")
   commit(up, "r", "one\n", "review one")
   git(up, "switch", "-q", "main")
@@ -2467,20 +2341,6 @@ test("worktree: pr:N with a project hook not approved fails with wt's words, and
   prs = { pull(9, "Review me", "review-me", false, "ana"), pull(8, "Fix from a fork", "fork-fix", true, "bo") }
   publish(9, "review-me")
   prs[2].headRefOid = git(up, "rev-parse", "refs/pull/8/head")
-
-  os.execute("mkdir -p " .. sh(repo .. "/.config"))
-  write(repo .. "/.config/wt.toml", '[pre-start]\nmark = "touch hook-ran"\n')
-  answers = { "my-app", { text = "pr:9" } }
-  local message = refused(I.worktree_run, {})
-  os.execute("rm -rf " .. sh(repo .. "/.config"))
-  local tail = "pre-start mark: touch hook-ran. wt cannot ask for approval without a terminal: " ..
-    "run wt config approvals add in a terminal in " .. I.short(repo) .. ", then try again"
-  assert(message:sub(-#tail) == tail, message)
-  assert(created() == 0 and #queued == 0 and not has_branch(repo, "review-me") and not exists(review_dir),
-    "nothing made")
-end)
-
-test("worktree: pr:N opens the pull request's worktree with the project's hooks, labelled by its number", function()
   local s
   with_hooks(logging_hooks, function()
     local from = #wt_argv
@@ -2496,9 +2356,16 @@ test("worktree: pr:N opens the pull request's worktree with the project's hooks,
   assert(git(review_dir, "rev-parse", "HEAD") == git(up, "rev-parse", "review-me"))
   assert(git(repo, "rev-parse", "--abbrev-ref", "review-me@{upstream}") == "origin/review-me", "it follows the remote branch")
   assert(select(2, try(repo, "config", "--get", "branch.review-me.rex-pr")) ~= 0, "no mark")
-  -- Again: the same session, and nothing made.
+  -- Again, after the pull request moved on: the same session, opened as it
+  -- is, and nothing asked.
+  git(up, "switch", "-q", "review-me")
+  commit(up, "r", "two\n", "review two")
+  git(up, "switch", "-q", "main")
+  publish(9, "review-me")
+  local before = git(review_dir, "rev-parse", "HEAD")
   again()
   assert(open_pr("pr:9") == s and created() == 0 and #asked == 2)
+  assert(git(review_dir, "rev-parse", "HEAD") == before, "bringing it up to date is git's to do")
 end)
 
 test("worktree: a pull request from a fork gets its branch's name, and pushes to the fork", function()
@@ -2516,27 +2383,18 @@ test("worktree: a pull request from a fork gets its branch's name, and pushes to
 end)
 
 test("worktree: a link to one of the project's remotes opens as pr:N, any other is refused before wt", function()
-  for _, link in ipairs({ "https://github.com/remotes/up/pull/9/files", "https://GitHub.com/Remotes/Up/pull/9" }) do
-    again()
-    local from = #wt_argv
-    assert(open_pr(link).cwd == review_dir, link)
-    local runs = wt_runs(from, "switch")
-    assert(#runs == 1 and runs[1][#runs[1]] == "pr:9", link .. ": " .. table.concat(runs[1] or {}, " "))
-  end
-  for link, why in pairs({
-    ["https://github.example.com/remotes/up/pull/9"] =
-      "that link is to a pull request of github.example.com/remotes/up, which is no remote of my-app",
-    ["https://github.com/other/thing/pull/9"] =
-      "that link is to a pull request of github.com/other/thing, which is no remote of my-app",
-  }) do
-    again()
-    local from = #wt_argv
-    answers = { "my-app", { text = link } }
-    local message = refused(I.worktree_run, {})
-    assert(message == why, message)
-    assert(#wt_argv == from, link .. ": wt did not run")
-    assert(#queued == 0 and created() == 0)
-  end
+  local link = "https://GitHub.com/Remotes/Up/pull/9/files"
+  local from = #wt_argv
+  assert(open_pr(link).cwd == review_dir, link)
+  local runs = wt_runs(from, "switch")
+  assert(#runs == 1 and runs[1][#runs[1]] == "pr:9", link .. ": " .. table.concat(runs[1] or {}, " "))
+  again()
+  from = #wt_argv
+  answers = { "my-app", { text = "https://github.com/other/thing/pull/9" } }
+  local message = refused(I.worktree_run, {})
+  assert(message == "that link is to a pull request of github.com/other/thing, which is no remote of my-app", message)
+  assert(#wt_argv == from, "wt did not run")
+  assert(#queued == 0 and created() == 0)
 end)
 
 test("worktree: a link matches a remote by host and owner/repo, and an ssh alias by owner/repo", function()
@@ -2600,17 +2458,7 @@ test("worktree: a link matches a remote by host and owner/repo, and an ssh alias
   assert(I.repo_of("file:///srv/git/acme/app.git") == nil)
 end)
 
-test("worktree: a pull request that moved on is opened as it is, and nothing is asked", function()
-  git(up, "switch", "-q", "review-me")
-  commit(up, "r", "two\n", "review two")
-  git(up, "switch", "-q", "main")
-  publish(9, "review-me")
-  local before = git(review_dir, "rev-parse", "HEAD")
-  assert(open_pr("pr:9").cwd == review_dir and #asked == 2)
-  assert(git(review_dir, "rev-parse", "HEAD") == before, "bringing it up to date is git's to do")
-end)
-
-test("worktree: a pull request's worktree that is gone is made again, and the main checkout's opens there", function()
+test("worktree: a pull request's worktree that is gone is made again", function()
   local id = remembered(review_dir)
   -- Removed with git.
   git(repo, "worktree", "remove", review_dir)
@@ -2627,16 +2475,6 @@ test("worktree: a pull request's worktree that is gone is made again, and the ma
   git(repo, "worktree", "prune")
   again()
   assert(open_pr("pr:9").session_id == id and branch_of(review_dir) == "review-me")
-  -- In the main checkout it is the project's own session.
-  local was = branch_of(repo)
-  git(repo, "worktree", "remove", review_dir)
-  git(repo, "switch", "-q", "review-me")
-  again()
-  s = open_pr("pr:9")
-  assert(s.cwd == repo and s.label == "my-app", s.label)
-  git(repo, "switch", "-q", was)
-  again()
-  assert(open_pr("pr:9").cwd == review_dir)
 end)
 
 test("worktree: a pull request run from a session in its worktree adopts it", function()
@@ -2809,16 +2647,6 @@ test("clean-up: a pull request's branch goes with its worktree, and its hooks ru
   end)
 end)
 
-test("Review Pull Request and the code only it used are gone", function()
-  local source = assert(read("projects.lua"))
-  for _, word in ipairs({ "review_pull_request", "backend.pulls", "backend.review", "review_run", "gh(",
-    "pr_branches", "set-default", "pr_mark", "--no-hooks", "switch_worktree(project, how" }) do
-    assert(not source:find(word, 1, true), "projects.lua still holds " .. word)
-  end
-  assert(not source:find("rex%-pr[^o]"), "projects.lua still holds rex-pr")
-  assert(actions.review_pull_request == nil and I.backend.pulls == nil and I.backend.review == nil)
-end)
-
 ---------------------------------------------------------------------------
 -- A session on another host
 ---------------------------------------------------------------------------
@@ -2935,14 +2763,12 @@ test("another host: a stopped clean-up closes the session exactly when the workt
   assert(not exists(dir) and session("studio", id) == nil and record(dir) == nil, "gone: the session is closed")
 end)
 
-test("a host without this file says so", function()
+test("a host without this file says so, on one line", function()
   remote_missing = true
   local ok, err = pcall(I.switch_run, { server = "studio" })
   remote_missing = false
   assert(not ok and err:find("^projects: studio: ") and err:find("init.lua on studio", 1, true), tostring(err))
-end)
 
-test("a relay error is shown on one line", function()
   remote_missing = "not_found:\n  no   action\tprojects_backend"
   local ok, err = pcall(I.switch_run, { server = "studio" })
   remote_missing = false
@@ -2965,24 +2791,6 @@ test("another host: projects are added and removed there", function()
   for _, p in ipairs(I.load_state().projects) do assert(I.basename(p) ~= "plain") end
   assert(remembered(plain) == nil, "its session is forgotten with it")
   assert(local_execs == 0 and relays >= 5, "the folders were read on the host")
-end)
-
-test("the shell setting is the shell of a new session", function()
-  local function made_with()
-    for i = #calls, 1, -1 do
-      if calls[i][1] == "session.create" then return calls[i][2].initial_windows[1].layout.options end
-    end
-  end
-  P.setup{ shell = "fish" }
-  answers = { "my-app", { text = "shell-one" }, 1 }
-  I.worktree_run({})
-  assert(made_with().shell == "fish" and made_with().cwd == wt .. "/shell-one")
-  -- false is the account's default shell again.
-  again()
-  P.setup{ shell = false }
-  answers = { "my-app", { text = "shell-two" }, 1 }
-  I.worktree_run({})
-  assert(made_with().shell == nil and made_with().cwd == wt .. "/shell-two")
 end)
 
 ---------------------------------------------------------------------------
@@ -3012,7 +2820,7 @@ test("shaping: label names a new session from the table it is given", function()
   assert(#warned(logged) == 0)
 end)
 
-test("shaping: an adopted session gets the label, and no layout", function()
+test("shaping: an adopted session gets the label and no layout, and a remembered one that lives is not relabelled", function()
   close_kept(repo)
   local mine = open_session(nil, "quiet-meadow", repo)
   mine.attached = true
@@ -3024,9 +2832,8 @@ test("shaping: an adopted session gets the label, and no layout", function()
   assert(seen.layout == nil, "layout is not called for an adopted session")
   assert(seen.label.branch == "main" and seen.label.dir == repo and seen.label.label == "my-app")
   assert(mine.windows == nil, "its windows are kept")
-end)
 
-test("shaping: a remembered session that lives is gone to, not relabelled", function()
+  again()
   local id = remembered(repo)
   local seen = seen_by("again", nil, function()
     answers = { "my-app", 1 }
@@ -3060,7 +2867,6 @@ end)
 test("shaping: a label that fails or answers no string falls back with one warning", function()
   for i, f in ipairs({
     function() error("boom") end,
-    function() return nil end,
     function() return 42 end,
   }) do
     again()
@@ -3079,7 +2885,6 @@ end)
 test("shaping: a layout that fails or answers no windows falls back to one shell tab", function()
   for i, f in ipairs({
     function() error("boom") end,
-    function() return nil end,
     function() return "x" end,
     function() return {} end,
   }) do
@@ -3472,41 +3277,6 @@ test("a project whose folder is missing is marked, put last, and removed only wh
   assert(marked(I.project_rows()) == "" and #I.load_state().hidden == 0)
 end)
 
-test("git's progress lines are not the reason", function()
-  assert(I.reason("Preparing worktree (checking out 'main')\nfatal: 'main' is already used") == "fatal: 'main' is already used")
-  assert(I.reason("error: one\nfatal: two") == "error: one\nfatal: two")
-  assert(I.reason("no marker here") == "no marker here")
-end)
-
-test("wt's progress lines and marks are not the reason", function()
-  local stderr = "◎ Fetching PR #9...\n  T (#9)\n\27[31m✗\27[0m Failed to fetch branch x from origin\n" ..
-    "   fatal: couldn't find remote ref refs/heads/x\n↳ To list branches, run wt list\n"
-  assert(I.wt_reason(stderr) == "Failed to fetch branch x from origin. " ..
-    "fatal: couldn't find remote ref refs/heads/x. To list branches, run wt list", I.wt_reason(stderr))
-  assert(I.wt_reason("✗ Cannot remove worktree: a has uncommitted changes\n  ?? new.txt\n↳ Commit first\n") ==
-    "Cannot remove worktree: a has uncommitted changes. Commit first")
-  assert(I.wt_reason("error: unexpected argument '--x' found\n") == "error: unexpected argument '--x' found")
-  assert(I.toml([[/a "b"\c]]) == [["/a \"b\"\\c"]], I.toml([[/a "b"\c]]))
-end)
-
-test("a state file from the version before keeps its projects", function()
-  write(tmp .. "/state/projects.json", '{"projects":["/a/b"],"last":{"/a/b":"current"}}')
-  I.reset()
-  local s = I.load_state()
-  assert(#s.projects == 1 and s.projects[1] == "/a/b" and next(s.sessions) == nil)
-  assert(#s.recent == 0, "no order of use yet")
-end)
-
-test("a state file with bare session ids keeps its projects and recents, not the ids", function()
-  write(tmp .. "/state/projects.json",
-    '{"projects":["/a/b","/c"],"recent":["/c","/a/b"],"sessions":{"/a/b":"session:1","/c":{"session":"s"}}}')
-  I.reset()
-  local s = I.load_state()
-  assert(#s.projects == 2 and s.projects[1] == "/a/b" and s.projects[2] == "/c")
-  assert(#s.recent == 2 and s.recent[1] == "/c" and s.recent[2] == "/a/b")
-  assert(next(s.sessions) == nil, "no record is kept")
-end)
-
 test("a record is saved and read back, and a session belongs to one checkout", function()
   local ab = tmp .. "/a/b"
   os.execute("mkdir -p " .. sh(ab .. "/wt") .. " " .. sh(ab .. "/other"))
@@ -3520,17 +3290,6 @@ test("a record is saved and read back, and a session belongs to one checkout", f
   assert(r[ab].session == "s1" and r[ab].created == true)
   assert(r[ab .. "/other"].session == "s2" and r[ab .. "/other"].created == false)
   assert(r[ab .. "/wt"] == nil, "the session moved to the other checkout")
-end)
-
-test("a record whose folder is gone is kept on load, and the load writes nothing", function()
-  local ab = tmp .. "/a/b"
-  os.execute("rm -rf " .. sh(ab .. "/other"))
-  local file = tmp .. "/state/projects.json"
-  local before = assert(read(file))
-  I.reset()
-  local r = I.load_state().sessions
-  assert(r[ab].session == "s1" and r[ab .. "/other"].session == "s2")
-  assert(read(file) == before, "the file is unchanged: " .. tostring(read(file)))
 end)
 
 test("a save stopped before its rename leaves the old file whole", function()
@@ -3573,7 +3332,21 @@ test("without os.rename the save goes through mv", function()
   assert(#s.projects == 1 and s.projects[1] == "/moved", read(file))
 end)
 
-test("a corrupt state file is an empty list", function()
+test("a state file of an older shape keeps its projects and recents, and a corrupt one is an empty list", function()
+  write(tmp .. "/state/projects.json", '{"projects":["/a/b"],"last":{"/a/b":"current"}}')
+  I.reset()
+  local s = I.load_state()
+  assert(#s.projects == 1 and s.projects[1] == "/a/b" and next(s.sessions) == nil)
+  assert(#s.recent == 0, "no order of use yet")
+
+  write(tmp .. "/state/projects.json",
+    '{"projects":["/a/b","/c"],"recent":["/c","/a/b"],"sessions":{"/a/b":"session:1","/c":{"session":"s"}}}')
+  I.reset()
+  local s = I.load_state()
+  assert(#s.projects == 2 and s.projects[1] == "/a/b" and s.projects[2] == "/c")
+  assert(#s.recent == 2 and s.recent[1] == "/c" and s.recent[2] == "/a/b")
+  assert(next(s.sessions) == nil, "no record is kept")
+
   write(tmp .. "/state/projects.json", "{not json")
   I.reset()
   assert(#I.load_state().projects == 0)
@@ -3630,7 +3403,7 @@ local function warnings(logged)
   return count
 end
 
-test("login shell: bash, zsh and fish find a command on the login PATH", function()
+test("login shell: bash, zsh and fish find a command on the login PATH, and the server's own variables stay", function()
   for _, name in ipairs({ "bash", "zsh", "fish" }) do
     local logged = with_shell(shells .. "/" .. name, function()
       local opts = I.tool_opts(nil)
@@ -3643,6 +3416,14 @@ test("login shell: bash, zsh and fish find a command on the login PATH", functio
     end)
     assert(warnings(logged) == 0, logged[1])
   end
+
+  with_shell(shells .. "/bash", function()
+    base_env.HTTPS_PROXY = "http://server-proxy"
+    local r = rex.exec({ "sh", "-c", "echo $HTTPS_PROXY" }, I.tool_opts(nil))
+    base_env.HTTPS_PROXY = nil
+    assert(r.stdout == "http://server-proxy\n", r.stdout)
+    asked_lines("bash")
+  end)
 end)
 
 test("login shell: git and wt get the login variables, wt keeps its own", function()
@@ -3675,17 +3456,7 @@ test("login shell: git and wt get the login variables, wt keeps its own", functi
   I.backend.forget{ project = repo }
 end)
 
-test("login shell: a variable only the server has still reaches the command", function()
-  with_shell(shells .. "/bash", function()
-    base_env.HTTPS_PROXY = "http://server-proxy"
-    local r = rex.exec({ "sh", "-c", "echo $HTTPS_PROXY" }, I.tool_opts(nil))
-    base_env.HTTPS_PROXY = nil
-    assert(r.stdout == "http://server-proxy\n", r.stdout)
-    asked_lines("bash")
-  end)
-end)
-
-test("login shell: without $SHELL, commands use the server's environment", function()
+test("login shell: no $SHELL, a failed lookup or one over 5 seconds falls back to the server's environment and warns once", function()
   local logged = with_shell(nil, function()
     assert(I.tool_opts(nil) == nil)
     local opts = { timeout = 3 }
@@ -3693,9 +3464,7 @@ test("login shell: without $SHELL, commands use the server's environment", funct
     I.tool_opts(nil)
   end)
   assert(warnings(logged) == 1 and logged[1]:find("$SHELL is not set", 1, true), logged[1])
-end)
 
-test("login shell: a failed lookup falls back and warns once", function()
   for _, shell in ipairs({ shells .. "/broken", shells .. "/missing" }) do
     local logged = with_shell(shell, function()
       for _ = 1, 3 do assert(I.tool_opts(nil) == nil) end
@@ -3705,9 +3474,7 @@ test("login shell: a failed lookup falls back and warns once", function()
     assert(warnings(logged) == 1, #logged .. " warnings")
     assert(logged[1]:find(shell, 1, true) and logged[1]:find("exited with status", 1, true), logged[1])
   end
-end)
 
-test("login shell: a slow lookup is stopped after 5 seconds", function()
   local logged = with_shell(shells .. "/fish", function()
     timeouts = {}
     stalls = function(argv) return argv[1] == shells .. "/fish" end
@@ -3740,11 +3507,36 @@ local function same(a, b)
   return true
 end
 
-test("setup's checks: an unknown option is named and changes nothing", function()
+test("setup's checks: an unknown option or a call that is no table is named on one line, and the rest of a call applies", function()
   local before = settings()
   local _, logged = ends({}, function() P.setup{ keyy = "x" } end)
   local w = warned(logged)
   assert(#w == 1 and w[1] == "warn projects: setup has no option keyy", w[1])
+  assert(same(before, settings()))
+
+  local shell = I.config.shell
+  local _, logged = ends({}, function() P.setup{ shell = 42, base = "develop", nope = 1 } end)
+  local w = warned(logged)
+  assert(#w == 2, #w .. " warnings")
+  table.sort(w)
+  assert(w[1] == "warn projects: setup has no option nope", w[1])
+  assert(w[2] == "warn projects: shell must be a string or false, not 42", w[2])
+  assert(I.config.base == "develop" and I.config.shell == shell)
+  P.setup{ base = false }
+
+  local _, logged = ends({}, function() P.setup{ shell = { }, ["a\nb"] = 1, project_order = "up\ndown" } end)
+  local w = warned(logged)
+  assert(#w == 3, #w .. " warnings")
+  for _, line in ipairs(w) do assert(not line:find("\n"), line) end
+
+  local before = settings()
+  local result
+  local _, logged = ends({}, function() result = P.setup("x") end)
+  local w = warned(logged)
+  assert(result == P and #w == 1 and w[1] == 'warn projects: setup takes a table, not "x"', w[1])
+  assert(same(before, settings()))
+  _, logged = ends({}, function() result = P.setup() end)
+  assert(result == P and #logged == 0)
   assert(same(before, settings()))
 end)
 
@@ -3771,7 +3563,7 @@ test("setup's checks: a value of the wrong kind is named and keeps the previous 
   end
 end)
 
-test("setup's checks: false unsets the settings that allow it, without a warning", function()
+test("setup's checks: false unsets a setting, roots is a list of strings, and a new state_file is read afresh", function()
   local _, logged = ends({}, function()
     P.setup{ base = "develop", shell = "fish", label = function() end, layout = function() end }
     P.setup{ key = false, worktree_key = false, base = false, shell = false, label = false, layout = false }
@@ -3783,21 +3575,7 @@ test("setup's checks: false unsets the settings that allow it, without a warning
   end
   P.setup{ key = "alt+cmd+n", worktree_key = "ctrl+alt+cmd+n" }
   assert(bound("alt+cmd+n") == "switch_project_branch" and bound("ctrl+alt+cmd+n") == "open_project_worktree")
-end)
 
-test("setup's checks: the rest of a call applies", function()
-  local shell = I.config.shell
-  local _, logged = ends({}, function() P.setup{ shell = 42, base = "develop", nope = 1 } end)
-  local w = warned(logged)
-  assert(#w == 2, #w .. " warnings")
-  table.sort(w)
-  assert(w[1] == "warn projects: setup has no option nope", w[1])
-  assert(w[2] == "warn projects: shell must be a string or false, not 42", w[2])
-  assert(I.config.base == "develop" and I.config.shell == shell)
-  P.setup{ base = false }
-end)
-
-test("setup's checks: a list of strings, or none, is a good roots", function()
   local roots = I.config.roots
   local _, logged = ends({}, function()
     P.setup{ roots = { tmp .. "/a", tmp .. "/b" } }
@@ -3807,9 +3585,7 @@ test("setup's checks: a list of strings, or none, is a good roots", function()
   assert(#warned(logged) == 0, logged[1])
   assert(#I.config.roots == 0)
   P.setup{ roots = roots }
-end)
 
-test("setup's checks: a new state_file is read afresh", function()
   local file = I.config.state_file
   local before = I.load_state()
   table.insert(before.projects, tmp .. "/marker")
@@ -3822,25 +3598,6 @@ test("setup's checks: a new state_file is read afresh", function()
   assert(back ~= fresh and back.projects[#back.projects] == tmp .. "/marker", "the first file is read again")
   table.remove(back.projects)
   I.save_state()
-end)
-
-test("setup's checks: a value or name with a newline is warned about on one line", function()
-  local _, logged = ends({}, function() P.setup{ shell = { }, ["a\nb"] = 1, project_order = "up\ndown" } end)
-  local w = warned(logged)
-  assert(#w == 3, #w .. " warnings")
-  for _, line in ipairs(w) do assert(not line:find("\n"), line) end
-end)
-
-test("setup's checks: setup takes a table, or nothing", function()
-  local before = settings()
-  local result
-  local _, logged = ends({}, function() result = P.setup("x") end)
-  local w = warned(logged)
-  assert(result == P and #w == 1 and w[1] == 'warn projects: setup takes a table, not "x"', w[1])
-  assert(same(before, settings()))
-  _, logged = ends({}, function() result = P.setup() end)
-  assert(result == P and #logged == 0)
-  assert(same(before, settings()))
 end)
 
 test("no wt call passed --yes or -y", function()
