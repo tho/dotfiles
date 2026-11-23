@@ -1804,6 +1804,123 @@ test("records: a worktree folder set through a link is kept by git's spelling, f
   os.remove(link)
 end)
 
+-- opens runs open_project_session for path, as wt's post-switch hook does
+-- from a terminal whose Rex session is ctx's. ctx names another host too,
+-- which the action must not reach.
+local function opens(path, pr, ctx)
+  local from = { server = "studio" }
+  for k, v in pairs(ctx or {}) do from[k] = v end
+  actions.open_project_session.run(from, { path = path, pr = pr })
+  for _, c in ipairs(calls) do assert(c[3] == nil, c[1] .. " went to another server") end
+end
+
+-- switched makes the worktree of a new branch the way wt switch --create
+-- does in a terminal, and returns its folder. dropped removes such
+-- worktrees, their branches, records and sessions, as later tests expect.
+local function switched(branch)
+  local dir = tmp .. "/terminal-wt/" .. branch
+  git(repo, "worktree", "add", "-q", "-b", branch, dir)
+  return dir
+end
+local function dropped(...)
+  for _, branch in ipairs({ ... }) do
+    local dir = branch == "sw-d" and wt .. "/sw-d" or tmp .. "/terminal-wt/" .. branch
+    close_kept(dir)
+    I.backend.forget_record{ path = dir }
+    git(repo, "worktree", "remove", "--force", dir)
+    git(repo, "branch", "-D", branch)
+  end
+end
+
+test("open hook: wt switch in a terminal opens the worktree's session, and again goes back", function()
+  assert(actions.open_project_session.category == "Internal")
+  -- As after a restart: the Open Worktree runs above leave no mark.
+  I.reset()
+  local dir = switched("sw-a")
+  opens(dir)
+  local s = selected()
+  assert(created() == 1 and s.label == "my-app · sw-a", tostring(s.label))
+  assert(s.cwd == dir and remembered(dir) == s.session_id and record(dir).created == true)
+  again()
+  opens(dir .. "/")
+  assert(created() == 0 and selected() == s, "the same session")
+  dropped("sw-a")
+end)
+
+test("open hook: the main checkout goes to the project's session, a PR to #N", function()
+  local main = remembered(repo)
+  if main == nil or session(nil, main) == nil then
+    answers = { "my-app", 1 }
+    I.switch_run({})
+    main = selected().session_id
+    again()
+  end
+  opens(repo)
+  assert(created() == 0 and selected().session_id == main)
+  again()
+  local dir = switched("sw-pr")
+  opens(dir, "7")
+  assert(created() == 1 and selected().label == "my-app · #7", selected().label)
+  dropped("sw-pr")
+end)
+
+test("open hook: the terminal's own session is adopted when it is inside the checkout", function()
+  local dir = switched("sw-b")
+  local mine = open_session(nil, "bright-hill", dir)
+  mine.attached = true
+  opens(dir, nil, { session_id = mine.session_id, block_id = mine.block_id })
+  assert(created() == 0 and mine.label == "my-app · sw-b", mine.label)
+  assert(selected() == mine and record(dir).created == false)
+  again()
+  local other = switched("sw-c")
+  opens(other, nil, { session_id = mine.session_id, block_id = mine.block_id })
+  assert(created() == 1 and selected() ~= mine and mine.label == "my-app · sw-b",
+    "a terminal elsewhere gets a new session")
+  dropped("sw-b", "sw-c")
+end)
+
+test("open hook: a path in no checkout, or none, does nothing", function()
+  local file = tmp .. "/state/projects.json"
+  local before = read(file)
+  opens(plain)
+  opens(tmp .. "/never-there")
+  opens("")
+  opens(nil)
+  actions.open_project_session.run({}, nil)
+  assert(#calls == 0 and #queued == 0 and read(file) == before)
+end)
+
+test("open hook: Open Worktree's own wt switch carries REX_PROJECTS, which the hook snippet skips on", function()
+  envs = {}
+  answers = { "my-app", { text = "sw-d" }, 1 }
+  I.worktree_run({})
+  local marked = 0
+  for _, e in ipairs(envs) do
+    if e.argv[1] == "wt" then
+      assert(e.env.REX_PROJECTS == "1", table.concat(e.argv, " "))
+      if e.argv[4] == "switch" then marked = marked + 1 end
+    end
+  end
+  assert(marked == 1, "the switch is marked")
+  dropped("sw-d")
+end)
+
+test("open hook: a repository not on the list gets its session, and the list stays", function()
+  local dir = tmp .. "/elsewhere/solo"
+  os.execute("mkdir -p " .. sh(dir))
+  git(dir, "init", "-q", "-b", "main")
+  commit(dir, "f", "0\n", "init")
+  git(dir, "worktree", "add", "-q", "-b", "side", tmp .. "/elsewhere/solo-side")
+  local before = table.concat(I.load_state().recent, "\n")
+  opens(tmp .. "/elsewhere/solo-side")
+  assert(created() == 1 and selected().label == "solo · side", selected().label)
+  opens(dir)
+  assert(created() == 2 and selected().label == "solo")
+  assert(table.concat(I.load_state().recent, "\n") == before, "not marked used")
+  close_kept(dir)
+  close_kept(tmp .. "/elsewhere/solo-side")
+end)
+
 test("a session that cannot be made ends Open Worktree with projects: and the reason", function()
   create_fails = "boom"
   local message, logged = ends({ "my-app", { text = "boom-a" }, 1 }, I.worktree_run, {})
@@ -2551,8 +2668,11 @@ test("worktree: on another host a pull request opens there, with the network's t
   -- Every other wt command is kept off the network.
   local off = 0
   for _, e in ipairs(envs) do
-    assert(e.relayed and e.argv[1] == "wt" and e.env.GIT_ALLOW_PROTOCOL == "none", table.concat(e.argv, " "))
-    off = off + 1
+    assert(e.relayed and e.argv[1] == "wt", table.concat(e.argv, " "))
+    if e.argv[#e.argv] ~= "pr:8" then
+      assert(e.env.GIT_ALLOW_PROTOCOL == "none", table.concat(e.argv, " "))
+      off = off + 1
+    end
   end
   assert(off >= 1, "wt found the default branch off the network")
 

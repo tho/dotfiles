@@ -27,7 +27,8 @@
 -- record back. session_for, in the actions, finds, adopts or creates the
 -- session; close_session is the one close path, and it closes only a
 -- session rex-projects created; close_project_session, for wt's post-remove
--- hook, takes it on its own host. Records are hints that git, wt or a person
+-- hook, takes it on its own host, and open_project_session, for post-switch,
+-- goes through session_for there. Records are hints that git, wt or a person
 -- can outdate at any time, so each is checked before use.
 --
 -- git and wt run through rex.exec with argument lists, with PATH and a
@@ -471,6 +472,15 @@ local function wt_reason(stderr)
   return out
 end
 
+-- wt_exec runs wt in project with REX_PROJECTS=1, which wt's hooks inherit,
+-- so a user hook can tell rex-projects' wt runs from a terminal's.
+local function wt_exec(project, opts, ...)
+  local marked = { env = { REX_PROJECTS = "1" } }
+  for k, v in pairs(opts or {}) do if k ~= "env" then marked[k] = v end end
+  for k, v in pairs(opts and opts.env or {}) do marked.env[k] = v end
+  return rex.exec({ "wt", "-C", project, ... }, tool_opts(marked))
+end
+
 -- wt_in runs wt in project and returns rex.exec's result, or nil and why,
 -- and true as well when the command was stopped for taking too long.
 --
@@ -491,7 +501,7 @@ local function wt_in(project, network, ...)
       opts = { env = { GIT_ALLOW_PROTOCOL = "none" } }
     end
   end
-  local r, err = rex.exec({ "wt", "-C", project, ... }, tool_opts(opts))
+  local r, err = wt_exec(project, opts, ...)
   if r == nil or r.code == 127 then
     return nil, "wt did not run (" .. tostring(err or trim(r and r.stderr or "")) ..
       "). The Projects actions need worktrunk (https://worktrunk.dev) on PATH (the login shell's)."
@@ -1514,6 +1524,39 @@ function backend.open_worktree(a)
   return r
 end
 
+-- open_checkout says where to work for the checkout that holds a.path, for
+-- wt's post-switch hook: the project's own folder for its main checkout,
+-- else the worktree, labelled as open_worktree labels it, a.pr being the
+-- pull request wt switched to. The project goes by the list's spelling when
+-- it is listed, and is then marked used. a.from and a.cwd are as for
+-- open_worktree.
+--
+-- It answers { dir, label, session, adopt, ... } (see landing), or {} for a
+-- path in no checkout.
+function backend.open_checkout(a)
+  local path = type(a.path) == "string" and expand(a.path):gsub("/+$", "") or ""
+  if path == "" then return {} end
+  local top = toplevel(path)
+  local trees = top and worktrees(top)
+  if trees == nil or trees[1] == nil then return {} end
+  local main = trees[1].path
+  local found = containing((listed()), main)
+  local listed_as = found ~= nil and (found == main or real(found) == main) and found or nil
+  local project = listed_as or main
+  local title = basename(project)
+  local pr = type(a.pr) == "string" and a.pr:match("^%d+$") or nil
+  local from = { project = project, from = a.from, cwd = a.cwd }
+  local r
+  if top == main then
+    r = landing(project, title, from, true, pr)
+  else
+    local label = title .. " · " .. (pr and "#" .. pr or current_branch(top) or basename(top))
+    r = landing(top, label, from, true, pr)
+  end
+  if listed_as ~= nil then mark_used(listed_as) end
+  return r
+end
+
 -- keep remembers a.session as the session of the checkout in a.dir, and
 -- a.created, whether rex-projects made it.
 function backend.keep(a)
@@ -2168,6 +2211,20 @@ local function close_run(_, args)
   if r.record then close_session(rex, r.record) end
 end
 
+-- open_run goes to the session of the checkout at args.path, on this host,
+-- making it when needed, as Open Worktree does.
+local function open_run(ctx, args)
+  local path = args and args.path
+  if type(path) ~= "string" or trim(path) == "" then return end
+  -- The terminal wt ran in, when it is a Rex one; the server is this host's.
+  local here = { session_id = ctx and ctx.session_id, block_id = ctx and ctx.block_id }
+  local call = connect(here)
+  local r = call("open_checkout", { path = path, pr = args.pr,
+    from = here.session_id, cwd = terminal_dir(here, rex) })
+  if r.dir == nil then return end
+  session_for(here, call, rex, r)
+end
+
 rex.action{
   name = "remove_project",
   title = "Remove Project from List…",
@@ -2184,6 +2241,15 @@ rex.action{
   category = "Internal",
   args = { path = "string?" },
   run = close_run,
+}
+
+rex.action{
+  name = "open_project_session",
+  title = "Projects: Open Checkout Session",
+  description = "Go to the session of the checkout at path, making it when needed; for wt's post-switch hook",
+  category = "Internal",
+  args = { path = "string?", pr = "string?" },
+  run = open_run,
 }
 
 ---------------------------------------------------------------------------

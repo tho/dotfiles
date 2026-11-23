@@ -106,9 +106,20 @@ To close the session when you run `wt remove` in a terminal, add to `~/.config/w
 rex = "rex do close_project_session path={{ worktree_path }}"
 ```
 
+To go to the checkout's session when you run `wt switch` in a terminal, creating a worktree or not, add:
+
+```toml
+[post-switch]
+rex = '[ -n "$REX_PROJECTS" ] || rex do open_project_session path={{ worktree_path }}{% if pr_number %} pr={{ pr_number }}{% endif %}'
+```
+
+The session is found or made as in [Sessions](#sessions), with the same labels as Open Worktree, and the app switches to it (the app takes this from the CLI only with Remote Control on; on a remote host, see the known issue under [Install](#install)). A folder in no repository does nothing. rex-projects runs wt with `REX_PROJECTS=1`, so the hook skips Open Worktree's own `wt switch`, which opens the session itself.
+
+With wt's default `cd = true` your terminal follows wt into the worktree, so whether its session is adopted depends on whether the shell got there before the hook asked. Add `[switch] cd = false` to keep the terminal where it is; the checkout's session has its own terminal there.
+
 ## Limits
 
-- On a remote host each step must answer within 10 seconds; network calls (`git fetch`, and `wt switch` and `wt remove`, which run hooks and, for `pr:N`, gh) share 8 of them. Other remote `wt` calls run with `GIT_ALLOW_PROTOCOL=none`, so wt guesses the default branch locally; run `wt config state default-branch clear` to reset it.
+- On a remote host each step must answer within 10 seconds; network calls (`git fetch`, and `wt switch` and `wt remove`, which run hooks and, for `pr:N`, gh) share 8 of them. Other remote `wt` calls run with `GIT_ALLOW_PROTOCOL=none`, so when the repo doesn't name its default branch (no `<remote>/HEAD`) wt guesses it from local branches and records it; run `wt config state default-branch clear` to reset it.
 - A worktree deleted by hand stays stale until `git worktree prune` or Clean Up.
 
 ## Tests
