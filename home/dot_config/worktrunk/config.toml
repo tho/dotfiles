@@ -1,3 +1,6 @@
+[switch]
+cd = false
+
 [post-switch]
 rex = '[ -n "$REX_PROJECTS" ] || rex do open_project_session path={{ worktree_path }}{% if pr_number %} pr={{ pr_number }}{% endif %}'
 

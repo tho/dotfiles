@@ -100,14 +100,7 @@ wt hooks run for every branch Open Worktree opens and Clean Up removes, PRs and 
 
 Clean Up runs `wt remove --foreground --delete-branch <branch>` (never `--force`). wt refuses dirty worktrees. If the branch has unmerged changes you choose **Keep** or **Force delete**. The session is closed once git no longer lists the worktree.
 
-To close the session when you run `wt remove` in a terminal, add to `~/.config/worktrunk/config.toml`:
-
-```toml
-[post-remove]
-rex = "rex do close_project_session path={{ worktree_path }}"
-```
-
-To go to the checkout's session when you run `wt switch` in a terminal, creating a worktree or not, add:
+To go to the checkout's session when you run `wt switch` in a terminal, creating a worktree or not, add to `~/.config/worktrunk/config.toml`:
 
 ```toml
 [post-switch]
@@ -117,6 +110,13 @@ rex = '[ -n "$REX_PROJECTS" ] || rex do open_project_session path={{ worktree_pa
 The session is found or made as in [Sessions](#sessions), with the same labels as Open Worktree, and the app switches to it (the app takes this from the CLI only with Remote Control on; on a remote host, see the known issue under [Install](#install)). A folder in no repository does nothing. rex-projects runs wt with `REX_PROJECTS=1`, so the hook skips Open Worktree's own `wt switch`, which opens the session itself.
 
 With wt's default `cd = true` your terminal follows wt into the worktree, so whether its session is adopted depends on whether the shell got there before the hook asked. Add `[switch] cd = false` to keep the terminal where it is; the checkout's session has its own terminal there.
+
+To close the session when you run `wt remove` in a terminal, add:
+
+```toml
+[post-remove]
+rex = "rex do close_project_session path={{ worktree_path }}"
+```
 
 ## Limits
 
