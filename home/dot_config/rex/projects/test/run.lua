@@ -1852,6 +1852,21 @@ test("records: a worktree folder set through a link is kept by git's spelling, f
   os.remove(link)
 end)
 
+test("worktree: without the worktrees option, wt's own worktree-path decides the folder", function()
+  local own = tmp .. "/wt-own/my-app.own-path"
+  I.config.worktrees = nil
+  local ok, err = pcall(with_hooks, 'worktree-path = "' .. tmp .. '/wt-own/{{ repo }}.{{ branch | sanitize }}"\n', function()
+    answers = { "my-app", { text = "own/path" }, 1 }
+    I.worktree_run({})
+  end)
+  I.config.worktrees = tmp .. "/wt"
+  assert(ok, err)
+  assert(exists(own) and not exists(wt .. "/own-path"), "made where wt's config says")
+  local id = selected().session_id
+  in_terminal(repo, "wt", "remove", "--foreground", "--no-hooks", "own/path")
+  close(nil, id)
+end)
+
 -- opens runs open_project_session for path, as wt's post-switch hook does
 -- from a terminal whose Rex session is ctx's. ctx names another host too,
 -- which the action must not reach.

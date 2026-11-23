@@ -57,7 +57,7 @@ local config = {
   base = nil, -- what a new branch starts from unless another is chosen; nil
   -- means the default branch that wt finds
   shell = nil, -- nil means the account's default shell
-  worktrees = nil, -- nil means <home>/.rex/worktrees
+  worktrees = nil, -- nil leaves the folder to wt's worktree-path
   roots = {},
   project_order = "recent", -- the project picker's order: "recent" or "name"
   branch_order = "recent", -- the branch lists' order: "recent" (newest commit) or "name"
@@ -152,13 +152,6 @@ end
 local function or_status(message, tool, r)
   if message ~= "" then return message end
   return tool .. " exited with status " .. tostring(r.code)
-end
-
--- worktrees_dir is the folder that new worktrees are made in, as
--- <dir>/<repository>/<branch>; see worktree_path.
-local function worktrees_dir()
-  if config.worktrees then return expand(config.worktrees) end
-  return home .. "/.rex/worktrees"
 end
 
 -- real returns dir as the system spells it, with every symbolic link
@@ -566,11 +559,14 @@ local function toml(s)
   return '"' .. escaped .. '"'
 end
 
--- worktree_path is the --config-set that puts a new worktree in
+-- worktree_args returns the --config-set that puts a new worktree in
 -- <worktrees>/<repository>/<branch>, a slash in the branch written as a
--- dash. It goes with every wt switch, over what wt's own config says.
-local function worktree_path()
-  return "worktree-path=" .. toml(worktrees_dir() .. "/{{ repo }}/{{ branch | sanitize }}")
+-- dash, over what wt's own config says. Without the worktrees option it is
+-- empty and wt's worktree-path decides.
+local function worktree_args()
+  if not config.worktrees then return {} end
+  local dir = expand(config.worktrees)
+  return { "--config-set", "worktree-path=" .. toml(dir .. "/{{ repo }}/{{ branch | sanitize }}") }
 end
 
 -- is_repo_root says whether dir is the top folder of a repository. It asks for
@@ -1151,8 +1147,9 @@ end
 -- its branch. Else it returns nil and wt's message, and true as well when wt
 -- was stopped for taking too long.
 local function switch_worktree(project, ...)
-  local r, err, stopped = wt(project, "switch", "--no-cd", "--format=json",
-    "--config-set", worktree_path(), ...)
+  local args = worktree_args()
+  for _, a in ipairs({ ... }) do args[#args + 1] = a end
+  local r, err, stopped = wt(project, "switch", "--no-cd", "--format=json", unpack(args))
   if r == nil then return nil, err, stopped end
   local co = { dir = tostring(r.path or ""), branch = r.branch }
   -- wt may spell the folder differently from git (a symlink such as /tmp),

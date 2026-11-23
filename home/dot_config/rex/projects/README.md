@@ -40,7 +40,7 @@ require("projects").setup{
   worktree_key  = "ctrl+alt+cmd+n",         -- Open Worktree; false binds no key
   base          = "main",                   -- default base for new branches; default: wt's default branch
   shell         = "/opt/homebrew/bin/fish", -- shell of new sessions; default: the account's shell
-  worktrees     = "~/.rex/worktrees",       -- worktrees go in <dir>/<repo>/<branch, / as ->
+  worktrees     = "~/.rex/worktrees",       -- worktrees go in <dir>/<repo>/<branch, / as ->; default: wt's worktree-path
   roots         = { "~/src" },              -- repositories in these folders are listed automatically
   project_order = "recent",                 -- "recent" or "name"
   branch_order  = "recent",                 -- "recent" (newest commit first) or "name"
